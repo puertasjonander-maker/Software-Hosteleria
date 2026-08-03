@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tokens de Mise.
+ *
+ * Paleta corta a propósito: neutros cálidos + tres colores con significado
+ * (primario para acción, `ok` para dato real, `warn` para dato estimado o corte
+ * próximo, destructivo para vencido o incidencia). Si un color no significa
+ * nada, no está.
+ */
+
+@layer base {
+  :root {
+    --background: 40 30% 98%;
+    --foreground: 25 20% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 25 20% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 25 20% 12%;
+
+    --primary: 25 45% 22%;
+    --primary-foreground: 40 30% 98%;
+
+    --secondary: 35 25% 93%;
+    --secondary-foreground: 25 30% 20%;
+
+    --muted: 35 20% 94%;
+    --muted-foreground: 25 10% 42%;
+
+    --accent: 35 30% 91%;
+    --accent-foreground: 25 30% 20%;
+
+    --destructive: 0 68% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warn: 32 85% 36%;
+    --warn-foreground: 0 0% 100%;
+
+    --ok: 152 45% 30%;
+    --ok-foreground: 0 0% 100%;
+
+    --border: 30 15% 87%;
+    --input: 30 15% 84%;
+    --ring: 25 45% 32%;
+
+    --radius: 0.6rem;
+  }
+
+  .dark {
+    --background: 25 15% 9%;
+    --foreground: 40 20% 94%;
+
+    --card: 25 14% 12%;
+    --card-foreground: 40 20% 94%;
+
+    --popover: 25 14% 12%;
+    --popover-foreground: 40 20% 94%;
+
+    --primary: 35 45% 72%;
+    --primary-foreground: 25 30% 12%;
+
+    --secondary: 25 12% 18%;
+    --secondary-foreground: 40 20% 94%;
+
+    --muted: 25 12% 18%;
+    --muted-foreground: 35 12% 65%;
+
+    --accent: 25 12% 22%;
+    --accent-foreground: 40 20% 94%;
+
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warn: 38 80% 60%;
+    --warn-foreground: 25 30% 12%;
+
+    --ok: 152 40% 55%;
+    --ok-foreground: 25 30% 12%;
+
+    --border: 25 12% 24%;
+    --input: 25 12% 26%;
+    --ring: 35 45% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    /* Sin ajuste automático de tamaño al girar el móvil. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    /* La app se usa con prisa: un rebote elástico al final de la lista hace
+       pensar que hay más contenido del que hay. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Respeta el notch y la barra de gestos cuando está instalada como PWA. */
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Nadie quiere seleccionar texto al pulsar rápido un stepper. */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  /* Cabecera de sección pegajosa en listas largas de catálogo. */
+  .sticky-cat {
+    position: sticky;
+    top: var(--sticky-offset, 0px);
+    z-index: 10;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

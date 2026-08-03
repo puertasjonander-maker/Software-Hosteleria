@@ -1,0 +1,53 @@
+{
+  "name": "Mise · Aprovisionamiento",
+  "short_name": "Mise",
+  "description": "Registrar faltas, agrupar pedidos por proveedor y recibir mercancía.",
+  "start_url": "/pedir",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf7f2",
+  "theme_color": "#faf7f2",
+  "lang": "es-ES",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "food"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Registrar una falta",
+      "short_name": "Pedir",
+      "url": "/pedir",
+      "description": "Marcar qué producto falta en tu local"
+    },
+    {
+      "name": "Pedidos por proveedor",
+      "short_name": "Pedidos",
+      "url": "/pedidos"
+    }
+  ]
+}

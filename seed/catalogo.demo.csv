@@ -1,0 +1,32 @@
+proveedor,canal,contacto,dia_pedido,hora_corte,dia_entrega,plazo_dias,producto,categoria,unidad_pedido,unidad_base,unidades_por_pedido,ultimo_precio,locales
+DEMO · Tostador Ejemplo,whatsapp,+34600000001,1,11:00,3,2,Café espresso blend,café,saco 1 kg,kg,1,18.5000,todos
+DEMO · Tostador Ejemplo,whatsapp,+34600000001,1,11:00,3,2,Café filtro origen,café,saco 1 kg,kg,1,24.0000,todos
+DEMO · Tostador Ejemplo,whatsapp,+34600000001,1,11:00,3,2,Café descafeinado,café,saco 1 kg,kg,1,19.8000,todos
+DEMO · Lácteos Ejemplo,whatsapp,+34600000002,2,09:30,3,1,Leche entera,lácteos,caja 6 ud,l,6,0.9800,todos
+DEMO · Lácteos Ejemplo,whatsapp,+34600000002,2,09:30,3,1,Leche sin lactosa,lácteos,caja 6 ud,l,6,1.1500,todos
+DEMO · Lácteos Ejemplo,whatsapp,+34600000002,2,09:30,3,1,Bebida de avena barista,lácteos,caja 6 ud,l,6,1.6500,todos
+DEMO · Lácteos Ejemplo,whatsapp,+34600000002,2,09:30,3,1,Bebida de soja barista,lácteos,caja 6 ud,l,6,1.4200,Local Centro;Local Teatinos
+DEMO · Lácteos Ejemplo,whatsapp,+34600000002,5,09:30,6,1,Nata 35% MG,lácteos,caja 12 ud,l,12,2.1000,todos
+DEMO · Lácteos Ejemplo,whatsapp,+34600000002,2,09:30,3,1,Mantequilla sin sal,lácteos,caja 10 ud,kg,2.5,7.9000,todos
+DEMO · Obrador Ejemplo,whatsapp,+34600000003,1,20:00,2,1,Pan de masa madre,panadería,unidad,ud,1,2.3000,todos
+DEMO · Obrador Ejemplo,whatsapp,+34600000003,1,20:00,2,1,Focaccia bandeja,panadería,bandeja,ud,1,6.5000,todos
+DEMO · Obrador Ejemplo,whatsapp,+34600000003,4,20:00,5,1,Croissant congelado,panadería,caja 60 ud,ud,60,0.4200,todos
+DEMO · Obrador Ejemplo,whatsapp,+34600000003,4,20:00,5,1,Bollo de canela congelado,panadería,caja 40 ud,ud,40,0.6800,Local Centro;Local Puerto
+DEMO · Frutas Ejemplo,telefono,+34600000004,1,08:00,1,0,Aguacate,fruta,caja 4 kg,kg,4,3.9000,todos
+DEMO · Frutas Ejemplo,telefono,+34600000004,3,08:00,3,0,Aguacate,fruta,caja 4 kg,kg,4,3.9000,todos
+DEMO · Frutas Ejemplo,telefono,+34600000004,1,08:00,1,0,Tomate rama,fruta,caja 5 kg,kg,5,1.9500,todos
+DEMO · Frutas Ejemplo,telefono,+34600000004,1,08:00,1,0,Limón,fruta,caja 5 kg,kg,5,1.6000,todos
+DEMO · Frutas Ejemplo,telefono,+34600000004,1,08:00,1,0,Plátano,fruta,caja 10 kg,kg,10,1.4500,todos
+DEMO · Frutas Ejemplo,telefono,+34600000004,3,08:00,3,0,Espinaca baby,fruta,bolsa 1 kg,kg,1,5.2000,todos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Huevo campero,seco,estuche 30 ud,ud,30,0.2900,todos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Harina de trigo,seco,saco 5 kg,kg,5,1.1000,todos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Azúcar blanco,seco,saco 5 kg,kg,5,1.0500,todos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Sal fina,seco,saco 1 kg,kg,1,0.6500,todos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Aceite de oliva virgen extra,seco,garrafa 5 l,l,5,8.9000,todos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Sirope de vainilla,seco,botella 1 l,l,1,9.5000,Local Centro;Local Teatinos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Chocolate 70% cobertura,seco,saco 2.5 kg,kg,2.5,12.4000,todos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Vaso take away 12 oz,seco,caja 1000 ud,ud,1000,0.0850,todos
+DEMO · Distribución Ejemplo,email,pedidos@demo.invalid,3,12:00,5,2,Tapa vaso 12 oz,seco,caja 1000 ud,ud,1000,0.0450,todos
+DEMO · Limpieza Ejemplo,email,limpieza@demo.invalid,4,10:00,6,2,Detergente lavavajillas industrial,limpieza,garrafa 10 l,l,10,2.4000,todos
+DEMO · Limpieza Ejemplo,email,limpieza@demo.invalid,4,10:00,6,2,Bayeta multiusos,limpieza,paquete 10 ud,ud,10,0.6000,todos
+DEMO · Limpieza Ejemplo,email,limpieza@demo.invalid,4,10:00,6,2,Papel secamanos,limpieza,caja 20 ud,ud,20,1.3000,todos
