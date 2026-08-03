@@ -222,6 +222,14 @@ export type PushSubscriptionRow = {
   created_at: string
 }
 
+export type ReminderLogRow = {
+  id: string
+  supplier_id: string
+  audience: RolUsuario
+  sent_on: string
+  sent_at: string
+}
+
 // ── Vistas ───────────────────────────────────────────────────────────────────
 
 export type ProductCurrentPriceRow = {
@@ -425,6 +433,15 @@ export type Database = {
           endpoint: string
           p256dh: string
           auth: string
+        }
+      >
+      // Sin políticas RLS: solo lo toca el cron con la service role key.
+      reminder_log: Table<
+        ReminderLogRow,
+        Partial<ReminderLogRow> & {
+          supplier_id: string
+          audience: RolUsuario
+          sent_on: string
         }
       >
     }

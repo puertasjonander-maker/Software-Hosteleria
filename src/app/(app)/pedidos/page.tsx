@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EstadoError, EstadoVacio } from '@/components/ui/states'
 import { cn } from '@/lib/utils'
+import { ActivarAvisos } from '@/components/pwa/activar-avisos'
 import { BotonPreparar } from './boton-preparar'
 
 export const metadata: Metadata = { title: 'Pedidos' }
@@ -106,11 +107,14 @@ export default async function PaginaPedidos() {
 
   return (
     <div className="container max-w-3xl space-y-8 py-4">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
-        <p className="text-sm text-muted-foreground">
-          Lo que han pedido los tres locales, agrupado por proveedor.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
+          <p className="text-sm text-muted-foreground">
+            Lo que han pedido los tres locales, agrupado por proveedor.
+          </p>
+        </div>
+        <ActivarAvisos />
       </header>
 
       <section className="space-y-3">

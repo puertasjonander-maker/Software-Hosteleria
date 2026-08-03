@@ -5,6 +5,7 @@ import { exigirSesion } from '@/lib/auth'
 import { calcularCorte } from '@/lib/cutoff'
 import { EstadoError, EstadoVacio } from '@/components/ui/states'
 import { SelectorLocal } from '@/components/selector-local'
+import { ActivarAvisos } from '@/components/pwa/activar-avisos'
 import { ListaPedir, type ProductoPedible } from './lista-pedir'
 
 export const metadata: Metadata = { title: 'Pedir' }
@@ -141,11 +142,14 @@ export default async function PaginaPedir({
 
   return (
     <div className="container max-w-2xl space-y-4 py-4">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Pedir</h1>
-        <p className="text-sm text-muted-foreground">
-          Marca lo que falta. Se guarda solo, sin botón de guardar.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Pedir</h1>
+          <p className="text-sm text-muted-foreground">
+            Marca lo que falta. Se guarda solo, sin botón de guardar.
+          </p>
+        </div>
+        <ActivarAvisos />
       </header>
 
       {!esBarista ? (
