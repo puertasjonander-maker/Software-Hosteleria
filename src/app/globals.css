@@ -48,6 +48,56 @@
     --ring: 25 45% 32%;
 
     --radius: 0.6rem;
+
+    /*
+     * Colores de gráfico. Van aparte de los tokens de interfaz a propósito: un
+     * color de marca sirve para un botón, pero una serie de datos tiene que
+     * superar comprobaciones que un botón no tiene (banda de luminosidad,
+     * croma mínimo, separación bajo daltonismo y contraste contra la superficie
+     * del gráfico). Estos valores están validados para las dos superficies de
+     * Mise, así que no se cambian a ojo.
+     */
+    --chart-1: #2a78d6;
+    --chart-2: #eb6834;
+    --chart-surface: #fbf8f3;
+    --chart-grid: 30 15% 87%;
+  }
+
+  /*
+   * El equipo no tiene un selector de tema: la app sigue lo que diga el
+   * sistema. Sin esta media query, un móvil en modo oscuro vería la interfaz
+   * clara a las siete de la mañana en una barra a media luz.
+   */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --background: 25 15% 9%;
+      --foreground: 40 20% 94%;
+      --card: 25 14% 12%;
+      --card-foreground: 40 20% 94%;
+      --popover: 25 14% 12%;
+      --popover-foreground: 40 20% 94%;
+      --primary: 35 45% 72%;
+      --primary-foreground: 25 30% 12%;
+      --secondary: 25 12% 18%;
+      --secondary-foreground: 40 20% 94%;
+      --muted: 25 12% 18%;
+      --muted-foreground: 35 12% 65%;
+      --accent: 25 12% 22%;
+      --accent-foreground: 40 20% 94%;
+      --destructive: 0 62% 52%;
+      --destructive-foreground: 0 0% 100%;
+      --warn: 38 80% 60%;
+      --warn-foreground: 25 30% 12%;
+      --ok: 152 40% 55%;
+      --ok-foreground: 25 30% 12%;
+      --border: 25 12% 24%;
+      --input: 25 12% 26%;
+      --ring: 35 45% 60%;
+      --chart-1: #3987e5;
+      --chart-2: #d95926;
+      --chart-surface: #1a1512;
+      --chart-grid: 25 12% 24%;
+    }
   }
 
   .dark {
@@ -84,6 +134,13 @@
     --border: 25 12% 24%;
     --input: 25 12% 26%;
     --ring: 35 45% 60%;
+
+    /* Los mismos matices, re-escalonados para el fondo oscuro. No es un
+       inverso automático: se eligieron y validaron contra esta superficie. */
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-surface: #1a1512;
+    --chart-grid: 25 12% 24%;
   }
 }
 
