@@ -1,5 +1,6 @@
 import { exigirSesion } from '@/lib/auth'
 import { Navegacion } from '@/components/navegacion'
+import { TransicionPagina } from '@/components/transicion-pagina'
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const sesion = await exigirSesion()
@@ -12,7 +13,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         local={sesion.location?.name ?? null}
       />
       {/* pb-24 deja hueco a la barra inferior del móvil, que va fija. */}
-      <main className="flex-1 pb-24 md:pb-8">{children}</main>
+      <main className="flex-1 pb-24 md:pb-8">
+        <TransicionPagina>{children}</TransicionPagina>
+      </main>
     </div>
   )
 }

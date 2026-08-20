@@ -178,12 +178,54 @@
   }
 }
 
+/*
+ * Los siete escalones de la escala como clases, y no sueltos en cada pantalla.
+ * Cuando estaban sueltos, la misma cabecera de sección era `text-xs` en /pedir y
+ * `text-sm` en /pedidos: dos tamaños para el mismo trabajo.
+ */
+@layer components {
+  .titulo-pantalla {
+    @apply text-pantalla font-bold;
+  }
+
+  .titulo-seccion {
+    @apply text-seccion font-bold uppercase text-muted-foreground;
+  }
+
+  .titulo-tarjeta {
+    @apply text-tarjeta font-semibold;
+  }
+
+  /* Importes y cantidades. Tabular siempre: una columna de precios que baila
+     al cambiar de dígito no se puede comparar de un vistazo. */
+  .cifra-dato {
+    @apply text-dato font-semibold tabular-nums;
+  }
+
+  .texto-meta {
+    @apply text-meta text-muted-foreground;
+  }
+
+  .texto-micro {
+    @apply text-micro font-medium;
+  }
+}
+
 @layer utilities {
   /* Cabecera de sección pegajosa en listas largas de catálogo. */
   .sticky-cat {
     position: sticky;
     top: var(--sticky-offset, 0px);
     z-index: 10;
+  }
+}
+
+@keyframes fundido-reducido {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -194,5 +236,15 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /*
+   * Reducir no es apagar. Lo que aparece sigue apareciendo con un fundido
+   * corto: quitar el desplazamiento está bien, cortar en seco convierte cada
+   * navegación en un parpadeo. Gana por especificidad sobre el `*` de arriba.
+   */
+  .animate-entrada-pagina,
+  .animate-entrada-fila {
+    animation: fundido-reducido 120ms linear backwards !important;
   }
 }

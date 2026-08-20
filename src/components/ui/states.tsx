@@ -33,9 +33,9 @@ export function EstadoVacio({
     >
       <Icono className="h-8 w-8 text-muted-foreground" />
       <div className="space-y-1">
-        <p className="font-medium">{titulo}</p>
+        <p className="text-cuerpo font-semibold">{titulo}</p>
         {descripcion ? (
-          <p className="max-w-sm text-sm text-muted-foreground">{descripcion}</p>
+          <p className="max-w-sm text-meta text-muted-foreground">{descripcion}</p>
         ) : null}
       </div>
       {accion}
@@ -64,8 +64,8 @@ export function EstadoError({
     >
       <AlertTriangle className="h-8 w-8 text-destructive" />
       <div className="space-y-1">
-        <p className="font-medium">{titulo}</p>
-        <p className="max-w-sm text-sm text-muted-foreground">
+        <p className="text-cuerpo font-semibold">{titulo}</p>
+        <p className="max-w-sm text-meta text-muted-foreground">
           {descripcion ?? 'Puede ser un problema de red. Vuelve a intentarlo.'}
         </p>
       </div>
@@ -94,7 +94,7 @@ export function AvisoSinConexion({
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn',
+        'flex items-center gap-2 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-meta text-warn',
         className,
       )}
     >
@@ -110,7 +110,7 @@ export function AvisoSinConexion({
 /** Contador de datos insuficientes para el panel (MISE-007). */
 export function AvisoDatosInsuficientes({ mensaje }: { mensaje: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
+    <div className="flex items-start gap-2 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-meta text-warn">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
       <span>{mensaje}</span>
     </div>

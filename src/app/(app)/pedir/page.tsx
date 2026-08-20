@@ -5,6 +5,7 @@ import { exigirSesion } from '@/lib/auth'
 import { calcularCorte } from '@/lib/cutoff'
 import { EstadoError, EstadoVacio } from '@/components/ui/states'
 import { SelectorLocal } from '@/components/selector-local'
+import { RanuraCabecera } from '@/components/ranura-cabecera'
 import { ActivarAvisos } from '@/components/pwa/activar-avisos'
 import { ListaPedir, type ProductoPedible } from './lista-pedir'
 
@@ -141,19 +142,27 @@ export default async function PaginaPedir({
   const local = localesDisponibles.find((l) => l.id === localId)
 
   return (
-    <div className="container max-w-2xl space-y-4 py-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Pedir</h1>
-          <p className="text-sm text-muted-foreground">
-            Marca lo que falta. Se guarda solo, sin botón de guardar.
-          </p>
-        </div>
-        <ActivarAvisos />
+    <div className="container max-w-2xl space-y-3 py-3 md:py-4">
+      {/*
+       * En el móvil el título vive en la cabecera: la barra de abajo ya dice
+       * dónde estás, y repetirlo aquí costaba 60 px de catálogo. En escritorio
+       * sobra sitio y el `h1` se queda donde estaba.
+       */}
+      <header className="hidden md:block">
+        <h1 className="titulo-pantalla">Pedir</h1>
+        <p className="mt-1 texto-meta">Marca lo que falta. Se guarda solo, sin botón de guardar.</p>
       </header>
 
+      {/* El local es un ajuste de toda la pantalla, no un paso del flujo. */}
       {!esBarista ? (
-        <SelectorLocal locales={localesDisponibles} actual={localId} basePath="/pedir" />
+        <RanuraCabecera>
+          <SelectorLocal
+            locales={localesDisponibles}
+            actual={localId}
+            basePath="/pedir"
+            forma="chip"
+          />
+        </RanuraCabecera>
       ) : null}
 
       {items.length === 0 ? (
@@ -168,6 +177,12 @@ export default async function PaginaPedir({
           localNombre={local?.name ?? 'tu local'}
         />
       )}
+
+      {/* Un opt-in, no un control de la tarea: al final, donde no le quita
+          sitio a la lista. */}
+      <div className="flex justify-center pt-2">
+        <ActivarAvisos />
+      </div>
     </div>
   )
 }

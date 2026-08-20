@@ -1,7 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
-import { Loader2 } from 'lucide-react'
+import { ArrowRight, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { prepararPedido } from './acciones'
@@ -11,7 +11,10 @@ export function BotonPreparar({ supplierId }: { supplierId: string }) {
 
   return (
     <Button
-      size="sm"
+      // Es la acción de la tarjeta y ahora vive al pie, donde acaba la lectura.
+      // 44 px en el móvil: `sm` solo vale de escritorio para arriba, y esto se
+      // pulsa de pie (button.tsx, y CONTEXT.md §10.2).
+      className="shrink-0 sm:h-9 sm:px-3"
       disabled={pendiente}
       onClick={() =>
         iniciar(async () => {
@@ -29,6 +32,7 @@ export function BotonPreparar({ supplierId }: { supplierId: string }) {
     >
       {pendiente ? <Loader2 className="animate-spin" /> : null}
       Preparar pedido
+      {pendiente ? null : <ArrowRight />}
     </Button>
   )
 }

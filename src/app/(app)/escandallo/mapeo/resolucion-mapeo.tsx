@@ -139,7 +139,7 @@ function FichaIngrediente({
                   type="button"
                   disabled={guardando}
                   onClick={() => asignar(c.product_id)}
-                  className="flex w-full items-center gap-3 rounded-md border p-2.5 text-left transition-colors hover:bg-accent disabled:opacity-50"
+                  className="flex w-full items-center gap-3 rounded-md border p-2.5 text-left transition-colors duration-rapido ease-estandar hover:bg-accent disabled:opacity-50"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{c.product_name}</p>

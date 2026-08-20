@@ -190,66 +190,100 @@ export function ListaPedir({
     return candidatos[0] ?? null
   }, [items, mias])
 
+  /*
+   * El escalonado de entrada es solo para la primera pintura. Filtrar tiene que
+   * ser instantáneo: animar la lista en cada tecla del buscador no se siente
+   * fino, se siente lento. Es una ref porque no queremos re-pintar al apagarlo.
+   */
+  const primeraPintura = useRef(true)
+  useEffect(() => {
+    primeraPintura.current = false
+  }, [])
+
+  const escalonar = primeraPintura.current
+  let indiceFila = 0
+
+  const urgente =
+    corteMasCercano?.corte.etiqueta &&
+    (corteMasCercano.corte.estado === 'vencido' || corteMasCercano.corte.estado === 'proximo')
+      ? corteMasCercano
+      : null
+
   return (
-    <div className="space-y-4">
-      <div className="sticky top-14 z-20 -mx-4 space-y-3 border-b bg-background/95 px-4 pb-3 pt-1 backdrop-blur">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            inputMode="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar producto…"
-            aria-label="Buscar producto"
-            className="pl-9 pr-9"
-          />
-          {busqueda ? (
-            <button
-              type="button"
-              onClick={() => setBusqueda('')}
-              aria-label="Limpiar búsqueda"
-              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={soloPedidos ? 'default' : 'outline'}
-            onClick={() => setSoloPedidos((v) => !v)}
+    <div className="space-y-3">
+      <div className="sticky top-14 z-20 -mx-4 border-b bg-background/95 px-4 backdrop-blur">
+        {/*
+         * El corte que aprieta es una condición de toda la pantalla, no un
+         * filtro más. Antes era una píldora al lado del botón de filtrar, donde
+         * parecía algo que se pulsa; aquí es una franja de 28 px que solo
+         * aparece cuando queda poco.
+         */}
+        {urgente ? (
+          <div
+            role="status"
+            className={cn(
+              '-mx-4 flex h-7 items-center gap-1.5 px-4 text-xs font-medium',
+              urgente.corte.estado === 'vencido'
+                ? 'bg-destructive/10 text-destructive'
+                : 'bg-warn/[0.12] text-warn',
+            )}
           >
-            <Check /> Lo que llevo hoy
-            {totalPedidoHoy > 0 ? ` (${totalPedidoHoy})` : ''}
-          </Button>
-
-          {corteMasCercano?.corte.etiqueta ? (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium',
-                corteMasCercano.corte.estado === 'vencido'
-                  ? 'bg-destructive/10 text-destructive'
-                  : corteMasCercano.corte.estado === 'proximo'
-                    ? 'bg-warn/15 text-warn'
-                    : 'bg-muted text-muted-foreground',
-              )}
-            >
-              <Clock className="h-3.5 w-3.5" />
-              {corteMasCercano.proveedorNombre}:{' '}
-              {corteMasCercano.corte.estado === 'vencido'
-                ? 'corte pasado'
-                : `corte ${duracionRelativa(corteMasCercano.corte.minutosHasta ?? 0)}`}
+            <Clock className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">
+              {urgente.corte.estado === 'vencido'
+                ? `${urgente.proveedorNombre}: corte de hoy ya pasado`
+                : `${urgente.proveedorNombre} cierra ${duracionRelativa(urgente.corte.minutosHasta ?? 0)}`}
             </span>
+          </div>
+        ) : null}
+
+        <div className="space-y-2 pb-2.5 pt-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              inputMode="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar producto…"
+              aria-label="Buscar producto"
+              className="pl-9 pr-9"
+            />
+            {busqueda ? (
+              <button
+                type="button"
+                onClick={() => setBusqueda('')}
+                aria-label="Limpiar búsqueda"
+                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors duration-rapido ease-estandar hover:bg-accent"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={soloPedidos ? 'default' : 'outline'}
+              className="rounded-full"
+              onClick={() => setSoloPedidos((v) => !v)}
+            >
+              <Check /> Lo que llevo hoy
+              {totalPedidoHoy > 0 ? (
+                <span className="tabular-nums opacity-75">{totalPedidoHoy}</span>
+              ) : null}
+            </Button>
+
+            <span className="shrink-0 text-micro font-medium text-muted-foreground">
+              {plural(items.length, 'producto', 'productos')}
+            </span>
+          </div>
+
+          {!enLinea || porSincronizar > 0 ? (
+            <AvisoSinConexion pendientes={porSincronizar} />
           ) : null}
         </div>
-
-        {!enLinea || porSincronizar > 0 ? (
-          <AvisoSinConexion pendientes={porSincronizar} />
-        ) : null}
       </div>
 
       {porCategoria.length === 0 ? (
@@ -272,12 +306,10 @@ export function ListaPedir({
         )
       ) : (
         porCategoria.map(([categoria, productos]) => (
-          <section key={categoria} className="space-y-2">
-            <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {categoria}
-            </h2>
+          <section key={categoria} className="space-y-1.5">
+            <h2 className="titulo-seccion px-1">{categoria}</h2>
 
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {productos.map((item) => {
                 const mia = mias[item.id] ?? 0
                 const deOtros = otras[item.id] ?? 0
@@ -286,38 +318,61 @@ export function ListaPedir({
                   (item.corte.minutosHasta !== null &&
                     item.corte.minutosHasta <= MINUTOS_CORTE_RELEVANTE)
 
+                // Tope de 8 filas escalonadas: 24 ms × 8 + 200 ms son 390 ms de
+                // principio a fin. Escalonar cuarenta serían casi dos segundos.
+                const retardo = Math.min(indiceFila++, 7) * 24
+
                 return (
                   <li
                     key={item.id}
                     className={cn(
-                      'flex items-center gap-3 rounded-lg border p-3 transition-colors',
-                      mia > 0 && 'border-primary/30 bg-primary/[0.03]',
+                      // El raíl del canto dice "esto lo llevas" bajando la lista
+                      // sin leer. La fila mide 3 px más y no da saltos al
+                      // pedir, porque el borde existe siempre.
+                      'flex items-center gap-3 rounded-lg border border-l-[3px] p-2.5 pl-3',
+                      'transition-colors duration-base ease-salida',
+                      mia > 0
+                        ? 'border-border border-l-primary bg-primary/[0.04]'
+                        : 'border-l-transparent',
+                      escalonar && 'animate-entrada-fila',
                     )}
+                    style={escalonar ? { animationDelay: `${retardo}ms` } : undefined}
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium leading-tight">{item.nombre}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {item.unidadPedido} · {item.proveedorNombre}
-                      </p>
+                      <p className="truncate text-cuerpo font-semibold leading-5">{item.nombre}</p>
 
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        {deOtros > 0 ? (
-                          <Badge variant="secondary" className="text-[11px]">
-                            {formatearCantidad(mia + deOtros)} en el local
-                          </Badge>
-                        ) : null}
+                      <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                        {/*
+                         * La unidad no se negocia: sin ella, "6" no significa
+                         * nada. El proveedor sí — solo aparece cuando la línea
+                         * está libre. Con la etiqueta puesta no cabían los dos
+                         * y se truncaba justo el nombre del proveedor, que es
+                         * el trozo que hay que leer entero o no leer.
+                         */}
+                        <span className="truncate text-meta text-muted-foreground">
+                          {item.unidadPedido}
+                          {corteRelevante || deOtros > 0 ? '' : ` · ${item.proveedorNombre}`}
+                        </span>
 
+                        {/* Lo que aprieta gana el sitio: si hay corte cerca, el
+                            recuento del local puede esperar a la siguiente
+                            mirada. Nunca las dos cosas, para no meter una
+                            tercera línea en una fila de 68 px. */}
                         {corteRelevante ? (
                           <span
                             className={cn(
-                              'text-[11px] font-medium',
+                              'shrink-0 text-micro font-semibold',
                               item.corte.estado === 'vencido' ? 'text-destructive' : 'text-warn',
                             )}
                           >
                             {item.corte.estado === 'vencido'
-                              ? 'Corte de hoy ya pasado'
-                              : `Corte ${duracionRelativa(item.corte.minutosHasta ?? 0)}`}
+                              ? 'corte pasado'
+                              : `corte ${duracionRelativa(item.corte.minutosHasta ?? 0)}`}
                           </span>
+                        ) : deOtros > 0 ? (
+                          <Badge variant="secondary" className="shrink-0 text-micro tabular-nums">
+                            {formatearCantidad(mia + deOtros)} en el local
+                          </Badge>
                         ) : null}
                       </div>
                     </div>
@@ -336,7 +391,7 @@ export function ListaPedir({
       )}
 
       {totalPedidoHoy > 0 ? (
-        <p className="pt-2 text-center text-sm text-muted-foreground">
+        <p className="pt-1 text-center text-meta text-muted-foreground">
           Llevas {plural(totalPedidoHoy, 'producto pedido', 'productos pedidos')} hoy en{' '}
           {localNombre}.
         </p>
