@@ -189,7 +189,7 @@ export default async function PaginaRecepcion({
       </Button>
 
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="titulo-pantalla">
           Recibir de {proveedor.data?.name ?? 'proveedor'}
         </h1>
         <p className="text-sm text-muted-foreground">

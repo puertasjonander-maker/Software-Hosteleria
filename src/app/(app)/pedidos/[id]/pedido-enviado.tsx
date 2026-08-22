@@ -59,7 +59,7 @@ export function PedidoEnviado({
     <div className="space-y-6">
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{proveedorNombre}</h1>
+          <h1 className="titulo-pantalla">{proveedorNombre}</h1>
           <span
             className={cn(
               'rounded-full px-2.5 py-0.5 text-xs font-medium',

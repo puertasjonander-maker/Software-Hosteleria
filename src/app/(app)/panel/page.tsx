@@ -188,7 +188,7 @@ export default async function PaginaPanel({
     <div className="container max-w-6xl space-y-6 py-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Panel</h1>
+          <h1 className="titulo-pantalla">Panel</h1>
           <p className="text-sm text-muted-foreground">
             En qué se está yendo el dinero, con datos de lo que ha entrado por la puerta.
           </p>
@@ -228,7 +228,7 @@ export default async function PaginaPanel({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
-                <p className="text-3xl font-semibold tabular-nums">{euros(total)}</p>
+                <p className="cifra-dato text-[1.75rem] leading-8">{euros(total)}</p>
                 <p className="text-xs text-muted-foreground">
                   {plural(filas.length, 'línea recibida', 'líneas recibidas')}
                 </p>
@@ -242,7 +242,7 @@ export default async function PaginaPanel({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1.5">
-                <p className="text-3xl font-semibold tabular-nums">
+                <p className="cifra-dato text-[1.75rem] leading-8">
                   {porcentaje(total > 0 ? (100 * (total - importeEstimado)) / total : 0, 0)}
                 </p>
                 {/* Un panel que mezcla precios reales con estimados sin decirlo
@@ -261,7 +261,7 @@ export default async function PaginaPanel({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
-                <p className="text-3xl font-semibold tabular-nums">
+                <p className="cifra-dato text-[1.75rem] leading-8">
                   {filas.filter((f) => f.incidence !== 'ninguna').length}
                 </p>
                 <p className="text-xs text-muted-foreground">

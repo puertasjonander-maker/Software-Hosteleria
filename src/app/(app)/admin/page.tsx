@@ -74,14 +74,14 @@ export default async function PaginaAdmin() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tarjetas.map((t) => (
           <Link key={t.href} href={t.href}>
-            <Card className="h-full transition-colors hover:bg-accent/40">
+            <Card className="h-full transition-colors duration-rapido ease-estandar hover:bg-accent/40">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   {t.etiqueta}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-semibold tabular-nums">{t.valor}</p>
+                <p className="cifra-dato text-[1.75rem] leading-8">{t.valor}</p>
               </CardContent>
             </Card>
           </Link>

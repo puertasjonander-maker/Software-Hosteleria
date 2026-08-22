@@ -299,7 +299,7 @@ export function DetallePedido({
     <div className="space-y-6">
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{proveedor.nombre}</h1>
+          <h1 className="titulo-pantalla">{proveedor.nombre}</h1>
           <Badge variant="secondary">Borrador</Badge>
           {pedido.supersedesId ? <Badge variant="outline">Complementario</Badge> : null}
         </div>

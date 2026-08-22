@@ -1,8 +1,8 @@
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { exigirRol } from '@/lib/auth'
 import { porcentaje } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { PestanasSeccion } from '@/components/pestanas-seccion'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,20 +36,20 @@ export default async function LayoutEscandallo({
   const pct = activas.length === 0 ? 0 : (100 * completas) / activas.length
 
   return (
-    <div className="container max-w-5xl space-y-5 py-4">
+    <div className="container max-w-5xl space-y-5 py-3 md:py-4">
       <header className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Escandallo</h1>
-            <p className="text-sm text-muted-foreground">
+          <div className="hidden md:block">
+            <h1 className="titulo-pantalla">Escandallo</h1>
+            <p className="mt-1 texto-meta">
               Coste y margen por elaboración, recalculados con cada recepción.
             </p>
           </div>
 
           <div className="min-w-[14rem] space-y-1">
-            <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="text-muted-foreground">Carta con escandallo completo</span>
-              <span className="font-semibold tabular-nums">{porcentaje(pct, 0)}</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-meta text-muted-foreground">Carta con escandallo completo</span>
+              <span className="text-cuerpo font-semibold tabular-nums">{porcentaje(pct, 0)}</span>
             </div>
             <div
               className="h-2 overflow-hidden rounded-full bg-muted"
@@ -61,29 +61,19 @@ export default async function LayoutEscandallo({
             >
               <div
                 className={cn(
-                  'h-full rounded-full transition-all',
+                  'h-full rounded-full transition-[width,background-color] duration-base ease-salida',
                   pct >= 80 ? 'bg-ok' : pct >= 40 ? 'bg-warn' : 'bg-destructive',
                 )}
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-micro font-medium text-muted-foreground">
               {completas} de {activas.length} elaboraciones
             </p>
           </div>
         </div>
 
-        <nav className="flex flex-wrap gap-1 border-b">
-          {PESTANAS.map((p) => (
-            <Link
-              key={p.href}
-              href={p.href}
-              className="rounded-t-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              {p.etiqueta}
-            </Link>
-          ))}
-        </nav>
+        <PestanasSeccion pestanas={PESTANAS} />
       </header>
 
       {children}
