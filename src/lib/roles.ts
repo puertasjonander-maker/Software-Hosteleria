@@ -7,11 +7,12 @@ import type {
 } from '@/lib/database.types'
 
 /**
- * Helpers de rol y etiquetas de enum, sin dependencias de servidor.
+ * Etiquetas de los enums y ayudas de rol.
  *
- * Separados de `lib/auth.ts` a propósito: aquel importa `next/headers` y no se
- * puede usar desde un componente de cliente. Estas sí, y las necesita la
- * navegación.
+ * Traducir un valor de la base de datos a algo que se pueda leer se hace aquí y
+ * en ningún otro sitio. Cuando esto vivía repartido, `sin_revisar` se enseñaba
+ * como "Sin revisar" en una pantalla y como "sin revisar" en otra, y el estado de
+ * una máquina parecía distinto según por dónde se mirara.
  */
 
 export const ETIQUETA_ROL: Record<RolUsuario, string> = {

@@ -32,8 +32,8 @@
 
 ## 1. Modelo de datos
 
-SQL-first, en `supabase/migrations/`. `prisma/schema.prisma` es un espejo tipado
-y no una fuente de verdad.
+SQL-first, en `supabase/migrations/`. No hay ORM: las consultas se escriben con
+supabase-js y los tipos se mantienen a mano en `src/lib/database.types.ts`.
 
 | Tabla | Qué es |
 |---|---|
@@ -79,11 +79,13 @@ usuario recién invitado y falla cerrado a propósito.
 | Ruta | Quién | Fase |
 |---|---|---|
 | `/visitas` | admin, técnico | F2 |
-| `/visitas/[id]` | admin, técnico | F2 |
-| `/clientes` | admin, técnico | F1 |
-| `/clientes/[id]` | admin, técnico | F1 |
-| `/clientes/[id]/maquinas/[maquinaId]` | admin, técnico | F3 |
+| `/visitas/:id` | admin, técnico | F2 |
+| `/boxes` | admin, técnico | F1 |
+| `/boxes/:id` | admin, técnico | F1 |
+| `/boxes/:id/importar` | admin, técnico | F1 |
+| `/boxes/:id/maquinas/:maquinaId` | admin, técnico | F3 |
 | `/mi-box` | cliente | F4 |
+| `/mi-box/maquinas/:maquinaId` | cliente | F4 |
 | `/panel` | admin | F3 |
 | `/admin` | admin | F4 |
 
@@ -144,7 +146,7 @@ cuánto queda por subir.
 
 ## 5. Fase 3 — Histórico y semáforo · hecha
 
-**EBX-301 · Línea de tiempo por máquina.** En `/clientes/[id]/maquinas/[maquinaId]`.
+**EBX-301 · Línea de tiempo por máquina.** En `/boxes/:id/maquinas/:maquinaId`.
 Altas, servicios, cambios de estado, bajas e incidencias, con las fotos de cada
 servicio en dos tiras (antes y después) y firmadas para una hora.
 
@@ -215,8 +217,19 @@ mira es el número de filas escritas.
 de la ventana de aviso y notifica. Un aviso por máquina, persona y día
 (`aviso_log`).
 
-**EBX-502 · Reactivar el cron en Vercel.** La entrada se quitó de `vercel.json` en
-la fase 0 al borrar la ruta de hostelería. Vuelve aquí, con `CRON_SECRET`.
+**EBX-502 · Dónde corre ese cron.** En Supabase, no en un servidor propio: una
+Edge Function junto a `alta-usuario`, disparada por `pg_cron`. Es el mismo sitio
+donde ya vive la clave de servicio, y el cron la necesita porque corre sin ningún
+usuario detrás — `auth.uid()` es null y ninguna política le concede nada.
+
+La suscripción del navegador a los avisos también se escribe directamente contra
+`push_subscriptions`, que ya tiene su política (`push_propio`): cada usuario
+escribe las suyas y ninguna otra. No hace falta ningún endpoint.
+
+**Lo que hay que volver a escribir.** El envío de notificaciones se hizo en su día
+con `web-push` sobre Node y se retiró al pasar a una página única, porque era
+código de servidor sin servidor donde correr. En Deno se resuelve con la API de
+criptografía del propio runtime; las claves VAPID que ya existan siguen valiendo.
 
 ---
 

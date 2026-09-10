@@ -19,7 +19,9 @@ Este repositorio es un fork de Mise, un sistema de aprovisionamiento para
 hostelería que compartía forma con este problema: multi-inquilino con aislamiento
 por cliente, trabajo en campo desde el móvil, partes e histórico.
 
-La fase 0 ha vaciado el dominio de hostelería y ha dejado puesto el de Ergobox.
+La fase 0 vació el dominio de hostelería y dejó puesto el de Ergobox. Con las
+fases 1 a 4 ya construidas, la aplicación pasó de Next.js a una página única
+servida como ficheros estáticos: la razón está más abajo, en las decisiones.
 
 | | |
 |---|---|
@@ -28,8 +30,8 @@ La fase 0 ha vaciado el dominio de hostelería y ha dejado puesto el de Ergobox.
 | **Retirado** | Escandallo, proveedores, pedidos, recepción, histórico de precios y su seed |
 | **Pendiente** | Fase 5: avisos de próxima revisión (cron y push) |
 
-Las seis pantallas están construidas: `/visitas`, `/clientes`, la ficha de máquina
-con su historial, `/panel`, `/mi-box` y `/admin`.
+Las pantallas están construidas: `/visitas`, `/boxes`, la ficha de máquina con su
+historial, `/panel`, `/mi-box` y `/admin`.
 
 **La fase 2 no está cerrada.** El código está, pero la pantalla de trabajo es la
 que decide si el sistema se usa o se abandona, y eso solo lo dice un cronómetro
@@ -52,8 +54,17 @@ npm install
 cp .env.example .env.local     # y rellena los valores
 ```
 
-Las claves de Supabase están en *Project Settings → API*. `SUPABASE_SERVICE_ROLE_KEY`
-solo se usa en servidor: **nunca** la pongas con prefijo `NEXT_PUBLIC_`.
+Las dos claves están en *Project Settings → API*. Las dos llevan prefijo `VITE_`
+porque viajan al navegador, y la anónima puede: es pública por diseño y lo único
+que se puede hacer con ella es pedirle datos a Supabase, que responde según quién
+seas.
+
+La clave de servicio **no está aquí ni en ningún fichero del repositorio**. Se
+salta la seguridad entera, así que vive solo en la función `alta-usuario`:
+
+```bash
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=...
+```
 
 ### 3. Crear el esquema
 
@@ -69,7 +80,19 @@ El de `..._rls.sql` es el que activa Row Level Security y el de
 `..._almacenamiento.sql` crea el bucket privado de fotos con sus políticas: no te
 saltes ninguno de los dos.
 
-### 4. Primer usuario
+### 4. Desplegar la función de alta de usuarios
+
+Es la única pieza que corre fuera del navegador, y existe porque crear un usuario
+exige la clave de servicio:
+
+```bash
+supabase functions deploy alta-usuario
+```
+
+Sin ella la aplicación funciona entera menos el botón de dar de alta a un dueño de
+box, que dirá que no ha podido.
+
+### 5. Primer usuario
 
 El resto de altas se hacen desde `/admin`, pero el primer administrador no puede
 crearse desde una pantalla que exige ser administrador. Se hace a mano una vez:
@@ -83,11 +106,15 @@ Un usuario recién creado nace con `rol = cliente` y sin box asignado, que es el
 estado que no ve absolutamente nada. Es deliberado: los permisos se dan, no se
 heredan del registro.
 
-### 5. Arrancar
+### 6. Arrancar
 
 ```bash
 npm run dev
 ```
+
+Y para publicar, `npm run build` deja en `dist/` un montón de ficheros estáticos.
+No hay servidor que arrancar: los detalles están en
+[`DESPLIEGUE.md`](DESPLIEGUE.md).
 
 ---
 
@@ -114,10 +141,21 @@ doce máquinas con fotos de antes y después son unas setenta imágenes: sin
 comprimir son casi 300 MB en el navegador, que es cuando el sistema operativo
 decide borrarte la pestaña. Comprimidas, quince megas.
 
-**Las migraciones son SQL-first; Prisma es el espejo.** La mitad del
-comportamiento (políticas, triggers, vistas con `security_invoker`, políticas de
-storage) no se puede expresar en el esquema de Prisma. **No ejecutes
-`prisma migrate dev`**: borraría las políticas.
+**No hay servidor, y es la decisión de fondo.** La aplicación se descarga entera
+y habla directamente con Supabase. Suena a menos seguro y no lo es: las políticas
+de la base de datos resuelven quién eres a partir de tu token y deciden lo mismo
+venga la consulta del navegador o de un servidor intermedio. Lo que sí desaparece
+es la mitad de las piezas — acciones de servidor, middleware de sesión, dos
+clientes de Supabase para las mismas tablas — y con ellas los sitios donde una
+comprobación se puede quedar a medias.
+
+Lo único que no puede bajar al navegador es la clave de servicio, así que crear
+usuarios vive en `supabase/functions/alta-usuario`.
+
+**Las migraciones son SQL-first y no hay ORM.** La mitad del comportamiento
+(políticas, triggers, vistas con `security_invoker`, políticas de storage) no se
+puede expresar en el esquema de un ORM, así que los tipos se mantienen a mano en
+`src/lib/database.types.ts` y la fuente de verdad es `supabase/migrations/`.
 
 **La escritura de campo va siempre a la cola local, haya cobertura o no.** Un
 único camino: guardar en IndexedDB y disparar la sincronización. Con dos caminos,
@@ -149,27 +187,39 @@ cliente vale igual contra PostgREST. Si tocas una política, vuelve a pasarlo.
 | Comando | Qué hace |
 |---|---|
 | `npm run dev` | Servidor de desarrollo |
-| `npm run build` | Build de producción |
+| `npm run build` | Comprueba tipos y deja la aplicación en `dist/` |
+| `npm run preview` | Sirve `dist/` como lo hará el hosting |
 | `npm run typecheck` | TypeScript sin emitir |
 | `npm run lint` | ESLint |
 | `npm run probar:parque` | Prueba el intérprete del CSV del parque |
+| `npm run probar:pantallas` | Abre la app construida en un navegador y recorre las pantallas de cada rol |
 | `npm run probar:sql` | Prueba el histórico y el aislamiento entre boxes contra Postgres |
 | `node scripts/generar-iconos.mjs` | Regenera los iconos PNG de la PWA |
 
 ## Estructura
 
 ```
+index.html            El único documento: la aplicación entra por aquí
 src/
-  app/
-    (app)/          Pantallas con sesión: visitas, clientes, mi-box, panel, admin
-    api/            Alta de suscripciones push
-  components/       Kit de UI y piezas de PWA
-  lib/              Cliente Supabase, sesión, roles, cola offline, formato, tiempo
-supabase/migrations/  Esquema, lógica, RLS y almacenamiento — la fuente de verdad
-prisma/schema.prisma  Espejo tipado del esquema
+  main.tsx            Arranque: router, sesión y avisos
+  rutas.tsx           El mapa de pantallas y quién alcanza cada una
+  pages/              Una por pantalla. Piden datos y reparten props
+  datos/              Todas las consultas y escrituras, agrupadas por tema
+  components/         Kit de UI y las piezas del dominio
+  lib/                Supabase, sesión, cola offline, parque, formato, tiempo
+public/               Manifiesto, service worker, iconos y los dos ficheros de
+                      reescritura (_redirects para Netlify, .htaccess para Apache)
+supabase/
+  migrations/         Esquema, lógica, RLS y almacenamiento — la fuente de verdad
+  functions/          `alta-usuario`: lo único que corre fuera del navegador
 seed/                 Parque de demo para probar la importación
 scripts/              Iconos, prueba del CSV y las dos pruebas SQL
 ```
+
+La separación que importa es `datos/` frente a `pages/`. Una pantalla no escribe
+consultas: pide una función de `datos/` y pinta lo que devuelve. Así la misma
+consulta la comparten la pantalla interna y la del cliente, que es lo que evita
+que una acabe enseñando algo que la otra no.
 
 Para las pruebas SQL hace falta un PostgreSQL cualquiera, no un Supabase:
 

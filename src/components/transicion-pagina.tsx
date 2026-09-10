@@ -1,6 +1,4 @@
-'use client'
-
-import { usePathname } from 'next/navigation'
+import { useLocation } from 'react-router-dom'
 
 /**
  * Fundido de entrada al cambiar de pantalla.
@@ -14,7 +12,7 @@ import { usePathname } from 'next/navigation'
  * transformado convierte cualquier `position: fixed` de dentro en absoluto.
  */
 export function TransicionPagina({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
+  const { pathname } = useLocation()
 
   return (
     <div key={pathname} className="animate-entrada-pagina">

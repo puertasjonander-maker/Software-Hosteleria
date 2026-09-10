@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { type MaquinaFila, ordenarPorUrgencia, textoRevision } from '@/lib/parque'
 import { ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
@@ -31,7 +31,7 @@ export function ListaParque({
         return (
           <li key={m.id}>
             <Link
-              href={`${base}/${m.id}`}
+              to={`${base}/${m.id}`}
               className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors duration-rapido ease-estandar hover:bg-accent"
             >
               <PuntoSemaforo estado={m.estado} />
@@ -41,10 +41,16 @@ export function ListaParque({
                     su propia fila flex: puesto en línea con el nombre lo partía
                     por la mitad ("SkiErg" / "1 · Fuera del parque"). Lo que cede
                     es el nombre, con puntos suspensivos. */}
-                <div className="flex items-center gap-2">
+                {/* Envuelve en vez de encoger: con el aviso al lado y sin
+                    `flex-wrap`, el nombre cedía todo el espacio y "SkiErg 1" se
+                    quedaba en "Ski…". El `min-w` es lo que fuerza a que baje el
+                    aviso y no el nombre. */}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span
                     className={
-                      m.activa ? 'truncate titulo-tarjeta' : 'truncate titulo-tarjeta opacity-60'
+                      m.activa
+                        ? 'min-w-[6rem] truncate titulo-tarjeta'
+                        : 'min-w-[6rem] truncate titulo-tarjeta opacity-60'
                     }
                   >
                     {m.nombre}

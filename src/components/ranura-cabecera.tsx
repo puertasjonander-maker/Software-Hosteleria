@@ -1,5 +1,3 @@
-'use client'
-
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -15,7 +13,7 @@ export const ID_RANURA_CABECERA = 'ranura-cabecera'
  *
  * El nodo destino lo pinta `Navegacion`, que está por encima en el árbol, así
  * que ya existe cuando este efecto corre. Se resuelve en un efecto y no durante
- * el render porque en el servidor no hay `document`.
+ * el render para no leer el DOM mientras React lo está construyendo.
  */
 export function RanuraCabecera({ children }: { children: React.ReactNode }) {
   const [destino, setDestino] = useState<HTMLElement | null>(null)

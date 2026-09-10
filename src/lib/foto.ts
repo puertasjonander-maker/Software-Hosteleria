@@ -1,5 +1,3 @@
-'use client'
-
 /**
  * Recompresión de fotos antes de guardarlas (EBX-204).
  *

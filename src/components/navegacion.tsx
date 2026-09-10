@@ -1,8 +1,5 @@
-'use client'
-
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { Link, useLocation } from 'react-router-dom'
 import {
   BarChart3,
   Building2,
@@ -14,6 +11,7 @@ import {
 } from 'lucide-react'
 import type { RolUsuario } from '@/lib/database.types'
 import { ETIQUETA_ROL } from '@/lib/roles'
+import { salir } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
 import { Indicador, useIndicador } from '@/components/ui/indicador'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/menu'
@@ -33,7 +31,7 @@ type Destino = {
  */
 const DESTINOS: Destino[] = [
   { href: '/visitas', etiqueta: 'Visitas', icono: Wrench, roles: ['admin', 'tecnico'] },
-  { href: '/clientes', etiqueta: 'Boxes', icono: Building2, roles: ['admin', 'tecnico'] },
+  { href: '/boxes', etiqueta: 'Boxes', icono: Building2, roles: ['admin', 'tecnico'] },
   { href: '/panel', etiqueta: 'Panel', icono: BarChart3, roles: ['admin'] },
   { href: '/admin', etiqueta: 'Admin', icono: Settings, roles: ['admin'] },
   // El cliente ve una sola pestaña. No es una limitación: es todo lo que hay
@@ -50,12 +48,12 @@ const DESTINOS: Destino[] = [
  * De lo más específico a lo más general: la primera que casa, gana.
  */
 const TITULOS: Array<[RegExp, string]> = [
-  [/^\/visitas\/[^/]+\/maquina\/[^/]+/, 'Máquina'],
   [/^\/visitas\/[^/]+/, 'Visita'],
   [/^\/visitas/, 'Visitas'],
-  [/^\/clientes\/[^/]+\/maquinas\/[^/]+/, 'Ficha de máquina'],
-  [/^\/clientes\/[^/]+/, 'Box'],
-  [/^\/clientes/, 'Boxes'],
+  [/^\/boxes\/[^/]+\/maquinas\/[^/]+/, 'Ficha de máquina'],
+  [/^\/boxes\/[^/]+\/importar/, 'Importar parque'],
+  [/^\/boxes\/[^/]+/, 'Box'],
+  [/^\/boxes/, 'Boxes'],
   [/^\/mi-box\/maquinas\/[^/]+/, 'Ficha de máquina'],
   [/^\/mi-box/, 'Mi box'],
   [/^\/panel/, 'Panel'],
@@ -96,7 +94,7 @@ export function Navegacion({
   /** Nombre del box, solo para un cliente. Un interno no está atado a ninguno. */
   box: string | null
 }) {
-  const pathname = usePathname()
+  const { pathname } = useLocation()
   const visibles = DESTINOS.filter((d) => d.roles.includes(rol))
 
   const esActivo = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
@@ -104,8 +102,8 @@ export function Navegacion({
 
   // Una raíz no lleva atrás; una pantalla de dentro, sí. El padre es el segmento
   // de arriba, salvo cuando ese segmento es un tramo de colección que no tiene
-  // pantalla propia: /clientes/abc/maquinas/xyz vuelve a /clientes/abc, no a
-  // /clientes/abc/maquinas, que daría un 404.
+  // pantalla propia: /boxes/abc/maquinas/xyz vuelve a /boxes/abc, y no a
+  // /boxes/abc/maquinas, que no existe.
   const esRaiz = visibles.some((d) => d.href === pathname)
   const volverA = esRaiz ? null : padreDe(pathname)
 
@@ -139,7 +137,7 @@ export function Navegacion({
             {/* Móvil: volver + título de pantalla. */}
             {volverA ? (
               <Link
-                href={volverA}
+                to={volverA}
                 aria-label="Volver"
                 className="-ml-2 flex h-11 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-rapido ease-estandar hover:bg-accent hover:text-accent-foreground md:hidden"
               >
@@ -148,7 +146,7 @@ export function Navegacion({
             ) : null}
 
             <Link
-              href="/"
+              to="/"
               className={cn(
                 'shrink-0 items-center gap-2 font-semibold',
                 // Con botón de volver, la marca estorba: ya hay una jerarquía.
@@ -172,7 +170,7 @@ export function Navegacion({
               {visibles.map((d) => (
                 <Link
                   key={d.href}
-                  href={d.href}
+                  to={d.href}
                   data-indicador={d.href}
                   className={cn(
                     'relative rounded-md px-3 py-2 text-cuerpo font-medium',
@@ -210,15 +208,14 @@ export function Navegacion({
 
               <MenuSeparator />
 
-              {/* El formulario envuelve al item: el `asChild` deja que el botón
-                  sea el item, así que un toque cierra el menú y envía a la vez. */}
-              <form action="/auth/signout" method="post">
-                <MenuItem asChild>
-                  <button type="submit" className="w-full">
-                    <LogOut /> Salir
-                  </button>
-                </MenuItem>
-              </form>
+              {/* Sin navegación después de salir: el proveedor de sesión se
+                  entera por `onAuthStateChange` y el guarda de ruta manda al
+                  login él solo. */}
+              <MenuItem asChild>
+                <button type="button" className="w-full" onClick={() => void salir()}>
+                  <LogOut /> Salir
+                </button>
+              </MenuItem>
             </MenuContent>
           </Menu>
         </div>
@@ -237,7 +234,7 @@ export function Navegacion({
             return (
               <li key={d.href} className="flex-1">
                 <Link
-                  href={d.href}
+                  to={d.href}
                   data-indicador={d.href}
                   aria-current={esta ? 'page' : undefined}
                   className={cn(

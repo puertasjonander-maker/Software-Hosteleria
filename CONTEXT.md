@@ -85,13 +85,22 @@ entren, no habrá que migrar nada.
 
 ## 6. Stack
 
-- Next.js 14 (App Router) + TypeScript
+- Aplicación de una sola página: Vite + React + TypeScript, con React Router
 - Tailwind CSS + shadcn/ui sobre primitivas de Radix
-- Supabase: Postgres, Auth, Storage y RLS
-- Prisma **solo como espejo tipado**. Las migraciones son SQL-first y viven en
-  `supabase/migrations/`
+- Supabase: Postgres, Auth, Storage y RLS. El navegador habla directamente con
+  él y las políticas deciden qué sale
+- Una función de Supabase (`alta-usuario`), la única pieza que corre fuera del
+  navegador, porque crear usuarios exige la clave de servicio
 - PWA instalable con cola de mutaciones en IndexedDB
-- Vercel
+- Se publica como ficheros estáticos: vale cualquier hosting
+
+No hay servidor propio, y esa es la decisión de fondo. La aplicación nació con
+Next.js renderizando en servidor, lo que obligaba a mantener dos clientes de
+Supabase y dos caminos de datos para las mismas tablas — y uno de los dos, el del
+navegador, ya era el que llevaba lo más delicado: las fotos y el cierre de partes
+sin cobertura. Al quedarse solo ese camino, desaparecen las acciones de servidor,
+el middleware de sesión y el adaptador de despliegue, y lo que decide quién ve qué
+es exactamente una cosa: la RLS.
 
 ## 7. Fases
 
@@ -148,8 +157,15 @@ La RLS es la frontera. Las comprobaciones de rol en las páginas (`exigirRol`,
 - Toda consulta nueva tiene que estar autorizada por una política. Si una pantalla
   necesita datos que ninguna política concede, el arreglo es la política, no el
   cliente de servicio.
-- `SUPABASE_SERVICE_ROLE_KEY` solo se usa en servidor. **Nunca** con prefijo
-  `NEXT_PUBLIC_`.
+- La clave de servicio no está en la aplicación. Vive en las variables de la
+  función `alta-usuario`, que corre en Supabase. **Nunca** con prefijo `VITE_`:
+  todo lo que lleve ese prefijo viaja al navegador y se puede leer.
+- La clave anónima sí viaja al navegador, y es correcto: es pública por diseño.
+  Lo que impide que sirva para nada indebido son las políticas, que resuelven
+  quién es el usuario a partir de su token.
 - Las fotos viven en un bucket privado. El cliente recibe URLs firmadas y
-  caducables, nunca públicas.
-- **No ejecutes `prisma migrate dev`**: borraría las políticas.
+  caducables, nunca públicas. Se firman con la sesión de quien mira, para que
+  decida la política del bucket y no nosotros.
+- El aislamiento entre boxes se comprueba contra la base de datos, no contra la
+  interfaz: `scripts/probar-aislamiento.sql`. Si tocas una política, vuelve a
+  pasarlo antes de desplegar.

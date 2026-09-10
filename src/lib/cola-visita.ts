@@ -1,7 +1,5 @@
-'use client'
-
 import type { Semaforo } from '@/lib/database.types'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 /**
  * Cola de trabajo de campo (EBX-205).
@@ -188,7 +186,6 @@ export async function sincronizar(): Promise<ResultadoSync> {
   let fallos = 0
 
   try {
-    const supabase = createClient()
 
     const fotos = (await conTransaccion([FOTOS], 'readonly', (tx) =>
       pedir(tx.objectStore(FOTOS).getAll()),

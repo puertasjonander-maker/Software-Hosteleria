@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowRightLeft, ImageOff, PackageMinus, PackagePlus, Wrench } from 'lucide-react'
 import type { TipoEvento } from '@/lib/database.types'
-import type { EventoHistorico } from '@/lib/historico'
+import type { EventoHistorico } from '@/datos/historico'
 import { ETIQUETA_TIPO_EVENTO } from '@/lib/roles'
 import { fecha as formatearFecha } from '@/lib/format'
 import { ChipSemaforo } from '@/components/chip-semaforo'
@@ -110,10 +110,8 @@ function Fotos({ fotos }: { fotos: EventoHistorico['fotos'] }) {
                   rel="noreferrer"
                   className="shrink-0 overflow-hidden rounded-md border transition-opacity duration-rapido ease-estandar hover:opacity-90"
                 >
-                  {/* `img` a pelo y no `next/image`: la URL viene firmada y caduca,
-                      así que no hay nada que optimizar en el CDN y sí un 403 que
-                      ganarse cuando expire la firma del cacheado. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {/* La URL viene firmada y caduca en una hora, así que no se
+                      cachea ni se optimiza en ningún sitio: se pide y se pinta. */}
                   <img
                     src={f.url}
                     alt={`Foto ${g.etiqueta.toLowerCase()}`}

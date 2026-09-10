@@ -63,6 +63,8 @@ export type ClienteRow = {
 export type PerfilRow = {
   id: string
   nombre: string
+  /** Copia del correo de `auth.users`, mantenida por trigger. */
+  email: string | null
   rol: RolUsuario
   /** El box del que es dueño. Solo se rellena con rol `cliente`. */
   cliente_id: string | null
