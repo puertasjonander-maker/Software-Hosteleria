@@ -12,7 +12,7 @@ está en [`CONTEXT.md`](CONTEXT.md) y el backlog en [`BUILD_SPEC.md`](BUILD_SPEC
 
 ---
 
-## Estado: fase 0 hecha
+## Estado: fases 0 y 1 hechas
 
 Este repositorio es un fork de Mise, un sistema de aprovisionamiento para
 hostelería que compartía forma con este problema: multi-inquilino con aislamiento
@@ -22,13 +22,15 @@ La fase 0 ha vaciado el dominio de hostelería y ha dejado puesto el de Ergobox.
 
 | | |
 |---|---|
-| **Hecho** | Esquema completo, RLS, lógica en base de datos, bucket privado de fotos, roles nuevos, navegación y andamio de rutas |
+| **Hecho** | Esquema completo, RLS, lógica en base de datos, bucket privado de fotos, roles nuevos, navegación, y la gestión de boxes y parque con importación desde CSV |
 | **Conservado de Mise** | Autenticación, PWA, cola offline, sistema visual, kit de UI, navegación |
 | **Retirado** | Escandallo, proveedores, pedidos, recepción, histórico de precios y su seed |
 
-Las cinco pantallas de la aplicación existen y están en la navegación, pero
-todavía dicen qué fase las construye. No es un descuido: una pantalla que falta se
-descubre al pulsar y no se sabe si es un fallo.
+`/clientes` está construida: listado de boxes con su semáforo, ficha del box,
+parque ordenado por urgencia e importación del parque desde CSV o Excel. Las
+otras cuatro pantallas existen y están en la navegación, pero todavía dicen qué
+fase las construye. No es un descuido: una pantalla que falta se descubre al
+pulsar y no se sabe si es un fallo.
 
 Las fases siguientes están en [`BUILD_SPEC.md`](BUILD_SPEC.md). La fase 2, la
 visita en campo, es la que decide si el sistema se usa o se abandona.
@@ -61,9 +63,10 @@ supabase link --project-ref <tu-project-ref>
 supabase db push
 ```
 
-Sin la CLI, pega los cuatro ficheros en el SQL Editor de Supabase por orden de
-nombre. El tercero (`..._rls.sql`) es el que activa Row Level Security y el cuarto
-crea el bucket privado de fotos con sus políticas: no te saltes ninguno de los dos.
+Sin la CLI, pega los ficheros en el SQL Editor de Supabase por orden de nombre.
+El de `..._rls.sql` es el que activa Row Level Security y el de
+`..._almacenamiento.sql` crea el bucket privado de fotos con sus políticas: no te
+saltes ninguno de los dos.
 
 ### 4. Primer usuario
 
@@ -115,6 +118,13 @@ comportamiento (políticas, triggers, vistas con `security_invoker`, políticas 
 storage) no se puede expresar en el esquema de Prisma. **No ejecutes
 `prisma migrate dev`**: borraría las políticas.
 
+**Ninguna librería interpreta una fecha de un CSV.** Un CSV se parte con
+papaparse, que devuelve texto y nada más. El lector de Excel adivina qué celdas
+son fechas y las adivina en orden americano: con él, el `08/09/2026` de una hoja
+rellenada aquí se convertía en el 9 de agosto sin avisar. En un `.xlsx` de verdad
+no hay nada que adivinar, porque Excel guarda las fechas como número de serie, y
+ahí sí se deja que las resuelva. `npm run probar:parque` cubre los dos caminos.
+
 **Las fechas son fechas de Málaga.** Todo lo que dependa de ellas pasa por
 `src/lib/time.ts`, no por `new Date()` a secas: el servidor corre en UTC.
 
@@ -128,6 +138,7 @@ storage) no se puede expresar en el esquema de Prisma. **No ejecutes
 | `npm run build` | Build de producción |
 | `npm run typecheck` | TypeScript sin emitir |
 | `npm run lint` | ESLint |
+| `npm run probar:parque` | Prueba el intérprete del CSV del parque |
 | `node scripts/generar-iconos.mjs` | Regenera los iconos PNG de la PWA |
 
 ## Estructura
@@ -141,5 +152,6 @@ src/
   lib/              Cliente Supabase, sesión, roles, cola offline, formato, tiempo
 supabase/migrations/  Esquema, lógica, RLS y almacenamiento — la fuente de verdad
 prisma/schema.prisma  Espejo tipado del esquema
-scripts/              Generación de iconos
+seed/                 Parque de demo para probar la importación
+scripts/              Generación de iconos y prueba del intérprete del parque
 ```

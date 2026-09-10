@@ -100,7 +100,7 @@ Cada una deja algo utilizable. El orden no es negociable.
 | Fase | Qué deja | Estado |
 |---|---|---|
 | **F0** | Esquema, RLS, almacenamiento de fotos, andamio de rutas | hecha |
-| **F1** | Boxes y parque, con importación CSV | pendiente |
+| **F1** | Boxes y parque, con importación CSV | hecha |
 | **F2** | Visita en campo: ficha, fotos, offline | pendiente |
 | **F3** | Histórico y semáforo del parque | pendiente |
 | **F4** | Vista del cliente y gestión de accesos | pendiente |

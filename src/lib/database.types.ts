@@ -187,6 +187,9 @@ export type ParqueEstadoRow = {
   servicios_hechos: number
   /** Negativo = revisión vencida. Null = sin cadencia contratada. */
   dias_hasta_revision: number | null
+  modelo: string | null
+  ubicacion: string | null
+  notas: string | null
 }
 
 // ── Database ─────────────────────────────────────────────────────────────────

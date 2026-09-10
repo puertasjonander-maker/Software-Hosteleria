@@ -89,7 +89,7 @@ usuario recién invitado y falla cerrado a propósito.
 
 ---
 
-## 3. Fase 1 — Boxes y parque
+## 3. Fase 1 — Boxes y parque · hecha
 
 **EBX-101 · Alta y listado de boxes.** Nombre, dirección, población, contacto.
 Listado con el número de máquinas y el peor semáforo del parque.
@@ -99,8 +99,13 @@ marca, modelo, nº de serie, ubicación, cadencia. El damper y el drag factor so
 se piden en Concept2.
 
 **EBX-103 · Importar parque desde CSV.** Validación por fila con informe de lo que
-entra y lo que no. Prueba de aceptación: cargar las doce de IronBuster (cinco
-remos, un ski, un BikeErg, un Maniac y cuatro Eco) en una sola pasada.
+entra y lo que no. Reimportar actualiza por nombre en vez de duplicar. Prueba de
+aceptación cubierta por `npm run probar:parque`: las doce de un parque como el de
+IronBuster (cinco remos, un ski, un BikeErg, un Maniac y cuatro Eco) en una sola
+pasada, con `seed/parque.demo.csv`.
+
+Regla que salió de ahí y que no se toca: **ninguna librería interpreta una fecha
+de un CSV.** Solo `nombre` es obligatorio.
 
 **EBX-104 · Ficha de máquina.** Lectura, edición y estado. Sin histórico todavía.
 
