@@ -36,7 +36,7 @@ Tres piezas, cada una en su sitio:
 | Dirección | Qué es | Dónde vive |
 |---|---|---|
 | `ergobox.es` | La web actual, la que capta clientes | Hostinger, sin tocar |
-| `app.ergobox.es` | Esta aplicación | Un servidor con Node (ver §3) |
+| `app.ergobox.es` | Esta aplicación | Netlify, gratis (ver §3) |
 | — | Base de datos, usuarios y fotos | Supabase |
 
 **Por qué un subdominio y no `ergobox.es/app`.** Con una carpeta habría que mover
@@ -124,19 +124,69 @@ servidor. Sin un proceso vivo no hay nada que servir.
 
 Las opciones reales:
 
-| Dónde | Coste | Mantenimiento | Nota |
-|---|---|---|---|
-| **VPS de Hostinger** | ~5 €/mes | Tuyo: actualizaciones, certificado, reinicios | Un solo proveedor y una sola factura |
-| Netlify | Gratis para esto | Ninguno | Igual de automático que Vercel |
-| Cloudflare Pages | Gratis | Poco | Requiere adaptador; hay que probar que todo funciona en su runtime |
-| Vercel | Gratis para esto | Ninguno | Descartado por decisión tuya |
+| Dónde | Coste | Mantenimiento | Cambios en el código | Nota |
+|---|---|---|---|---|
+| **Netlify** | Gratis | Ninguno | Ninguno | Su plan gratuito **sí** permite uso comercial. Lo único que prohíbe es revender el hosting |
+| VPS de Hostinger | ~5 €/mes | Tuyo | Ninguno | Un solo proveedor y una sola factura |
+| Vercel | Gratis solo si no es un negocio | Ninguno | Ninguno | Ver abajo |
+| Cloudflare Pages | Gratis | Poco | Adaptador y probarlo entero | Su runtime no es Node del todo |
+| Convertirlo en app estática | Gratis, cabe en Hostinger | Ninguno | **Reescritura de un par de días** | Ver §3.1 |
 
-**Recomendación:** el VPS de Hostinger, que es lo que encaja con "no quiero
-Vercel" sin repartir el negocio entre proveedores. El precio de tenerlo todo en un
-sitio es que el servidor lo cuidas tú: cuando salga una actualización de seguridad
-o se caiga el proceso, no hay nadie más mirando.
+**Recomendación: Netlify.** Es lo mismo que Vercel en comodidad, no cuesta nada,
+no exige tocar una línea y su plan gratuito permite explícitamente proyectos
+comerciales. El VPS solo compensa si prefieres una única factura y no te importa
+cuidar el servidor.
 
-### 3.1 Receta del VPS (Ubuntu 22.04 o 24.04)
+### 3.1 Sobre Vercel gratis, y sobre por qué otras aplicaciones no lo necesitaron
+
+**Vercel gratis funcionaría técnicamente, pero su plan Hobby es solo para uso no
+comercial.** Cualquier proyecto que forme parte de un negocio necesita el plan Pro,
+unos 20 $ al mes. No es una zona gris de las condiciones: está escrito y lo
+aplican. Netlify no tiene esa cláusula, y por eso es la recomendación.
+
+**Y otras aplicaciones no necesitaron nada de esto porque eran estáticas.** Una
+página que se descarga entera al navegador y habla directamente con Supabase se
+puede colgar en cualquier hosting, y sigue siendo segura: la RLS decide igual de
+bien viniendo del navegador que del servidor. Esta aplicación se escribió del otro
+modo, con las pantallas renderizadas en servidor.
+
+Se puede convertir. Lo que costaría:
+
+- Cada pantalla pasa a pedir sus datos desde el navegador, con sus estados de
+  carga. Son las siete pantallas.
+- Las acciones de servidor desaparecen; en su lugar, llamadas directas a Supabase.
+- Las rutas con id (`/clientes/[id]`) no existen en una exportación estática: hay
+  que pasarlas a `?id=...` o cambiar de router.
+- El alta de usuarios de `/admin` **no puede** irse al navegador, porque usa la
+  service role key. Tendría que vivir en una Edge Function de Supabase, que es
+  gratis. Lo mismo el cron de avisos de la fase 5.
+- La ruta de suscripción a las notificaciones también se va a una Edge Function.
+
+Es un par de días de trabajo para ahorrar cero euros frente a Netlify. Tiene
+sentido si algún día quieres no depender de nadie más que de Hostinger y Supabase;
+no lo tiene para salir cuanto antes.
+
+### 3.2 Netlify, que es la vía recomendada
+
+Sin receta de servidor, porque no hay servidor que montar:
+
+1. Entra en [netlify.com](https://netlify.com) con la cuenta de GitHub y elige
+   *Add new site → Import an existing project* apuntando a este repositorio.
+2. Netlify detecta Next.js solo. Deja `npm run build` como comando de build y no
+   toques el directorio de publicación.
+3. En *Site configuration → Environment variables*, las tres claves de §2.4.
+   `SUPABASE_SERVICE_ROLE_KEY` va aquí y en ningún otro sitio.
+4. En *Domain management → Add a domain*, escribe `app.ergobox.es`. Netlify te dará
+   un destino para el `CNAME` del §4 y pondrá el certificado él solo.
+
+Cada `git push` a la rama publica una versión nueva. Si algo sale mal, *Deploys →
+Publish deploy* vuelve a la anterior en un clic.
+
+El plan gratuito da 100 GB de tráfico y 125.000 invocaciones de función al mes.
+Para un puñado de boxes y sus dueños no se roza: las fotos no cuentan ahí, porque
+se sirven desde Supabase.
+
+### 3.3 Receta del VPS (Ubuntu 22.04 o 24.04), si prefieres esa vía
 
 ```bash
 # Node 20
@@ -207,7 +257,7 @@ sudo certbot --nginx -d app.ergobox.es
 disponible desde el navegador y la aplicación no se puede instalar como PWA: la
 mitad del producto deja de funcionar.
 
-### 3.2 Actualizar
+### 3.4 Actualizar el VPS
 
 ```bash
 cd /var/www/ergobox && git pull && npm ci && npm run build && sudo systemctl restart ergobox
@@ -223,8 +273,8 @@ hPanel → *Dominios → ergobox.es → DNS / Nameservers*, y un registro nuevo:
 |---|---|---|
 | `A` | `app` | La IP del VPS |
 
-Con Netlify o Cloudflare en vez de un VPS, el registro es un `CNAME` al dominio que
-ellos den. Tarda entre minutos y un par de horas en propagarse.
+Con Netlify —o Cloudflare— en vez de un VPS, el registro es un `CNAME` con nombre
+`app` apuntando al destino que ellos den, en lugar del `A` de la tabla. Tarda entre minutos y un par de horas en propagarse.
 
 **Nada de esto toca `ergobox.es`.** El registro del dominio raíz se queda como
 está y la web sigue publicándose igual.
