@@ -153,9 +153,17 @@ export function Trabajo({
         {notas ? <p className="texto-meta">{notas}</p> : null}
       </header>
 
-      {/* Avance y cola. Van juntos porque son la misma pregunta: cuánto queda. */}
-      <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
-        <div className="min-w-0 flex-1">
+      {/*
+       * Avance y cola. Van juntos porque son la misma pregunta: cuánto queda.
+       *
+       * `flex-wrap` y un ancho mínimo en el contador, no por adorno: con las dos
+       * insignias puestas a la vez (sin cobertura y siete fotos por subir) a
+       * 390 px el contador se quedaba sin sitio y "Quedan 9 máquinas" se partía
+       * en tres líneas por detrás de los chips.
+       */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-card p-3">
+        <div className="min-w-[9rem] flex-1">
+          {/* Un mínimo de 9rem es lo que ocupa "Quedan 12 máquinas" en una línea. */}
           <p className="cifra-dato leading-none">
             {hechas.length}
             <span className="text-meta font-normal text-muted-foreground">
@@ -169,25 +177,27 @@ export function Trabajo({
           </p>
         </div>
 
-        {!enLinea ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-micro font-medium text-muted-foreground">
-            <CloudOff className="h-3.5 w-3.5" /> Sin cobertura
-          </span>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {!enLinea ? (
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-micro font-medium text-muted-foreground">
+              <CloudOff className="h-3.5 w-3.5" /> Sin cobertura
+            </span>
+          ) : null}
 
-        {hayCola ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={subiendo || !enLinea}
-            onClick={() => void vaciarCola(false)}
-          >
-            {subiendo ? <RefreshCw className="animate-spin" /> : <Upload />}
-            {pendientes.fotos > 0
-              ? `${plural(pendientes.fotos, 'foto', 'fotos')} · ${tamano(pendientes.bytes)}`
-              : plural(pendientes.partes, 'parte', 'partes')}
-          </Button>
-        ) : null}
+          {hayCola ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={subiendo || !enLinea}
+              onClick={() => void vaciarCola(false)}
+            >
+              {subiendo ? <RefreshCw className="animate-spin" /> : <Upload />}
+              {pendientes.fotos > 0
+                ? `${plural(pendientes.fotos, 'foto', 'fotos')} · ${tamano(pendientes.bytes)}`
+                : plural(pendientes.partes, 'parte', 'partes')}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {pendientesDeHacer.length > 0 ? (

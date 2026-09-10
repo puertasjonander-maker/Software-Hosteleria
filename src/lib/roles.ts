@@ -57,6 +57,21 @@ export const CLASE_SEMAFORO: Record<Semaforo, string> = {
   sin_revisar: 'bg-muted text-muted-foreground',
 }
 
+/**
+ * El mismo semáforo, pero para el punto de color de las listas.
+ *
+ * `sin_revisar` no puede usar aquí el `bg-muted` del chip: un punto de 10 px
+ * relleno de muted sobre una tarjeta se pierde, y en modo oscuro directamente no
+ * se ve. Sigue siendo neutro a propósito (no es verde, es que no se ha mirado),
+ * pero con contraste suficiente para contarlo de un vistazo.
+ */
+export const CLASE_PUNTO_SEMAFORO: Record<Semaforo, string> = {
+  verde: 'bg-ok',
+  ambar: 'bg-warn',
+  rojo: 'bg-destructive',
+  sin_revisar: 'bg-muted-foreground/50',
+}
+
 export const ORDEN_SEMAFORO: Record<Semaforo, number> = {
   rojo: 0,
   ambar: 1,

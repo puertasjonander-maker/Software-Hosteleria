@@ -1,5 +1,5 @@
 import type { Semaforo } from '@/lib/database.types'
-import { CLASE_SEMAFORO, ETIQUETA_SEMAFORO } from '@/lib/roles'
+import { CLASE_PUNTO_SEMAFORO, CLASE_SEMAFORO, ETIQUETA_SEMAFORO } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 
 /**
@@ -39,7 +39,7 @@ export function PuntoSemaforo({ estado }: { estado: Semaforo }) {
     <span
       role="img"
       aria-label={ETIQUETA_SEMAFORO[estado]}
-      className={cn('inline-block h-2.5 w-2.5 shrink-0 rounded-full', CLASE_SEMAFORO[estado])}
+      className={cn('inline-block h-2.5 w-2.5 shrink-0 rounded-full', CLASE_PUNTO_SEMAFORO[estado])}
     />
   )
 }
