@@ -1,4 +1,4 @@
-import type { Semaforo, TipoMaquina } from '@/lib/database.types'
+import type { ParqueEstadoRow, Semaforo, TipoMaquina } from '@/lib/database.types'
 import { ORDEN_SEMAFORO } from '@/lib/roles'
 
 /**
@@ -276,6 +276,128 @@ export function peorSemaforo(estados: Semaforo[]): Semaforo | null {
   return estados.reduce((peor, actual) =>
     ORDEN_SEMAFORO[actual] < ORDEN_SEMAFORO[peor] ? actual : peor,
   )
+}
+
+// ── El parque ya cargado ─────────────────────────────────────────────────────
+
+/**
+ * Una máquina tal y como la pintan las pantallas: la fila de `parque_estado` con
+ * los nombres en camelCase y sin el `cliente_id`, que ya lo sabe quien la pide.
+ *
+ * Vive aquí, y no en el componente que la enseña, porque la usan cuatro pantallas
+ * de tres roles distintos y una de ellas es la del cliente.
+ */
+export type MaquinaFila = {
+  id: string
+  nombre: string
+  tipo: TipoMaquina
+  marca: string | null
+  modelo: string | null
+  numSerie: string | null
+  ubicacion: string | null
+  notas: string | null
+  estado: Semaforo
+  cadenciaMeses: number | null
+  ultimaRevision: string | null
+  proximaRevision: string | null
+  /** Negativo = revisión vencida. Null = sin cadencia contratada. */
+  diasHastaRevision: number | null
+  serviciosHechos: number
+  activa: boolean
+}
+
+/** Traduce una fila de la vista `parque_estado` a lo que esperan las pantallas. */
+export function comoMaquinaFila(m: ParqueEstadoRow): MaquinaFila {
+  return {
+    id: m.id,
+    nombre: m.nombre,
+    tipo: m.tipo,
+    marca: m.marca,
+    modelo: m.modelo,
+    numSerie: m.num_serie,
+    ubicacion: m.ubicacion,
+    notas: m.notas,
+    estado: m.estado,
+    cadenciaMeses: m.cadencia_meses,
+    ultimaRevision: m.ultima_revision,
+    proximaRevision: m.proxima_revision,
+    diasHastaRevision: m.dias_hasta_revision,
+    serviciosHechos: m.servicios_hechos,
+    activa: m.activa,
+  }
+}
+
+/**
+ * El orden del parque (EBX-303): primero lo que pide atención.
+ *
+ * Rojo, ámbar, lo que nunca se ha mirado, y el verde al final. Dentro de cada
+ * grupo, lo más vencido arriba. Alfabético dejaría "RowErg 1" por delante de un
+ * rack en rojo, y el parque se mira para saber qué hay que arreglar.
+ *
+ * Las máquinas fuera del parque van siempre al final, en el orden que sea: ya no
+ * están en el box y solo aparecen para poder consultar su historial.
+ */
+export function ordenarPorUrgencia(maquinas: MaquinaFila[]): MaquinaFila[] {
+  const activas = maquinas.filter((m) => m.activa)
+  const inactivas = maquinas.filter((m) => !m.activa)
+
+  activas.sort((a, b) => {
+    const porEstado = ORDEN_SEMAFORO[a.estado] - ORDEN_SEMAFORO[b.estado]
+    if (porEstado !== 0) return porEstado
+    const diasA = a.diasHastaRevision ?? Number.POSITIVE_INFINITY
+    const diasB = b.diasHastaRevision ?? Number.POSITIVE_INFINITY
+    if (diasA !== diasB) return diasA - diasB
+    return a.nombre.localeCompare(b.nombre, 'es')
+  })
+
+  return [...activas, ...inactivas]
+}
+
+export type ResumenParque = {
+  total: number
+  porEstado: Record<Semaforo, number>
+  vencidas: number
+  /** Con revisión dentro de los próximos 30 días, sin contar las ya vencidas. */
+  proximas: number
+}
+
+/** El estado de un parque en cuatro números. Solo cuenta lo que está en el box. */
+export function resumirParque(maquinas: MaquinaFila[]): ResumenParque {
+  const activas = maquinas.filter((m) => m.activa)
+  const porEstado: Record<Semaforo, number> = { rojo: 0, ambar: 0, sin_revisar: 0, verde: 0 }
+
+  let vencidas = 0
+  let proximas = 0
+
+  for (const m of activas) {
+    porEstado[m.estado] += 1
+    if (m.diasHastaRevision === null) continue
+    if (m.diasHastaRevision < 0) vencidas += 1
+    else if (m.diasHastaRevision <= 30) proximas += 1
+  }
+
+  return { total: activas.length, porEstado, vencidas, proximas }
+}
+
+/**
+ * Cómo se lee la próxima revisión en una línea de lista.
+ *
+ * Null = sin cadencia contratada, que no es lo mismo que estar al día: esa
+ * máquina simplemente no entra en el calendario de revisiones.
+ */
+export function textoRevision(
+  m: Pick<MaquinaFila, 'diasHastaRevision'>,
+): { texto: string; urgente: boolean } | null {
+  if (m.diasHastaRevision === null) return null
+  if (m.diasHastaRevision < 0) {
+    const dias = Math.abs(m.diasHastaRevision)
+    return { texto: `vencida hace ${dias === 1 ? '1 día' : `${dias} días`}`, urgente: true }
+  }
+  if (m.diasHastaRevision === 0) return { texto: 'toca hoy', urgente: true }
+  return {
+    texto: `en ${m.diasHastaRevision === 1 ? '1 día' : `${m.diasHastaRevision} días`}`,
+    urgente: m.diasHastaRevision <= 14,
+  }
 }
 
 /** Contenido de la plantilla que se descarga desde el importador. */

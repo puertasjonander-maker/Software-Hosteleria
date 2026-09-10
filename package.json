@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "db:push": "prisma db push",
-    "probar:parque": "tsx scripts/probar-parque.ts"
+    "probar:parque": "tsx scripts/probar-parque.ts",
+    "probar:sql": "psql -v ON_ERROR_STOP=1 -f scripts/probar-historico.sql && psql -v ON_ERROR_STOP=1 -f scripts/probar-aislamiento.sql"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.1",

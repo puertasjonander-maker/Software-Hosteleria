@@ -1,0 +1,93 @@
+import Link from 'next/link'
+import { ChevronRight } from 'lucide-react'
+import { type MaquinaFila, ordenarPorUrgencia, textoRevision } from '@/lib/parque'
+import { ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
+import { fecha as formatearFecha } from '@/lib/format'
+import { PuntoSemaforo } from '@/components/chip-semaforo'
+
+/**
+ * El parque de un box como lista (EBX-303).
+ *
+ * La misma lista para el técnico y para el dueño del box: lo único que cambia es
+ * a dónde lleva cada fila, porque cada rol tiene su ruta hacia la ficha. Tenerla
+ * dos veces acabaría con dos criterios de orden distintos y el cliente viendo su
+ * parque ordenado alfabéticamente mientras nosotros lo vemos por urgencia.
+ */
+export function ListaParque({
+  maquinas,
+  /** Prefijo de la ficha: `/clientes/<id>/maquinas` o `/mi-box/maquinas`. */
+  base,
+}: {
+  maquinas: MaquinaFila[]
+  base: string
+}) {
+  const ordenadas = ordenarPorUrgencia(maquinas)
+
+  return (
+    <ul className="divide-y rounded-lg border bg-card">
+      {ordenadas.map((m) => {
+        const revision = textoRevision(m)
+
+        return (
+          <li key={m.id}>
+            <Link
+              href={`${base}/${m.id}`}
+              className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors duration-rapido ease-estandar hover:bg-accent"
+            >
+              <PuntoSemaforo estado={m.estado} />
+
+              <div className="min-w-0 flex-1">
+                {/* "Fuera del parque" va fuera del texto meta, que se trunca, y en
+                    su propia fila flex: puesto en línea con el nombre lo partía
+                    por la mitad ("SkiErg" / "1 · Fuera del parque"). Lo que cede
+                    es el nombre, con puntos suspensivos. */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={
+                      m.activa ? 'truncate titulo-tarjeta' : 'truncate titulo-tarjeta opacity-60'
+                    }
+                  >
+                    {m.nombre}
+                  </span>
+                  {!m.activa ? (
+                    <span className="shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-micro font-semibold text-muted-foreground">
+                      Fuera del parque
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-0.5 truncate texto-meta">
+                  {[ETIQUETA_TIPO_MAQUINA[m.tipo], m.marca, m.numSerie ? `nº ${m.numSerie}` : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              </div>
+
+              <div className="shrink-0 text-right">
+                {revision ? (
+                  <p
+                    className={
+                      revision.urgente
+                        ? 'texto-micro text-destructive'
+                        : 'texto-micro text-muted-foreground'
+                    }
+                  >
+                    {revision.texto}
+                  </p>
+                ) : (
+                  <p className="texto-micro text-muted-foreground">sin cadencia</p>
+                )}
+                {m.ultimaRevision ? (
+                  <p className="texto-micro text-muted-foreground">
+                    últ. {formatearFecha(m.ultimaRevision)}
+                  </p>
+                ) : null}
+              </div>
+
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}

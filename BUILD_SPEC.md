@@ -142,37 +142,70 @@ cuánto queda por subir.
 
 ---
 
-## 5. Fase 3 — Histórico y semáforo
+## 5. Fase 3 — Histórico y semáforo · hecha
 
-**EBX-301 · Línea de tiempo por máquina.** Altas, servicios, cambios de estado e
-incidencias, con las fotos de cada servicio.
+**EBX-301 · Línea de tiempo por máquina.** En `/clientes/[id]/maquinas/[maquinaId]`.
+Altas, servicios, cambios de estado, bajas e incidencias, con las fotos de cada
+servicio en dos tiras (antes y después) y firmadas para una hora.
 
-**EBX-302 · Anotación manual.** Un interno puede añadir un evento que no viene de
-un servicio ("llegó con óxido de fábrica", "se la llevaron a una competición").
+**EBX-302 · Anotación manual.** Un interno añade un evento que no viene de un
+servicio, con su fecha real hacia atrás: lo que se anota casi siempre pasó antes
+de que alguien se acordara de escribirlo. No se puede anotar un `servicio`: eso es
+un parte cerrado con su trabajo y sus fotos, y la base de datos lo rechaza.
 
-**EBX-303 · Estado del parque.** El semáforo del box de un vistazo, ordenado por
-urgencia. Rojo primero, sin revisar antes que verde.
+**EBX-303 · Estado del parque.** Franja de resumen (cuántas en cada color, cuántas
+vencidas, cuántas en 30 días) y lista ordenada por urgencia: rojo, ámbar, sin
+revisar, verde, y dentro de cada grupo lo más vencido arriba. El orden vive en
+`ordenarPorUrgencia()` y lo comparten la pantalla del box y la del cliente.
 
-**EBX-304 · Panel.** Todos los parques, revisiones vencidas y próximas, servicios
-por periodo.
+**EBX-304 · Panel.** Todos los parques, revisiones vencidas y próximas, y visitas
+por periodo (30 días, 90 días o un año).
+
+**Lo que hubo que resolver en la base de datos.** El semáforo de una máquina lo
+mueven dos triggers: el del cierre del parte y el de la ficha. Sin avisarse entre
+ellos, cada visita dejaba en el histórico el trabajo *y*, pegado, un "cambio de
+estado" fantasma que el cliente leería como si hubiéramos ido dos veces. El cierre
+del parte levanta ahora una marca de transacción que el trigger de la ficha mira
+antes de escribir. Se comprueba en `scripts/probar-historico.sql`.
 
 ---
 
-## 6. Fase 4 — El cliente entra
+## 6. Fase 4 — El cliente entra · hecha
 
-**EBX-401 · Invitar al dueño de un box.** Crear el usuario y atarlo a su cliente.
-Es el único sitio desde el que alguien pasa a ver datos de un box.
+**EBX-401 · Invitar al dueño de un box.** En `/admin`. Crea el usuario y lo ata a
+su cliente. Es el único sitio del producto que usa la service role key, y cada
+acción vuelve a comprobar el rol contra la base de datos: una acción de servidor
+es un endpoint público con otro nombre.
 
-**EBX-402 · Vista del cliente.** Su parque, su semáforo, el historial de cada
-máquina y las fotos. Solo lectura.
+Sin SMTP no hay correo de invitación, así que se genera una contraseña temporal
+legible en voz alta (sin `l`, `I`, `0` ni `O`), se enseña una sola vez y se pasa
+por WhatsApp. No se guarda en ninguna parte consultable.
 
-**EBX-403 · Fotos firmadas.** URL caducable generada en servidor tras comprobar la
-misma regla de acceso. Nunca una URL pública.
+**EBX-402 · Vista del cliente.** `/mi-box` y `/mi-box/maquinas/[maquinaId]`: su
+parque, su semáforo, el historial de cada máquina y las fotos. Solo lectura, y no
+por lo que enseña la pantalla: ninguna política de escritura admite el rol
+`cliente`, en ninguna tabla.
+
+**EBX-403 · Fotos firmadas.** `firmarFotos()` firma con el cliente del usuario y
+nunca con la service role, para que sea la política del bucket la que decida. Una
+hora de caducidad.
 
 **Prueba de aislamiento, obligatoria antes de dar por hecha la fase:** con dos
 boxes dados de alta y un usuario cliente de cada uno, ninguna consulta de uno
 devuelve una sola fila del otro. Se prueba contra la base de datos, no contra la
 interfaz.
+
+**Hecha.** `scripts/probar-aislamiento.sql`, 49 comprobaciones: los dos clientes
+en las dos direcciones, un cliente recién invitado sin box, una sesión sin token y
+un técnico. Cubre `clientes`, `maquinas`, `servicios`, `partes`, `fotos`,
+`eventos_maquina`, `perfiles`, `ajustes`, la vista `parque_estado` y los objetos
+del bucket, y además que un cliente no escriba en ninguna de ellas.
+
+Lo que enseñó escribirla: una escritura denegada no siempre da error. Un `insert`
+que no cumple el `with check` revienta, pero un `update` cuyo `using` no casa con
+ninguna fila dice tranquilamente que ha tocado cero filas. Comprobar solo la
+excepción habría dado por bueno un `update` que sí funcionara, así que lo que se
+mira es el número de filas escritas.
 
 ---
 

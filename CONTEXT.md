@@ -102,8 +102,8 @@ Cada una deja algo utilizable. El orden no es negociable.
 | **F0** | Esquema, RLS, almacenamiento de fotos, andamio de rutas | hecha |
 | **F1** | Boxes y parque, con importación CSV | hecha |
 | **F2** | Visita en campo: ficha, fotos, offline | hecha, sin probar en un box |
-| **F3** | Histórico y semáforo del parque | pendiente |
-| **F4** | Vista del cliente y gestión de accesos | pendiente |
+| **F3** | Histórico y semáforo del parque | hecha |
+| **F4** | Vista del cliente y gestión de accesos | hecha |
 | **F5** | Avisos de próxima revisión | pendiente |
 
 La fase 2 está construida pero **no probada en un box de verdad**, que es lo

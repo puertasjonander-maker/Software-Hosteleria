@@ -1,7 +1,7 @@
 import webpush from 'web-push'
 
 /**
- * Envío de notificaciones push (MISE-004).
+ * Envío de notificaciones push (EBX-501).
  *
  * VAPID se configura una sola vez por proceso. Si faltan las claves no se
  * revienta el arranque: el aviso simplemente no sale y el cron lo registra. Un

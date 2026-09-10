@@ -67,6 +67,15 @@ function tituloDe(pathname: string): string {
   return TITULOS.find(([patron]) => patron.test(pathname))?.[1] ?? 'Ergobox'
 }
 
+/** Tramos que solo agrupan y no tienen pantalla: se saltan al volver atrás. */
+const TRAMOS_SIN_PANTALLA = new Set(['maquinas', 'maquina'])
+
+function padreDe(pathname: string): string {
+  const segmentos = pathname.split('/').slice(0, -1)
+  if (TRAMOS_SIN_PANTALLA.has(segmentos[segmentos.length - 1] ?? '')) segmentos.pop()
+  return segmentos.join('/') || '/'
+}
+
 /** Iniciales para el avatar. Dos como mucho: a 30 px no cabe más. */
 function iniciales(nombre: string): string {
   const partes = nombre.trim().split(/\s+/).filter(Boolean)
@@ -93,10 +102,12 @@ export function Navegacion({
   const esActivo = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
   const activo = visibles.find((d) => esActivo(d.href)) ?? null
 
-  // Una raíz no lleva atrás; una pantalla de dentro, sí. El padre es siempre el
-  // segmento de arriba: /visitas/abc/maquina/xyz → /visitas/abc.
+  // Una raíz no lleva atrás; una pantalla de dentro, sí. El padre es el segmento
+  // de arriba, salvo cuando ese segmento es un tramo de colección que no tiene
+  // pantalla propia: /clientes/abc/maquinas/xyz vuelve a /clientes/abc, no a
+  // /clientes/abc/maquinas, que daría un 404.
   const esRaiz = visibles.some((d) => d.href === pathname)
-  const volverA = esRaiz ? null : pathname.split('/').slice(0, -1).join('/') || '/'
+  const volverA = esRaiz ? null : padreDe(pathname)
 
   /*
    * La cabecera va plana mientras no haya nada por encima. El borde y la sombra

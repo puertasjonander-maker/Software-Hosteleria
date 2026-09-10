@@ -8,11 +8,12 @@ y su historial.
 
 **No es** un ERP de mantenimiento, ni un CRM, ni un sistema de facturación. Los
 presupuestos y el seguimiento comercial siguen en Notion. El contexto completo
-está en [`CONTEXT.md`](CONTEXT.md) y el backlog en [`BUILD_SPEC.md`](BUILD_SPEC.md).
+está en [`CONTEXT.md`](CONTEXT.md), el backlog en [`BUILD_SPEC.md`](BUILD_SPEC.md)
+y cómo ponerlo en producción bajo `app.ergobox.es` en [`DESPLIEGUE.md`](DESPLIEGUE.md).
 
 ---
 
-## Estado: fases 0, 1 y 2
+## Estado: fases 0 a 4
 
 Este repositorio es un fork de Mise, un sistema de aprovisionamiento para
 hostelería que compartía forma con este problema: multi-inquilino con aislamiento
@@ -22,14 +23,13 @@ La fase 0 ha vaciado el dominio de hostelería y ha dejado puesto el de Ergobox.
 
 | | |
 |---|---|
-| **Hecho** | Esquema, RLS, lógica en base de datos, bucket privado de fotos, roles, navegación, gestión de boxes y parque con importación CSV, y la visita en campo con fotos y cola sin cobertura |
+| **Hecho** | Esquema, RLS, lógica en base de datos, bucket privado de fotos, roles, navegación, boxes y parque con importación CSV, la visita en campo con fotos y cola sin cobertura, el histórico por máquina, el panel, la vista del cliente y la gestión de accesos |
 | **Conservado de Mise** | Autenticación, PWA, cola offline, sistema visual, kit de UI, navegación |
 | **Retirado** | Escandallo, proveedores, pedidos, recepción, histórico de precios y su seed |
+| **Pendiente** | Fase 5: avisos de próxima revisión (cron y push) |
 
-`/clientes` y `/visitas` están construidas. Las otras tres pantallas existen y
-están en la navegación, pero todavía dicen qué fase las construye. No es un
-descuido: una pantalla que falta se descubre al pulsar y no se sabe si es un
-fallo.
+Las seis pantallas están construidas: `/visitas`, `/clientes`, la ficha de máquina
+con su historial, `/panel`, `/mi-box` y `/admin`.
 
 **La fase 2 no está cerrada.** El código está, pero la pantalla de trabajo es la
 que decide si el sistema se usa o se abandona, y eso solo lo dice un cronómetro
@@ -71,8 +71,8 @@ saltes ninguno de los dos.
 
 ### 4. Primer usuario
 
-El alta de usuarios vivirá en `/admin` (fase 4). El primer administrador se crea a
-mano:
+El resto de altas se hacen desde `/admin`, pero el primer administrador no puede
+crearse desde una pantalla que exige ser administrador. Se hace a mano una vez:
 
 1. Supabase → *Authentication → Users → Add user*, con contraseña y confirmando
    el correo.
@@ -133,6 +133,12 @@ rellenada aquí se convertía en el 9 de agosto sin avisar. En un `.xlsx` de ver
 no hay nada que adivinar, porque Excel guarda las fechas como número de serie, y
 ahí sí se deja que las resuelva. `npm run probar:parque` cubre los dos caminos.
 
+**El aislamiento entre boxes se prueba contra la base de datos, no contra la
+interfaz.** `scripts/probar-aislamiento.sql` levanta dos boxes con un cliente cada
+uno y comprueba, tabla por tabla, que ninguno ve ni una fila del otro ni puede
+escribir en ninguna parte. Las pantallas se pueden esquivar: el token de un
+cliente vale igual contra PostgREST. Si tocas una política, vuelve a pasarlo.
+
 **Las fechas son fechas de Málaga.** Todo lo que dependa de ellas pasa por
 `src/lib/time.ts`, no por `new Date()` a secas: el servidor corre en UTC.
 
@@ -147,6 +153,7 @@ ahí sí se deja que las resuelva. `npm run probar:parque` cubre los dos caminos
 | `npm run typecheck` | TypeScript sin emitir |
 | `npm run lint` | ESLint |
 | `npm run probar:parque` | Prueba el intérprete del CSV del parque |
+| `npm run probar:sql` | Prueba el histórico y el aislamiento entre boxes contra Postgres |
 | `node scripts/generar-iconos.mjs` | Regenera los iconos PNG de la PWA |
 
 ## Estructura
@@ -161,5 +168,19 @@ src/
 supabase/migrations/  Esquema, lógica, RLS y almacenamiento — la fuente de verdad
 prisma/schema.prisma  Espejo tipado del esquema
 seed/                 Parque de demo para probar la importación
-scripts/              Generación de iconos y prueba del intérprete del parque
+scripts/              Iconos, prueba del CSV y las dos pruebas SQL
 ```
+
+Para las pruebas SQL hace falta un PostgreSQL cualquiera, no un Supabase:
+
+```bash
+createdb ergobox
+psql -d ergobox -f scripts/supabase-stub.sql
+for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -d ergobox -f "$f"; done
+PGDATABASE=ergobox npm run probar:sql
+```
+
+El stub reproduce lo justo de Supabase de lo que dependen las migraciones: los
+tres roles, `auth.users` con su trigger, `auth.uid()` leyendo un GUC, y la tabla
+de objetos del bucket. Las dos pruebas se hacen y se deshacen dentro de una
+transacción, así que no dejan nada.

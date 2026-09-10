@@ -19,7 +19,7 @@ function base64UrlABytes(base64: string): BufferSource {
 type Estado = 'comprobando' | 'no_soportado' | 'sin_clave' | 'desactivado' | 'activado' | 'bloqueado'
 
 /**
- * Alta y baja de los avisos de corte (MISE-004).
+ * Alta y baja de los avisos de corte (EBX-501).
  *
  * Pide el permiso solo cuando la persona pulsa, nunca al cargar: un navegador
  * al que le sale el diálogo de notificaciones nada más entrar recibe un "no"

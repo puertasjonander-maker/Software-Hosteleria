@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * Tablas de densidad alta para las pantallas de administración y panel
- * (MISE-000, MISE-007: "escritorio primero"). El contenedor tiene scroll
+ * ("escritorio primero"). El contenedor tiene scroll
  * horizontal propio para que la página nunca se desplace en lateral.
  */
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(

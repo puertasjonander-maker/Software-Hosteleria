@@ -82,7 +82,7 @@ export function EstadoError({
 /**
  * Aviso de falta de red. Discreto por diseño: durante una visita no puede ser
  * bloqueante, porque lo que se registra se guarda en local igualmente
- * (MISE-001).
+ * (EBX-205).
  */
 export function AvisoSinConexion({
   pendientes = 0,
@@ -103,16 +103,6 @@ export function AvisoSinConexion({
         Sin conexión. {pendientes > 0 ? `${pendientes} ` : ''}
         {pendientes === 1 ? 'cambio se enviará' : 'cambios se enviarán'} al recuperar red.
       </span>
-    </div>
-  )
-}
-
-/** Contador de datos insuficientes para el panel (MISE-007). */
-export function AvisoDatosInsuficientes({ mensaje }: { mensaje: string }) {
-  return (
-    <div className="flex items-start gap-2 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-meta text-warn">
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-      <span>{mensaje}</span>
     </div>
   )
 }

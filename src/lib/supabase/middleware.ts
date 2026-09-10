@@ -39,7 +39,7 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     // Se vuelve a donde se iba: si el aviso push apuntaba a /visitas/xxx, tras
-    // entrar se aterriza ahí y no en el inicio (MISE-004).
+    // entrar se aterriza ahí y no en el inicio (EBX-501).
     url.searchParams.set('next', path + request.nextUrl.search)
     return NextResponse.redirect(url)
   }

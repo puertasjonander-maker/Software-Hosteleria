@@ -4,8 +4,8 @@ import type { Database } from '@/lib/database.types'
 /**
  * Cliente con service role. SALTA RLS.
  *
- * Solo para dos cosas: el cron de recordatorios (MISE-004), que corre sin
- * usuario, y el alta de usuarios en /admin (crear cuentas en auth.users). Nunca
+ * Solo para dos cosas: el alta de usuarios en /admin (crear cuentas en
+ * auth.users) y el cron de avisos de la fase 5 (EBX-501), que corre sin usuario. Nunca
  * se importa desde un componente de cliente — si aparece en un bundle de
  * navegador, es un incidente de seguridad.
  */

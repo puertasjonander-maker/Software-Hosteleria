@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { Semaforo, TipoMaquina } from '@/lib/database.types'
+import type { Semaforo, TipoEvento, TipoMaquina } from '@/lib/database.types'
 import type { FilaParque } from '@/lib/parque'
+import { TIPOS_ANOTABLES } from '@/lib/roles'
 
 export type Resultado = { ok: true } | { ok: false; mensaje: string }
 
@@ -126,6 +127,54 @@ export async function alternarMaquina(
 
   revalidatePath(`/clientes/${clienteId}`)
   return resultado(error, 'una máquina')
+}
+
+// ── Histórico ────────────────────────────────────────────────────────────────
+
+export type DatosEvento = {
+  fecha: string
+  tipo: TipoEvento
+  texto: string
+  /** Null = la anotación no toca el semáforo. */
+  estadoResultante: Semaforo | null
+}
+
+/**
+ * Añade una línea al histórico de una máquina.
+ *
+ * Es para lo que no viene de una visita: "llegó con óxido de fábrica", "se la
+ * llevaron a una competición". Anotar no mueve el semáforo de la máquina: si
+ * además hay que cambiarlo, se cambia en la ficha, y ese cambio deja su propia
+ * línea. Mezclar las dos cosas haría que corregir una fecha mal escrita
+ * repintara el parque.
+ */
+export async function anotarEvento(
+  clienteId: string,
+  maquinaId: string,
+  datos: DatosEvento,
+): Promise<Resultado> {
+  const texto = datos.texto.trim()
+  if (texto === '') return { ok: false, mensaje: 'Escribe qué pasó.' }
+  if (!TIPOS_ANOTABLES.includes(datos.tipo)) {
+    return { ok: false, mensaje: 'Ese tipo de evento no se anota a mano.' }
+  }
+
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { error } = await supabase.from('eventos_maquina').insert({
+    maquina_id: maquinaId,
+    fecha: datos.fecha,
+    tipo: datos.tipo,
+    texto,
+    estado_resultante: datos.estadoResultante,
+    autor_id: user?.id ?? null,
+  })
+
+  revalidatePath(`/clientes/${clienteId}/maquinas/${maquinaId}`)
+  return resultado(error, 'un evento')
 }
 
 // ── Importación del parque ───────────────────────────────────────────────────

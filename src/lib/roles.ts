@@ -114,3 +114,12 @@ export const ETIQUETA_TIPO_EVENTO: Record<TipoEvento, string> = {
   incidencia: 'Incidencia',
   baja: 'Baja',
 }
+
+/**
+ * Tipos que se pueden anotar a mano (EBX-302).
+ *
+ * `servicio` no está y no puede estar: un servicio es un parte cerrado con su
+ * trabajo y sus fotos, y dejar escribir uno a mano sería poder apuntar una visita
+ * que no existió. La base de datos lo rechaza además por su cuenta.
+ */
+export const TIPOS_ANOTABLES: TipoEvento[] = ['incidencia', 'cambio_estado', 'alta', 'baja']

@@ -4,13 +4,14 @@ import { notFound } from 'next/navigation'
 import { MapPin, Phone, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirRol } from '@/lib/auth'
-import { peorSemaforo } from '@/lib/parque'
-import { plural } from '@/lib/format'
+import { comoMaquinaFila, peorSemaforo, resumirParque, type MaquinaFila } from '@/lib/parque'
 import { Button } from '@/components/ui/button'
-import { EstadoError } from '@/components/ui/states'
+import { EstadoError, EstadoVacio } from '@/components/ui/states'
 import { ChipSemaforo } from '@/components/chip-semaforo'
+import { ListaParque } from '@/components/lista-parque'
+import { ResumenParque } from '@/components/resumen-parque'
 import { FichaBox } from './ficha-box'
-import { Parque, type MaquinaFila } from './parque'
+import { BotonAnadirMaquina } from './parque'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,26 +50,9 @@ export default async function PaginaBox({ params }: { params: { id: string } }) 
     .eq('cliente_id', params.id)
     .order('nombre')
 
-  const maquinas: MaquinaFila[] = (parque ?? []).map((m) => ({
-    id: m.id,
-    nombre: m.nombre,
-    tipo: m.tipo,
-    marca: m.marca,
-    modelo: m.modelo,
-    numSerie: m.num_serie,
-    ubicacion: m.ubicacion,
-    notas: m.notas,
-    estado: m.estado,
-    cadenciaMeses: m.cadencia_meses,
-    ultimaRevision: m.ultima_revision,
-    proximaRevision: m.proxima_revision,
-    diasHastaRevision: m.dias_hasta_revision,
-    serviciosHechos: m.servicios_hechos,
-    activa: m.activa,
-  }))
-
-  const activas = maquinas.filter((m) => m.activa)
-  const peor = peorSemaforo(activas.map((m) => m.estado))
+  const maquinas: MaquinaFila[] = (parque ?? []).map(comoMaquinaFila)
+  const resumen = resumirParque(maquinas)
+  const peor = peorSemaforo(maquinas.filter((m) => m.activa).map((m) => m.estado))
 
   return (
     <div className="container max-w-4xl space-y-4 py-4 md:py-6">
@@ -96,11 +80,6 @@ export default async function PaginaBox({ params }: { params: { id: string } }) 
                 : cliente.contacto_telefono}
             </a>
           ) : null}
-          <span>
-            {activas.length > 0
-              ? plural(activas.length, 'máquina', 'máquinas')
-              : 'sin parque'}
-          </span>
         </div>
 
         {cliente.notas ? <p className="texto-meta">{cliente.notas}</p> : null}
@@ -130,7 +109,23 @@ export default async function PaginaBox({ params }: { params: { id: string } }) 
         ) : null}
       </div>
 
-      <Parque clienteId={params.id} maquinas={maquinas} />
+      <ResumenParque resumen={resumen} />
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="titulo-seccion">Parque</h2>
+          <BotonAnadirMaquina clienteId={params.id} />
+        </div>
+
+        {maquinas.length === 0 ? (
+          <EstadoVacio
+            titulo="Este box todavía no tiene parque"
+            descripcion="Añade las máquinas una a una, o importa de golpe la hoja que rellenaste en la visita."
+          />
+        ) : (
+          <ListaParque maquinas={maquinas} base={`/clientes/${params.id}/maquinas`} />
+        )}
+      </div>
     </div>
   )
 }
