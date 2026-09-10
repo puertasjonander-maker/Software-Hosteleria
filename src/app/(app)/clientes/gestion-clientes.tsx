@@ -134,7 +134,7 @@ export function GestionClientes({
                     {[
                       b.poblacion,
                       b.maquinas > 0
-                        ? `${b.maquinas} ${plural(b.maquinas, 'máquina', 'máquinas')}`
+                        ? plural(b.maquinas, 'máquina', 'máquinas')
                         : 'sin parque',
                       b.contactoNombre,
                     ]
@@ -145,7 +145,7 @@ export function GestionClientes({
 
                 {b.vencidas > 0 ? (
                   <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-micro font-semibold text-destructive">
-                    {b.vencidas} {plural(b.vencidas, 'vencida', 'vencidas')}
+                    {plural(b.vencidas, 'vencida', 'vencidas')}
                   </span>
                 ) : null}
 

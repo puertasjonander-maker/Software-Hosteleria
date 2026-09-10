@@ -111,11 +111,17 @@ de un CSV.** Solo `nombre` es obligatorio.
 
 ---
 
-## 4. Fase 2 — La visita
+## 4. Fase 2 — La visita · construida, pendiente de cronómetro
 
 Es la fase que decide el proyecto. Se diseña contra un cronómetro: **una máquina
 completa, con sus fotos, en menos de sesenta segundos de interacción.** Si no se
 llega, se recorta la ficha hasta llegar.
+
+**Criterio de cierre, sin cumplir todavía:** una visita real, en un box, con el
+móvil de quien la hace. Hasta entonces la fase queda abierta y no se le añade
+nada. Lo que hay que mirar allí: cuántos toques cuesta una máquina, si el
+protocolo precargado acierta, si las fotos comprimidas sirven de prueba, y si la
+cola se vacía sola al salir del local.
 
 **EBX-201 · Planificar una visita.** Elegir box y fecha, y marcar qué máquinas
 entran. Por defecto, las que tienen revisión vencida o próxima.

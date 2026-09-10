@@ -98,7 +98,7 @@ export default async function PaginaBox({ params }: { params: { id: string } }) 
           ) : null}
           <span>
             {activas.length > 0
-              ? `${activas.length} ${plural(activas.length, 'máquina', 'máquinas')}`
+              ? plural(activas.length, 'máquina', 'máquinas')
               : 'sin parque'}
           </span>
         </div>

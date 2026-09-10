@@ -12,7 +12,7 @@ está en [`CONTEXT.md`](CONTEXT.md) y el backlog en [`BUILD_SPEC.md`](BUILD_SPEC
 
 ---
 
-## Estado: fases 0 y 1 hechas
+## Estado: fases 0, 1 y 2
 
 Este repositorio es un fork de Mise, un sistema de aprovisionamiento para
 hostelería que compartía forma con este problema: multi-inquilino con aislamiento
@@ -22,18 +22,19 @@ La fase 0 ha vaciado el dominio de hostelería y ha dejado puesto el de Ergobox.
 
 | | |
 |---|---|
-| **Hecho** | Esquema completo, RLS, lógica en base de datos, bucket privado de fotos, roles nuevos, navegación, y la gestión de boxes y parque con importación desde CSV |
+| **Hecho** | Esquema, RLS, lógica en base de datos, bucket privado de fotos, roles, navegación, gestión de boxes y parque con importación CSV, y la visita en campo con fotos y cola sin cobertura |
 | **Conservado de Mise** | Autenticación, PWA, cola offline, sistema visual, kit de UI, navegación |
 | **Retirado** | Escandallo, proveedores, pedidos, recepción, histórico de precios y su seed |
 
-`/clientes` está construida: listado de boxes con su semáforo, ficha del box,
-parque ordenado por urgencia e importación del parque desde CSV o Excel. Las
-otras cuatro pantallas existen y están en la navegación, pero todavía dicen qué
-fase las construye. No es un descuido: una pantalla que falta se descubre al
-pulsar y no se sabe si es un fallo.
+`/clientes` y `/visitas` están construidas. Las otras tres pantallas existen y
+están en la navegación, pero todavía dicen qué fase las construye. No es un
+descuido: una pantalla que falta se descubre al pulsar y no se sabe si es un
+fallo.
 
-Las fases siguientes están en [`BUILD_SPEC.md`](BUILD_SPEC.md). La fase 2, la
-visita en campo, es la que decide si el sistema se usa o se abandona.
+**La fase 2 no está cerrada.** El código está, pero la pantalla de trabajo es la
+que decide si el sistema se usa o se abandona, y eso solo lo dice un cronómetro
+dentro de un box: una máquina completa, con sus fotos, en menos de sesenta
+segundos. Hasta esa prueba, no se le añade nada.
 
 ---
 
@@ -117,6 +118,13 @@ decide borrarte la pestaña. Comprimidas, quince megas.
 comportamiento (políticas, triggers, vistas con `security_invoker`, políticas de
 storage) no se puede expresar en el esquema de Prisma. **No ejecutes
 `prisma migrate dev`**: borraría las políticas.
+
+**La escritura de campo va siempre a la cola local, haya cobertura o no.** Un
+único camino: guardar en IndexedDB y disparar la sincronización. Con dos caminos,
+el de sin cobertura sería el que nunca se prueba, y es el que importa. Las fotos
+suben antes que el cierre del parte a propósito: cerrar un parte escribe el
+histórico que ve el cliente, y si llegara antes que sus fotos, un corte de red
+dejaría un servicio cerrado sin la prueba de que se hizo.
 
 **Ninguna librería interpreta una fecha de un CSV.** Un CSV se parte con
 papaparse, que devuelve texto y nada más. El lector de Excel adivina qué celdas

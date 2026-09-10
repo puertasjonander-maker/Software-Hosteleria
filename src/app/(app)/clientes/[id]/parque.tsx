@@ -53,11 +53,11 @@ function textoRevision(m: MaquinaFila): { texto: string; urgente: boolean } | nu
   if (m.diasHastaRevision === null) return null
   if (m.diasHastaRevision < 0) {
     const dias = Math.abs(m.diasHastaRevision)
-    return { texto: `vencida hace ${dias} ${plural(dias, 'día', 'días')}`, urgente: true }
+    return { texto: `vencida hace ${plural(dias, 'día', 'días')}`, urgente: true }
   }
   if (m.diasHastaRevision === 0) return { texto: 'toca hoy', urgente: true }
   return {
-    texto: `en ${m.diasHastaRevision} ${plural(m.diasHastaRevision, 'día', 'días')}`,
+    texto: `en ${plural(m.diasHastaRevision, 'día', 'días')}`,
     urgente: m.diasHastaRevision <= 14,
   }
 }
@@ -256,7 +256,7 @@ function FormularioMaquina({
           <DialogTitle>{maquina ? maquina.nombre : 'Añadir máquina'}</DialogTitle>
           <DialogDescription>
             {maquina
-              ? `${ETIQUETA_TIPO_MAQUINA[maquina.tipo]} · ${maquina.serviciosHechos} ${plural(
+              ? `${ETIQUETA_TIPO_MAQUINA[maquina.tipo]} · ${plural(
                   maquina.serviciosHechos,
                   'servicio hecho',
                   'servicios hechos',

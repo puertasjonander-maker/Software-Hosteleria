@@ -101,13 +101,15 @@ Cada una deja algo utilizable. El orden no es negociable.
 |---|---|---|
 | **F0** | Esquema, RLS, almacenamiento de fotos, andamio de rutas | hecha |
 | **F1** | Boxes y parque, con importación CSV | hecha |
-| **F2** | Visita en campo: ficha, fotos, offline | pendiente |
+| **F2** | Visita en campo: ficha, fotos, offline | hecha, sin probar en un box |
 | **F3** | Histórico y semáforo del parque | pendiente |
 | **F4** | Vista del cliente y gestión de accesos | pendiente |
 | **F5** | Avisos de próxima revisión | pendiente |
 
-La fase 2 es la que decide si el sistema se usa o se abandona. Conviene llegar a
-ella pronto y no adornarla antes de haberla probado en un box de verdad.
+La fase 2 está construida pero **no probada en un box de verdad**, que es lo
+único que la da por buena. El listón está escrito: una máquina completa, con sus
+fotos, en menos de sesenta segundos de interacción. Hasta que alguien lo
+cronometre en una visita real, la fase no está cerrada y no conviene adornarla.
 
 ## 8. Supuestos a confirmar en campo
 

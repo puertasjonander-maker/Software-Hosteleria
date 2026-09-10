@@ -109,13 +109,9 @@ export function ImportadorParque({
             <div>
               <p className="titulo-tarjeta">Parque importado</p>
               <p className="texto-meta">
-                {resumen.creadas} {plural(resumen.creadas, 'máquina nueva', 'máquinas nuevas')}
+                {plural(resumen.creadas, 'máquina nueva', 'máquinas nuevas')}
                 {resumen.actualizadas > 0
-                  ? ` y ${resumen.actualizadas} ${plural(
-                      resumen.actualizadas,
-                      'actualizada',
-                      'actualizadas',
-                    )}`
+                  ? ` y ${plural(resumen.actualizadas, 'actualizada', 'actualizadas')}`
                   : ''}
                 .
               </p>
@@ -164,7 +160,7 @@ export function ImportadorParque({
 
           {nombreFichero ? (
             <p className="texto-meta">
-              {nombreFichero} · {filas.length} {plural(filas.length, 'fila', 'filas')}
+              {nombreFichero} · {plural(filas.length, 'fila', 'filas')}
             </p>
           ) : null}
 
@@ -184,8 +180,11 @@ export function ImportadorParque({
             <Card>
               <CardHeader>
                 <CardTitle className="titulo-tarjeta text-destructive">
-                  {interpretacion.problemas.length}{' '}
-                  {plural(interpretacion.problemas.length, 'fila que no entra', 'filas que no entran')}
+                  {plural(
+                    interpretacion.problemas.length,
+                    'fila que no entra',
+                    'filas que no entran',
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -205,15 +204,14 @@ export function ImportadorParque({
           <Card>
             <CardHeader>
               <CardTitle className="titulo-tarjeta">
-                2 · {interpretacion.validas.length}{' '}
-                {plural(interpretacion.validas.length, 'máquina', 'máquinas')} que entran
+                2 · {plural(interpretacion.validas.length, 'máquina', 'máquinas')} que entran
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {maquinasActuales > 0 ? (
                 <p className="texto-meta">
-                  Este box ya tiene {maquinasActuales}{' '}
-                  {plural(maquinasActuales, 'máquina', 'máquinas')}. Las que coincidan de nombre se
+                  Este box ya tiene {plural(maquinasActuales, 'máquina', 'máquinas')}. Las que
+                  coincidan de nombre se
                   actualizan; no se duplican ni se borran las que falten en el fichero.
                 </p>
               ) : null}
@@ -252,8 +250,7 @@ export function ImportadorParque({
                 disabled={interpretacion.validas.length === 0 || importando}
               >
                 {importando ? <Loader2 className="animate-spin" /> : null}
-                Importar {interpretacion.validas.length}{' '}
-                {plural(interpretacion.validas.length, 'máquina', 'máquinas')}
+                Importar {plural(interpretacion.validas.length, 'máquina', 'máquinas')}
               </Button>
             </CardContent>
           </Card>
