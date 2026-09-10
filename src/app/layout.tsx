@@ -5,20 +5,20 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'Mise',
-    template: '%s · Mise',
+    default: 'Ergobox',
+    template: '%s · Ergobox',
   },
   description:
-    'Aprovisionamiento para hostelería: registrar faltas, agrupar pedidos por proveedor, recibir mercancía y ver el gasto.',
+    'Mantenimiento de parques de máquinas: inventario por box, visitas, partes de trabajo con fotos e historial por máquina.',
   manifest: '/manifest.webmanifest',
-  applicationName: 'Mise',
+  applicationName: 'Ergobox',
   appleWebApp: {
     capable: true,
-    title: 'Mise',
+    title: 'Ergobox',
     statusBarStyle: 'default',
   },
   formatDetection: {
-    // Un "caja 6 ud" o un "1,5 kg" no son números de teléfono.
+    // Un número de serie o un drag factor de 199 no son números de teléfono.
     telephone: false,
   },
   icons: {
@@ -34,8 +34,8 @@ export const viewport: Viewport = {
   ],
   width: 'device-width',
   initialScale: 1,
-  // Sin maximumScale: bloquear el zoom rompe la accesibilidad y en una cocina
-  // hay gente que necesita acercarse al precio.
+  // Sin maximumScale: bloquear el zoom rompe la accesibilidad, y un número de
+  // serie medio borrado se lee acercándose.
   viewportFit: 'cover',
 }
 

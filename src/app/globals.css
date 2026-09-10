@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * Tokens de Mise.
+ * Tokens de Ergobox.
  *
  * Paleta corta a propósito: neutros cálidos + tres colores con significado
  * (primario para acción, `ok` para dato real, `warn` para dato estimado o corte
@@ -55,7 +55,7 @@
      * superar comprobaciones que un botón no tiene (banda de luminosidad,
      * croma mínimo, separación bajo daltonismo y contraste contra la superficie
      * del gráfico). Estos valores están validados para las dos superficies de
-     * Mise, así que no se cambian a ojo.
+     * la aplicación, así que no se cambian a ojo.
      */
     --chart-1: #2a78d6;
     --chart-2: #eb6834;
@@ -180,8 +180,8 @@
 
 /*
  * Los siete escalones de la escala como clases, y no sueltos en cada pantalla.
- * Cuando estaban sueltos, la misma cabecera de sección era `text-xs` en /pedir y
- * `text-sm` en /pedidos: dos tamaños para el mismo trabajo.
+ * Cuando estaban sueltos, la misma cabecera de sección salía `text-xs` en una
+ * pantalla y `text-sm` en otra: dos tamaños para el mismo trabajo.
  */
 @layer components {
   .titulo-pantalla {

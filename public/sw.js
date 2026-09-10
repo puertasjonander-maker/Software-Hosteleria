@@ -1,9 +1,9 @@
 /* eslint-disable no-undef */
 /**
- * Service worker de Mise.
+ * Service worker de Ergobox.
  *
  * Hace tres cosas y ninguna más:
- *   1. Que la app abra con la red caída, para que `/pedir` no dependa de que
+ *   1. Que la app abra con la red caída, para que `/visitas` no dependa de que
  *      haya cobertura en el sótano del local (CONTEXT.md §10.5).
  *   2. Cachear los estáticos de Next, que no cambian dentro de una versión.
  *   3. Recibir las notificaciones push de corte (MISE-004).
@@ -111,15 +111,15 @@ self.addEventListener('push', (event) => {
     datos = { body: event.data ? event.data.text() : '' }
   }
 
-  const titulo = datos.title || 'Mise'
+  const titulo = datos.title || 'Ergobox'
   const opciones = {
     body: datos.body || '',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
     lang: 'es',
     // El aviso lleva a la pantalla accionable, no al inicio (MISE-004).
-    data: { url: datos.url || '/pedidos' },
-    // Un tag por proveedor: si llegan dos avisos del mismo, se sustituyen en vez
+    data: { url: datos.url || '/visitas' },
+    // Un tag por box: si llegan dos avisos del mismo, se sustituyen en vez
     // de apilarse.
     tag: datos.tag || 'mise-corte',
     renotify: false,
@@ -131,7 +131,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const destino = new URL(event.notification.data?.url || '/pedidos', self.location.origin).href
+  const destino = new URL(event.notification.data?.url || '/visitas', self.location.origin).href
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
@@ -146,7 +146,7 @@ self.addEventListener('notificationclick', (event) => {
   )
 })
 
-// El cliente avisa cuando recupera red para que la cola de `/pedir` se vacíe.
+// El cliente avisa cuando recupera red para que la cola de la visita se vacíe.
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })

@@ -38,7 +38,7 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    // Se vuelve a donde se iba: si el aviso push apuntaba a /pedidos/xxx, tras
+    // Se vuelve a donde se iba: si el aviso push apuntaba a /visitas/xxx, tras
     // entrar se aterriza ahí y no en el inicio (MISE-004).
     url.searchParams.set('next', path + request.nextUrl.search)
     return NextResponse.redirect(url)

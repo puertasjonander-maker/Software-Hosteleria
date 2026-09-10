@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   BarChart3,
+  Building2,
   ChevronLeft,
-  ClipboardList,
+  Dumbbell,
   LogOut,
-  PlusCircle,
   Settings,
-  UtensilsCrossed,
+  Wrench,
 } from 'lucide-react'
 import type { RolUsuario } from '@/lib/database.types'
 import { ETIQUETA_ROL } from '@/lib/roles'
@@ -32,26 +32,13 @@ type Destino = {
  * "sin permiso" es hacer perder un toque a alguien con prisa.
  */
 const DESTINOS: Destino[] = [
-  {
-    href: '/pedir',
-    etiqueta: 'Pedir',
-    icono: PlusCircle,
-    roles: ['barista', 'encargado', 'operador'],
-  },
-  {
-    href: '/pedidos',
-    etiqueta: 'Pedidos',
-    icono: ClipboardList,
-    roles: ['barista', 'encargado', 'operador'],
-  },
-  {
-    href: '/escandallo',
-    etiqueta: 'Escandallo',
-    icono: UtensilsCrossed,
-    roles: ['encargado', 'operador'],
-  },
-  { href: '/panel', etiqueta: 'Panel', icono: BarChart3, roles: ['operador'] },
-  { href: '/admin', etiqueta: 'Admin', icono: Settings, roles: ['operador'] },
+  { href: '/visitas', etiqueta: 'Visitas', icono: Wrench, roles: ['admin', 'tecnico'] },
+  { href: '/clientes', etiqueta: 'Boxes', icono: Building2, roles: ['admin', 'tecnico'] },
+  { href: '/panel', etiqueta: 'Panel', icono: BarChart3, roles: ['admin'] },
+  { href: '/admin', etiqueta: 'Admin', icono: Settings, roles: ['admin'] },
+  // El cliente ve una sola pestaña. No es una limitación: es todo lo que hay
+  // para él, y una barra con un único destino se lee como "estás en tu sitio".
+  { href: '/mi-box', etiqueta: 'Mi box', icono: Dumbbell, roles: ['cliente'] },
 ]
 
 /**
@@ -63,22 +50,21 @@ const DESTINOS: Destino[] = [
  * De lo más específico a lo más general: la primera que casa, gana.
  */
 const TITULOS: Array<[RegExp, string]> = [
-  [/^\/pedir/, 'Pedir'],
-  [/^\/pedidos\/[^/]+\/recepcion/, 'Recepción'],
-  [/^\/pedidos\/[^/]+/, 'Pedido'],
-  [/^\/pedidos/, 'Pedidos'],
-  [/^\/escandallo\/importar/, 'Importar escandallo'],
-  [/^\/escandallo\/mapeo/, 'Mapeo'],
-  [/^\/escandallo\/simulador/, 'Simulador'],
-  [/^\/escandallo\/[^/]+/, 'Elaboración'],
-  [/^\/escandallo/, 'Escandallo'],
+  [/^\/visitas\/[^/]+\/maquina\/[^/]+/, 'Máquina'],
+  [/^\/visitas\/[^/]+/, 'Visita'],
+  [/^\/visitas/, 'Visitas'],
+  [/^\/clientes\/[^/]+\/maquinas\/[^/]+/, 'Ficha de máquina'],
+  [/^\/clientes\/[^/]+/, 'Box'],
+  [/^\/clientes/, 'Boxes'],
+  [/^\/mi-box\/maquinas\/[^/]+/, 'Ficha de máquina'],
+  [/^\/mi-box/, 'Mi box'],
   [/^\/panel/, 'Panel'],
   [/^\/admin/, 'Administración'],
   [/^\/sin-permiso/, 'Sin permiso'],
 ]
 
 function tituloDe(pathname: string): string {
-  return TITULOS.find(([patron]) => patron.test(pathname))?.[1] ?? 'Mise'
+  return TITULOS.find(([patron]) => patron.test(pathname))?.[1] ?? 'Ergobox'
 }
 
 /** Iniciales para el avatar. Dos como mucho: a 30 px no cabe más. */
@@ -94,11 +80,12 @@ function iniciales(nombre: string): string {
 export function Navegacion({
   rol,
   nombre,
-  local,
+  box,
 }: {
   rol: RolUsuario
   nombre: string
-  local: string | null
+  /** Nombre del box, solo para un cliente. Un interno no está atado a ninguno. */
+  box: string | null
 }) {
   const pathname = usePathname()
   const visibles = DESTINOS.filter((d) => d.roles.includes(rol))
@@ -107,7 +94,7 @@ export function Navegacion({
   const activo = visibles.find((d) => esActivo(d.href)) ?? null
 
   // Una raíz no lleva atrás; una pantalla de dentro, sí. El padre es siempre el
-  // segmento de arriba: /pedidos/abc/recepcion → /pedidos/abc.
+  // segmento de arriba: /visitas/abc/maquina/xyz → /visitas/abc.
   const esRaiz = visibles.some((d) => d.href === pathname)
   const volverA = esRaiz ? null : pathname.split('/').slice(0, -1).join('/') || '/'
 
@@ -158,9 +145,9 @@ export function Navegacion({
               )}
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm text-primary-foreground">
-                M
+                E
               </span>
-              <span className="hidden lg:inline">Mise</span>
+              <span className="hidden lg:inline">Ergobox</span>
             </Link>
 
             <h2 className="truncate text-tarjeta font-semibold md:hidden">{tituloDe(pathname)}</h2>
@@ -190,7 +177,7 @@ export function Navegacion({
             </nav>
           </div>
 
-          {/* Hueco para los controles de la pantalla (el selector de local). */}
+          {/* Hueco para los controles propios de cada pantalla. */}
           <div id={ID_RANURA_CABECERA} className="flex min-w-0 shrink items-center justify-end" />
 
           <Menu>
@@ -206,7 +193,7 @@ export function Navegacion({
                 <p className="truncate text-cuerpo font-medium leading-tight">{nombre}</p>
                 <p className="truncate text-meta leading-tight text-muted-foreground">
                   {ETIQUETA_ROL[rol]}
-                  {local ? ` · ${local}` : ''}
+                  {box ? ` · ${box}` : ''}
                 </p>
               </MenuLabel>
 

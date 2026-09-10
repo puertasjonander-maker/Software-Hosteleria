@@ -1,8 +1,8 @@
 {
-  "name": "Mise · Aprovisionamiento",
-  "short_name": "Mise",
-  "description": "Registrar faltas, agrupar pedidos por proveedor y recibir mercancía.",
-  "start_url": "/pedir",
+  "name": "Ergobox · Mantenimiento",
+  "short_name": "Ergobox",
+  "description": "Parque de máquinas, visitas de mantenimiento y registro fotográfico.",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -10,7 +10,7 @@
   "theme_color": "#faf7f2",
   "lang": "es-ES",
   "dir": "ltr",
-  "categories": ["business", "productivity", "food"],
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "/icons/icon.svg",
@@ -39,15 +39,15 @@
   ],
   "shortcuts": [
     {
-      "name": "Registrar una falta",
-      "short_name": "Pedir",
-      "url": "/pedir",
-      "description": "Marcar qué producto falta en tu local"
+      "name": "Visitas de hoy",
+      "short_name": "Visitas",
+      "url": "/visitas",
+      "description": "El trabajo del día, box a box"
     },
     {
-      "name": "Pedidos por proveedor",
-      "short_name": "Pedidos",
-      "url": "/pedidos"
+      "name": "Boxes y parque",
+      "short_name": "Boxes",
+      "url": "/clientes"
     }
   ]
 }

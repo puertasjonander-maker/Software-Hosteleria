@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 
 /**
  * Registra el service worker. Sin él no hay instalación en el móvil ni
- * notificaciones push (MISE-004), y `/pedir` perdería la caché que le permite
+ * notificaciones push, y la visita perdería la caché que le permite
  * abrirse con la red caída.
  */
 export function RegistroServiceWorker() {

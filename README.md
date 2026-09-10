@@ -1,46 +1,37 @@
-# Mise
+# Ergobox
 
-Sistema de aprovisionamiento para hostelería: el equipo de sala registra lo que
-falta desde el móvil, el sistema agrupa las necesidades de los tres locales en un
-único pedido por proveedor, se envía por el canal que ya usan (WhatsApp, correo)
-y se registra lo que llega y a qué precio.
+Software de mantenimiento para [Ergo Box](https://ergobox.es): parques de máquinas
+de gimnasio en boxes de crosstraining. El técnico registra el trabajo desde el
+móvil dentro del box, con fotos de antes y después y sin depender de que haya
+cobertura; el dueño del box entra con su propio usuario y ve su parque, su estado
+y su historial.
 
-**No es** un ERP, ni un TPV, ni sustituye a Square. El contexto completo está en
-[`CONTEXT.md`](CONTEXT.md) y el backlog en [`BUILD_SPEC.md`](BUILD_SPEC.md).
+**No es** un ERP de mantenimiento, ni un CRM, ni un sistema de facturación. Los
+presupuestos y el seguimiento comercial siguen en Notion. El contexto completo
+está en [`CONTEXT.md`](CONTEXT.md) y el backlog en [`BUILD_SPEC.md`](BUILD_SPEC.md).
 
 ---
 
-## Qué hay construido
+## Estado: fase 0 hecha
 
-Toda la v1 del `BUILD_SPEC`, en el orden que marca su §6.
+Este repositorio es un fork de Mise, un sistema de aprovisionamiento para
+hostelería que compartía forma con este problema: multi-inquilino con aislamiento
+por cliente, trabajo en campo desde el móvil, partes e histórico.
 
-| Historia | Qué hace | Dónde |
-|---|---|---|
-| MISE-000 | Alta de catálogo, proveedores, pautas, locales y usuarios; importación CSV con validación por fila | `/admin` |
-| MISE-001 | Registrar faltas desde el móvil, tolerante a la falta de red | `/pedir` |
-| MISE-002 | Bandeja por proveedor con corte, desglose por local y autoría | `/pedidos` |
-| MISE-003 | Generar el pedido en texto plano y enviarlo por WhatsApp/correo | `/pedidos/[id]` |
-| MISE-004 | Aviso push antes de la hora de corte | `/api/cron/recordatorios` |
-| MISE-005 | Recepción con incidencias y precio real | `/pedidos/[id]/recepcion` |
-| MISE-006 | Aviso de desviación de precio sobre el último conocido | recepción y panel |
-| MISE-007 | Gasto por proveedor, local y categoría; evolución de precios; export CSV | `/panel` |
-| MISE-008 | Importar el escandallo del Excel y resolver el mapeo de ingredientes | `/escandallo/importar` |
-| MISE-009 | Coste y margen por elaboración, evolución y simulador de subidas | `/escandallo` |
+La fase 0 ha vaciado el dominio de hostelería y ha dejado puesto el de Ergobox.
 
-### Lo que este repositorio no puede hacer por ti
+| | |
+|---|---|
+| **Hecho** | Esquema completo, RLS, lógica en base de datos, bucket privado de fotos, roles nuevos, navegación y andamio de rutas |
+| **Conservado de Mise** | Autenticación, PWA, cola offline, sistema visual, kit de UI, navegación |
+| **Retirado** | Escandallo, proveedores, pedidos, recepción, histórico de precios y su seed |
 
-Dos cosas del `BUILD_SPEC` son de proceso, no de código, y siguen pendientes:
+Las cinco pantallas de la aplicación existen y están en la navegación, pero
+todavía dicen qué fase las construye. No es un descuido: una pantalla que falta se
+descubre al pulsar y no se sabe si es un fallo.
 
-- **La prueba de pasillo (Gate 1).** `/pedir` está construida y desplegable, pero
-  el gate exige observar a un barista real usándola en un turno real con el
-  catálogo real. Está sin hacer, y es el gate que protege las otras 40 horas.
-- **Las preguntas 1-17 de `CONTEXT.md` §8.** Ninguna está confirmada. El código no
-  las inventa: el catálogo se carga desde CSV, el importador de escandallo no
-  asume estructura y pide que la persona mapee las columnas, y los umbrales son
-  configurables en `/admin/ajustes` en vez de estar fijados en el código.
-
-El seed por defecto es **DEMO**: sus proveedores llevan el prefijo `DEMO ·` y el
-script se niega a cargarlo sobre una base que ya tenga datos reales.
+Las fases siguientes están en [`BUILD_SPEC.md`](BUILD_SPEC.md). La fase 2, la
+visita en campo, es la que decide si el sistema se usa o se abandona.
 
 ---
 
@@ -59,8 +50,7 @@ cp .env.example .env.local     # y rellena los valores
 ```
 
 Las claves de Supabase están en *Project Settings → API*. `SUPABASE_SERVICE_ROLE_KEY`
-solo se usa en servidor (cron de avisos y alta de usuarios): **nunca** la pongas
-con prefijo `NEXT_PUBLIC_`.
+solo se usa en servidor: **nunca** la pongas con prefijo `NEXT_PUBLIC_`.
 
 ### 3. Crear el esquema
 
@@ -72,33 +62,24 @@ supabase db push
 ```
 
 Sin la CLI, pega los cuatro ficheros en el SQL Editor de Supabase por orden de
-nombre. El tercero (`..._rls.sql`) es el que activa Row Level Security: no lo
-saltes.
+nombre. El tercero (`..._rls.sql`) es el que activa Row Level Security y el cuarto
+crea el bucket privado de fotos con sus políticas: no te saltes ninguno de los dos.
 
-### 4. Cargar datos
+### 4. Primer usuario
 
-```bash
-npm run db:seed                                   # catálogo DEMO
-npm run db:seed -- --real ruta/al/catalogo.csv    # catálogo real
-```
+El alta de usuarios vivirá en `/admin` (fase 4). El primer administrador se crea a
+mano:
 
-El formato del CSV es el de [`seed/catalogo.demo.csv`](seed/catalogo.demo.csv).
-También se puede cargar desde `/admin/importar`, que enseña una previsualización
-y los errores fila a fila antes de confirmar.
+1. Supabase → *Authentication → Users → Add user*, con contraseña y confirmando
+   el correo.
+2. Supabase → *Table editor → perfiles* → en la fila recién creada, pon
+   `rol = admin`.
 
-### 5. Primer usuario
+Un usuario recién creado nace con `rol = cliente` y sin box asignado, que es el
+estado que no ve absolutamente nada. Es deliberado: los permisos se dan, no se
+heredan del registro.
 
-El alta de usuarios vive en `/admin/usuarios`, pero para entrar ahí hace falta ya
-un operador. El primero se crea a mano:
-
-1. Supabase → *Authentication → Users → Add user* (con contraseña, confirmando el
-   correo).
-2. Supabase → *Table editor → profiles* → en la fila recién creada, pon
-   `role = operador`.
-
-A partir de ahí, el resto del equipo se da de alta desde la propia app.
-
-### 6. Arrancar
+### 5. Arrancar
 
 ```bash
 npm run dev
@@ -106,53 +87,35 @@ npm run dev
 
 ---
 
-## Avisos de corte (MISE-004)
-
-Genera el par de claves VAPID y ponlas en el entorno:
-
-```bash
-npx web-push generate-vapid-keys
-```
-
-`vercel.json` programa el cron cada media hora. Vercel manda
-`Authorization: Bearer $CRON_SECRET`, y la ruta rechaza cualquier petición sin
-ese secreto. Los crons por debajo de una vez al día requieren plan Pro; en Hobby,
-baja la frecuencia en `vercel.json` o dispara la ruta desde un cron externo.
-
-Sin claves VAPID la app funciona igual: el botón de activar avisos no aparece y el
-cron responde que no hay nada que enviar.
-
----
-
 ## Decisiones que conviene conocer antes de tocar el código
 
 **RLS es la seguridad, no las comprobaciones de rol de las páginas.** Las
-políticas de `supabase/migrations/..._rls.sql` son lo que impide que un barista
-lea las solicitudes de otro local. Los `exigirRol()` de las páginas solo evitan
-enseñar una pantalla que saldría vacía. Si añades una consulta, la política es la
-que tiene que autorizarla.
+políticas de `supabase/migrations/..._rls.sql` son lo único que impide que el
+dueño de un box vea el parque de otro. Los `exigirRol()` y `exigirCliente()` de
+las páginas solo evitan enseñar una pantalla que saldría vacía. Si añades una
+consulta, la política es la que tiene que autorizarla.
+
+**El semáforo lo mueve la base de datos.** Cerrar un parte actualiza el estado de
+la máquina, fija la fecha de última revisión y escribe la línea del histórico, en
+una sola transacción y por trigger. Si eso viviera en el cliente, bastaría con
+perder la cobertura a medias para dejar la ficha mintiendo.
+
+**Las fotos son la mitad del producto y el dato más sensible que hay aquí.** El
+bucket es privado, no hay ninguna URL pública, y el cliente recibe enlaces
+firmados y caducables generados en servidor tras comprobar la misma regla de
+acceso que protege la tabla.
+
+**Toda foto se recomprime antes de subirse.** 1600 px de lado largo. Una visita de
+doce máquinas con fotos de antes y después son unas setenta imágenes: sin
+comprimir son casi 300 MB en el navegador, que es cuando el sistema operativo
+decide borrarte la pestaña. Comprimidas, quince megas.
 
 **Las migraciones son SQL-first; Prisma es el espejo.** La mitad del
-comportamiento (políticas, triggers de coste, vistas con `security_invoker`) no se
-puede expresar en el esquema de Prisma. `prisma/schema.prisma` existe para
-`prisma studio` y para scripts tipados. **No ejecutes `prisma migrate dev`**:
-borraría las políticas.
+comportamiento (políticas, triggers, vistas con `security_invoker`, políticas de
+storage) no se puede expresar en el esquema de Prisma. **No ejecutes
+`prisma migrate dev`**: borraría las políticas.
 
-**Todo coste lleva procedencia.** `real` es un precio de una recepción registrada;
-`estimado` viene del Excel o de un precio tecleado a mano. La interfaz nunca
-enseña un importe sin esa etiqueta, y una elaboración con ingredientes sin mapear
-no tiene coste: tiene un hueco, y se muestra como hueco.
-
-**La cola offline guarda cantidades absolutas, no incrementos.** Reintentar "pon
-3" dos veces deja 3; reintentar "+1" dejaría 4. Con red inestable, el reintento
-ocurre.
-
-**Un pedido enviado es inmutable.** Se guarda copia literal del texto que salió
-(`message_snapshot`) y corregirlo genera un pedido complementario. La pantalla de
-un pedido enviado muestra esa copia, no una recomposición a partir del catálogo
-actual.
-
-**Las horas de corte son horas de Málaga.** Todo lo que dependa de ellas pasa por
+**Las fechas son fechas de Málaga.** Todo lo que dependa de ellas pasa por
 `src/lib/time.ts`, no por `new Date()` a secas: el servidor corre en UTC.
 
 ---
@@ -165,7 +128,6 @@ actual.
 | `npm run build` | Build de producción |
 | `npm run typecheck` | TypeScript sin emitir |
 | `npm run lint` | ESLint |
-| `npm run db:seed` | Carga el catálogo (DEMO por defecto) |
 | `node scripts/generar-iconos.mjs` | Regenera los iconos PNG de la PWA |
 
 ## Estructura
@@ -173,12 +135,11 @@ actual.
 ```
 src/
   app/
-    (app)/          Pantallas con sesión: pedir, pedidos, escandallo, panel, admin
-    api/            Cron de avisos, alta de push y exportación CSV
-  components/       Kit de UI, gráficos y piezas de PWA
-  lib/              Cliente Supabase, cortes, formato, escandallo, catálogo, tiempo
-supabase/migrations/  Esquema, lógica de negocio, RLS y RPC — la fuente de verdad
+    (app)/          Pantallas con sesión: visitas, clientes, mi-box, panel, admin
+    api/            Alta de suscripciones push
+  components/       Kit de UI y piezas de PWA
+  lib/              Cliente Supabase, sesión, roles, cola offline, formato, tiempo
+supabase/migrations/  Esquema, lógica, RLS y almacenamiento — la fuente de verdad
 prisma/schema.prisma  Espejo tipado del esquema
-seed/                 Catálogo y escandallo DEMO
-scripts/              Seed e iconos
+scripts/              Generación de iconos
 ```

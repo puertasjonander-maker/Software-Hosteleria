@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'Sin permiso' }
 
 export default async function PaginaSinPermiso() {
   const sesion = await obtenerSesion()
-  const destino = sesion ? inicioSegunRol(sesion.profile.role) : '/login'
+  const destino = sesion ? inicioSegunRol(sesion.perfil.rol) : '/login'
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
@@ -16,8 +16,8 @@ export default async function PaginaSinPermiso() {
       <div className="space-y-2">
         <h1 className="text-xl font-semibold">Esta pantalla no es para tu rol</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Si necesitas acceso, pídeselo al operador: los permisos se cambian desde
-          administración.
+          Si necesitas acceso, pídenoslo: los permisos se cambian desde
+          administración en un minuto.
         </p>
       </div>
       <Button asChild>

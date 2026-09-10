@@ -15,7 +15,7 @@ function mensajeDeError(mensaje: string): string {
     return 'Correo o contraseña incorrectos.'
   }
   if (/email not confirmed/i.test(mensaje)) {
-    return 'Tu cuenta aún no está confirmada. Pídeselo al operador.'
+    return 'Tu cuenta aún no está confirmada. Escríbenos y la activamos.'
   }
   if (/failed to fetch|network/i.test(mensaje)) {
     return 'No hay conexión con el servidor. Comprueba la red e inténtalo otra vez.'

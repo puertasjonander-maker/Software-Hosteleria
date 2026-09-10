@@ -15,11 +15,12 @@ export default function PaginaOffline() {
       <div className="space-y-2">
         <h1 className="text-xl font-semibold">Sin conexión</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Lo que hayas registrado en <strong>Pedir</strong> está guardado en el móvil y se
-          enviará solo en cuanto vuelva la red. No hace falta que lo repitas.
+          Lo que hayas registrado en la visita está guardado en el móvil, fotos
+          incluidas, y se subirá solo en cuanto vuelva la red. No hace falta que lo
+          repitas.
         </p>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Si el pedido no puede esperar, mándalo por WhatsApp y regístralo después.
+          Puedes seguir trabajando: la app no necesita cobertura para registrar.
         </p>
       </div>
     </main>

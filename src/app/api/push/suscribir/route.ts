@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   // actualiza sus claves en vez de acumular filas muertas.
   const { error } = await supabase.from('push_subscriptions').upsert(
     {
-      profile_id: user.id,
+      perfil_id: user.id,
       endpoint: cuerpo.data.endpoint,
       p256dh: cuerpo.data.keys.p256dh,
       auth: cuerpo.data.keys.auth,

@@ -80,7 +80,7 @@ export function EstadoError({
 }
 
 /**
- * Aviso de falta de red. Discreto por diseño: en `/pedir` no puede ser
+ * Aviso de falta de red. Discreto por diseño: durante una visita no puede ser
  * bloqueante, porque lo que se registra se guarda en local igualmente
  * (MISE-001).
  */

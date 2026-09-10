@@ -16,7 +16,7 @@ const buttonVariants = cva(
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        // 44px de alto mínimo: el barista lo usa de pie y con una mano
+        // 44px de alto mínimo: se pulsa de pie, con una mano y a veces con guantes
         // (CONTEXT.md §10.2). `sm` solo se permite en pantallas de escritorio.
         default: 'h-11 px-4 py-2',
         sm: 'h-9 rounded-md px-3 text-sm',

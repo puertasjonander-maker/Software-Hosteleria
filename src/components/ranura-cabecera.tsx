@@ -6,8 +6,8 @@ import { createPortal } from 'react-dom'
 export const ID_RANURA_CABECERA = 'ranura-cabecera'
 
 /**
- * Hueco en la cabecera para los controles que son de una pantalla concreta —
- * hoy, el selector de local de `/pedir`.
+ * Hueco en la cabecera para los controles que son de una pantalla concreta,
+ * como el selector de box.
  *
  * Existe para que un control global de la pantalla no ocupe una fila propia
  * dentro del contenido. En un móvil de 844 px, esa fila costaba 60 px de los

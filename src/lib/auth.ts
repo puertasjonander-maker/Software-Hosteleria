@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation'
 import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import type { LocationRow, ProfileRow, RolUsuario } from '@/lib/database.types'
+import type { ClienteRow, PerfilRow, RolUsuario } from '@/lib/database.types'
 
 export type Sesion = {
   userId: string
   email: string | null
-  profile: ProfileRow
-  location: LocationRow | null
+  perfil: PerfilRow
+  /** El box del usuario. Siempre null para un interno: un técnico no está atado a uno. */
+  cliente: ClienteRow | null
 }
 
 /**
@@ -24,25 +25,25 @@ export const obtenerSesion = cache(async (): Promise<Sesion | null> => {
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: profile } = await supabase
-    .from('profiles')
+  const { data: perfil } = await supabase
+    .from('perfiles')
     .select('*')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile) return null
+  if (!perfil) return null
 
-  let location: LocationRow | null = null
-  if (profile.location_id) {
+  let cliente: ClienteRow | null = null
+  if (perfil.cliente_id) {
     const { data } = await supabase
-      .from('locations')
+      .from('clientes')
       .select('*')
-      .eq('id', profile.location_id)
+      .eq('id', perfil.cliente_id)
       .maybeSingle()
-    location = data ?? null
+    cliente = data ?? null
   }
 
-  return { userId: user.id, email: user.email ?? null, profile, location }
+  return { userId: user.id, email: user.email ?? null, perfil, cliente }
 })
 
 /** Exige sesión. Si no la hay, al login (el middleware ya suele haberlo hecho). */
@@ -59,10 +60,25 @@ export async function exigirSesion(): Promise<Sesion> {
  */
 export async function exigirRol(...roles: RolUsuario[]): Promise<Sesion> {
   const sesion = await exigirSesion()
-  if (!roles.includes(sesion.profile.role)) redirect('/sin-permiso')
+  if (!roles.includes(sesion.perfil.rol)) redirect('/sin-permiso')
+  return sesion
+}
+
+/**
+ * Exige que el usuario alcance este box. Espejo de `alcanza_cliente()` en SQL.
+ *
+ * Que exista aquí no lo convierte en la defensa: si esta comprobación fallara, la
+ * consulta seguiría devolviendo cero filas por RLS. Sirve para dar un 403 legible
+ * en vez de una pantalla vacía sin explicación.
+ */
+export async function exigirCliente(clienteId: string): Promise<Sesion> {
+  const sesion = await exigirSesion()
+  const { rol, cliente_id } = sesion.perfil
+  const alcanza = rol === 'admin' || rol === 'tecnico' || cliente_id === clienteId
+  if (!alcanza) redirect('/sin-permiso')
   return sesion
 }
 
 // Los helpers de rol viven en `lib/roles.ts` para que los pueda importar también
 // un componente de cliente. Se reexportan aquí por comodidad del lado servidor.
-export { ETIQUETA_ROL, esGestor, inicioSegunRol } from '@/lib/roles'
+export { ETIQUETA_ROL, esInterno, inicioSegunRol } from '@/lib/roles'

@@ -11,11 +11,11 @@ export default function PaginaLogin() {
       <div className="w-full max-w-sm space-y-8">
         <header className="space-y-2 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-primary-foreground">
-            M
+            E
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Mise</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Ergobox</h1>
           <p className="text-sm text-muted-foreground">
-            Pedidos y recepción de género. Entra con el correo que te dio el operador.
+            Mantenimiento de máquinas. Entra con el correo con el que te dimos de alta.
           </p>
         </header>
 

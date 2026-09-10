@@ -1,8 +1,8 @@
 {
-  "name": "mise",
+  "name": "ergobox",
   "version": "1.0.0",
   "private": true,
-  "description": "Mise — sistema de aprovisionamiento para hostelería (pedidos, recepción, escandallo y panel)",
+  "description": "Ergobox — mantenimiento de parques de máquinas de gimnasio (inventario, visitas, partes con fotos e historial)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,7 +10,6 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
-    "db:seed": "tsx scripts/seed.ts",
     "db:push": "prisma db push"
   },
   "dependencies": {

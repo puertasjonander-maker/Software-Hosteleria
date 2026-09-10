@@ -1,12 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Mise v1 — modelo de datos
+// Ergobox v1 — modelo de datos
 //
 // NOTA IMPORTANTE SOBRE EL FLUJO DE MIGRACIONES
 // Las migraciones son SQL-first: viven en `supabase/migrations/` y son la fuente
-// de verdad. La razón es que la mitad del comportamiento de Mise (políticas RLS,
-// triggers de coste, vistas con security_invoker) no se puede expresar en el
-// schema de Prisma, y tener dos fuentes de verdad parciales es peor que tener una
-// completa.
+// de verdad. La razón es que la mitad del comportamiento de Ergobox (políticas
+// RLS, triggers de semáforo e histórico, vistas con security_invoker, políticas
+// de storage) no se puede expresar en el schema de Prisma, y tener dos fuentes de
+// verdad parciales es peor que tener una completa.
 //
 // Este fichero es el espejo tipado de ese SQL. Sirve para `prisma studio`,
 // `prisma db pull` y para scripts con tipos. No ejecutes `prisma migrate dev`
@@ -24,338 +24,221 @@ datasource db {
 }
 
 enum rol_usuario {
-  barista
-  encargado
-  operador
+  admin
+  tecnico
+  cliente
 }
 
-enum canal_contacto {
-  whatsapp
-  email
-  telefono
+enum tipo_maquina {
+  rowerg
+  skierg
+  bikeerg
+  air_bike
+  cinta
+  barra
+  disco
+  rack
+  otro
 }
 
-enum unidad_base {
-  kg
-  l
-  ud
+enum semaforo {
+  verde
+  ambar
+  rojo
+  sin_revisar
 }
 
-enum estado_solicitud {
-  pendiente
-  en_pedido
-  cancelada
+enum estado_servicio {
+  planificado
+  en_curso
+  hecho
+  cancelado
 }
 
-enum estado_pedido {
-  borrador
-  enviado
-  recibido_parcial
-  cerrado
+enum momento_foto {
+  antes
+  despues
 }
 
-enum tipo_incidencia {
-  ninguna
-  falta
-  danado
-  precio_distinto
-  sustituido
+enum tipo_evento {
+  alta
+  servicio
+  cambio_estado
+  incidencia
+  baja
 }
 
-enum origen_precio {
-  recepcion
-  manual
+model clientes {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre            String
+  direccion         String?
+  poblacion         String?
+  contacto_nombre   String?
+  contacto_telefono String?
+  contacto_email    String?
+  notas             String?
+  activo            Boolean  @default(true)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  perfiles  perfiles[]
+  maquinas  maquinas[]
+  servicios servicios[]
 }
 
-enum origen_receta {
-  importado
-  manual
-}
+model perfiles {
+  id         String      @id @db.Uuid
+  nombre     String      @default("")
+  rol        rol_usuario @default(cliente)
+  cliente_id String?     @db.Uuid
+  activo     Boolean     @default(true)
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
 
-enum estado_mapeo {
-  mapeado
-  ambiguo
-  sin_mapear
-}
-
-enum disparador_coste {
-  recepcion
-  precio_manual
-  cambio_receta
-}
-
-model locations {
-  id                String              @id @default(uuid()) @db.Uuid
-  name              String
-  active            Boolean             @default(true)
-  created_at        DateTime            @default(now()) @db.Timestamptz(6)
-  profiles          profiles[]
-  location_products location_products[]
-  requests          requests[]
-  receipts          receipts[]
-}
-
-model profiles {
-  id          String       @id @db.Uuid
-  full_name   String       @default("")
-  role        rol_usuario  @default(barista)
-  location_id String?      @db.Uuid
-  active      Boolean      @default(true)
-  created_at  DateTime     @default(now()) @db.Timestamptz(6)
-  location    locations?   @relation(fields: [location_id], references: [id])
-
-  requests            requests[]
-  receipts            receipts[]
-  orders_sent         orders[]             @relation("orders_sent_by")
-  orders_created      orders[]             @relation("orders_created_by")
+  cliente             clientes?            @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  servicios_tecnico   servicios[]          @relation("tecnico")
+  servicios_creados   servicios[]          @relation("creador")
+  fotos_subidas       fotos[]
+  eventos             eventos_maquina[]
   push_subscriptions  push_subscriptions[]
+  avisos              aviso_log[]
+
+  @@index([cliente_id])
 }
 
-model suppliers {
-  id               String               @id @default(uuid()) @db.Uuid
-  name             String
-  contact_channel  canal_contacto       @default(whatsapp)
-  contact_value    String               @default("")
-  notes            String?
-  active           Boolean              @default(true)
-  created_at       DateTime             @default(now()) @db.Timestamptz(6)
-  products         products[]
-  schedules        supplier_schedules[]
-  orders           orders[]
-  reminder_log     reminder_log[]
+model maquinas {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cliente_id       String       @db.Uuid
+  nombre           String
+  tipo             tipo_maquina @default(otro)
+  marca            String?
+  modelo           String?
+  num_serie        String?
+  ubicacion        String?
+  estado           semaforo     @default(sin_revisar)
+  cadencia_meses   Int?         @db.SmallInt
+  ultima_revision  DateTime?    @db.Date
+  proxima_revision DateTime?    @db.Date
+  notas            String?
+  activa           Boolean      @default(true)
+  created_at       DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime     @default(now()) @db.Timestamptz(6)
+
+  cliente clientes          @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  partes  partes[]
+  eventos eventos_maquina[]
+  avisos  aviso_log[]
+
+  @@index([cliente_id])
+  @@index([proxima_revision])
 }
 
-model supplier_schedules {
-  id               String    @id @default(uuid()) @db.Uuid
-  supplier_id      String    @db.Uuid
-  order_weekday    Int       @db.SmallInt
-  cutoff_time      DateTime  @db.Time(6)
-  delivery_weekday Int?      @db.SmallInt
-  lead_time_days   Int       @default(1) @db.SmallInt
+model servicios {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cliente_id String          @db.Uuid
+  fecha      DateTime        @db.Date
+  estado     estado_servicio @default(planificado)
+  tecnico_id String?         @db.Uuid
+  notas      String?
+  cerrado_at DateTime?       @db.Timestamptz(6)
+  created_by String?         @db.Uuid
+  created_at DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at DateTime        @default(now()) @db.Timestamptz(6)
+
+  cliente clientes  @relation(fields: [cliente_id], references: [id], onDelete: Cascade)
+  tecnico perfiles? @relation("tecnico", fields: [tecnico_id], references: [id])
+  creador perfiles? @relation("creador", fields: [created_by], references: [id])
+  partes  partes[]
+
+  @@index([cliente_id, fecha])
+}
+
+model partes {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  servicio_id      String    @db.Uuid
+  maquina_id       String    @db.Uuid
+  trabajo_previsto String?
+  trabajo_hecho    String?
+  piezas           String?
+  estado_antes     semaforo?
+  estado_despues   semaforo?
+  damper           Int?      @db.SmallInt
+  drag_factor      Int?      @db.SmallInt
+  minutos          Int?      @db.SmallInt
+  importe          Decimal?  @db.Decimal(10, 2)
+  hecho            Boolean   @default(false)
+  client_ref       String?   @unique
   created_at       DateTime  @default(now()) @db.Timestamptz(6)
-  supplier         suppliers @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+  updated_at       DateTime  @default(now()) @db.Timestamptz(6)
 
-  @@unique([supplier_id, order_weekday])
+  servicio servicios         @relation(fields: [servicio_id], references: [id], onDelete: Cascade)
+  maquina  maquinas          @relation(fields: [maquina_id], references: [id])
+  fotos    fotos[]
+  eventos  eventos_maquina[]
+
+  @@unique([servicio_id, maquina_id])
+  @@index([maquina_id])
 }
 
-model products {
-  id                   String   @id @default(uuid()) @db.Uuid
-  supplier_id          String   @db.Uuid
-  name                 String
-  category             String   @default("sin categoría")
-  order_unit           String
-  base_unit            unidad_base
-  units_per_order_unit Decimal  @default(1) @db.Decimal(12, 4)
-  last_known_price     Decimal? @db.Decimal(12, 4)
-  active               Boolean  @default(true)
-  created_at           DateTime @default(now()) @db.Timestamptz(6)
+model fotos {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parte_id   String       @db.Uuid
+  momento    momento_foto
+  ruta       String       @unique
+  orden      Int          @default(0) @db.SmallInt
+  bytes      Int?
+  subida_por String?      @db.Uuid
+  created_at DateTime     @default(now()) @db.Timestamptz(6)
 
-  supplier          suppliers           @relation(fields: [supplier_id], references: [id])
-  location_products location_products[]
-  requests          requests[]
-  order_lines       order_lines[]
-  receipt_lines     receipt_lines[]
-  price_history     price_history[]
-  recipe_lines      recipe_lines[]
+  parte  partes    @relation(fields: [parte_id], references: [id], onDelete: Cascade)
+  subida perfiles? @relation(fields: [subida_por], references: [id])
 
-  @@index([category])
+  @@index([parte_id, momento, orden])
 }
 
-model location_products {
-  location_id String    @db.Uuid
-  product_id  String    @db.Uuid
-  par_level   Decimal?  @db.Decimal(12, 4)
-  active      Boolean   @default(true)
-  location    locations @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  product     products  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+model eventos_maquina {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maquina_id        String      @db.Uuid
+  fecha             DateTime    @db.Date
+  tipo              tipo_evento
+  texto             String      @default("")
+  estado_resultante semaforo?
+  parte_id          String?     @db.Uuid
+  autor_id          String?     @db.Uuid
+  created_at        DateTime    @default(now()) @db.Timestamptz(6)
 
-  @@id([location_id, product_id])
-}
+  maquina maquinas  @relation(fields: [maquina_id], references: [id], onDelete: Cascade)
+  parte   partes?   @relation(fields: [parte_id], references: [id])
+  autor   perfiles? @relation(fields: [autor_id], references: [id])
 
-model requests {
-  id           String           @id @default(uuid()) @db.Uuid
-  location_id  String           @db.Uuid
-  product_id   String           @db.Uuid
-  qty          Decimal          @db.Decimal(12, 4)
-  note         String?
-  requested_by String           @db.Uuid
-  status       estado_solicitud @default(pendiente)
-  order_id     String?          @db.Uuid
-  client_ref   String?          @unique
-  created_at   DateTime         @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime         @default(now()) @db.Timestamptz(6)
-
-  location  locations @relation(fields: [location_id], references: [id], onDelete: Cascade)
-  product   products  @relation(fields: [product_id], references: [id], onDelete: Cascade)
-  requester profiles  @relation(fields: [requested_by], references: [id])
-  order     orders?   @relation(fields: [order_id], references: [id])
-
-  @@index([status, location_id])
-}
-
-model orders {
-  id                String         @id @default(uuid()) @db.Uuid
-  supplier_id       String         @db.Uuid
-  status            estado_pedido  @default(borrador)
-  order_date        DateTime       @db.Date
-  expected_delivery DateTime?      @db.Date
-  channel           canal_contacto @default(whatsapp)
-  sent_by           String?        @db.Uuid
-  sent_at           DateTime?      @db.Timestamptz(6)
-  message_snapshot  String?
-  supersedes_id     String?        @db.Uuid
-  created_by        String?        @db.Uuid
-  created_at        DateTime       @default(now()) @db.Timestamptz(6)
-
-  supplier   suppliers @relation(fields: [supplier_id], references: [id])
-  sender     profiles? @relation("orders_sent_by", fields: [sent_by], references: [id])
-  creator    profiles? @relation("orders_created_by", fields: [created_by], references: [id])
-  supersedes orders?   @relation("order_complement", fields: [supersedes_id], references: [id])
-
-  complements orders[]      @relation("order_complement")
-  lines       order_lines[]
-  receipts    receipts[]
-  requests    requests[]
-
-  @@index([supplier_id, status])
-}
-
-model order_lines {
-  id                  String   @id @default(uuid()) @db.Uuid
-  order_id            String   @db.Uuid
-  product_id          String   @db.Uuid
-  qty_total           Decimal  @db.Decimal(12, 4)
-  qty_by_location     Json     @default("{}")
-  unit_price_expected Decimal? @db.Decimal(12, 4)
-  created_at          DateTime @default(now()) @db.Timestamptz(6)
-
-  order   orders   @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  product products @relation(fields: [product_id], references: [id])
-
-  @@unique([order_id, product_id])
-}
-
-model receipts {
-  id          String   @id @default(uuid()) @db.Uuid
-  order_id    String   @db.Uuid
-  location_id String   @db.Uuid
-  received_by String   @db.Uuid
-  received_at DateTime @default(now()) @db.Timestamptz(6)
-  doc_ref     String?
-  closed      Boolean  @default(false)
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-
-  order    orders          @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  location locations       @relation(fields: [location_id], references: [id])
-  receiver profiles        @relation(fields: [received_by], references: [id])
-  lines    receipt_lines[]
-}
-
-model receipt_lines {
-  id                String          @id @default(uuid()) @db.Uuid
-  receipt_id        String          @db.Uuid
-  product_id        String          @db.Uuid
-  qty_received      Decimal         @default(0) @db.Decimal(12, 4)
-  unit_price_actual Decimal?        @db.Decimal(12, 4)
-  incidence         tipo_incidencia @default(ninguna)
-  note              String?
-  created_at        DateTime        @default(now()) @db.Timestamptz(6)
-
-  receipt       receipts        @relation(fields: [receipt_id], references: [id], onDelete: Cascade)
-  product       products        @relation(fields: [product_id], references: [id])
-  price_history price_history[]
-
-  @@unique([receipt_id, product_id])
-}
-
-model price_history {
-  id              String        @id @default(uuid()) @db.Uuid
-  product_id      String        @db.Uuid
-  price           Decimal       @db.Decimal(12, 4)
-  source          origen_precio
-  effective_date  DateTime      @db.Date
-  receipt_line_id String?       @db.Uuid
-  created_at      DateTime      @default(now()) @db.Timestamptz(6)
-
-  product     products       @relation(fields: [product_id], references: [id], onDelete: Cascade)
-  receiptLine receipt_lines? @relation(fields: [receipt_line_id], references: [id])
-
-  @@index([product_id, effective_date])
-}
-
-model recipes {
-  id              String        @id @default(uuid()) @db.Uuid
-  name            String
-  yield_qty       Decimal       @default(1) @db.Decimal(12, 4)
-  yield_unit      String        @default("ración")
-  square_item_ref String?
-  current_price   Decimal?      @db.Decimal(12, 4)
-  price_set_at    DateTime?     @db.Timestamptz(6)
-  active          Boolean       @default(true)
-  source          origen_receta @default(importado)
-  created_at      DateTime      @default(now()) @db.Timestamptz(6)
-
-  lines     recipe_lines[]
-  snapshots recipe_cost_snapshots[]
-}
-
-model recipe_lines {
-  id                  String       @id @default(uuid()) @db.Uuid
-  recipe_id           String       @db.Uuid
-  product_id          String?      @db.Uuid
-  raw_ingredient_name String
-  qty                 Decimal      @db.Decimal(12, 6)
-  unit                unidad_base
-  waste_pct           Decimal      @default(0) @db.Decimal(5, 2)
-  mapping_status      estado_mapeo @default(sin_mapear)
-  created_at          DateTime     @default(now()) @db.Timestamptz(6)
-
-  recipe  recipes   @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
-  product products? @relation(fields: [product_id], references: [id])
-
-  @@index([recipe_id])
-  @@index([product_id])
-}
-
-model recipe_cost_snapshots {
-  id             String           @id @default(uuid()) @db.Uuid
-  recipe_id      String           @db.Uuid
-  cost_total     Decimal          @db.Decimal(12, 4)
-  cost_per_yield Decimal          @db.Decimal(12, 4)
-  is_real        Boolean          @default(false)
-  calculated_at  DateTime         @default(now()) @db.Timestamptz(6)
-  trigger        disparador_coste
-
-  recipe recipes @relation(fields: [recipe_id], references: [id], onDelete: Cascade)
-
-  @@index([recipe_id, calculated_at])
-}
-
-model settings {
-  key        String   @id
-  value      Json
-  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  @@index([maquina_id, fecha])
 }
 
 model push_subscriptions {
-  id         String   @id @default(uuid()) @db.Uuid
-  profile_id String   @db.Uuid
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  perfil_id  String   @db.Uuid
   endpoint   String   @unique
   p256dh     String
   auth       String
   created_at DateTime @default(now()) @db.Timestamptz(6)
 
-  profile profiles @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+  perfil perfiles @relation(fields: [perfil_id], references: [id], onDelete: Cascade)
 }
 
-model reminder_log {
-  id          String      @id @default(uuid()) @db.Uuid
-  supplier_id String      @db.Uuid
-  audience    rol_usuario
-  sent_on     DateTime    @db.Date
-  sent_at     DateTime    @default(now()) @db.Timestamptz(6)
+model aviso_log {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  maquina_id String   @db.Uuid
+  perfil_id  String   @db.Uuid
+  enviado_el DateTime @db.Date
+  enviado_at DateTime @default(now()) @db.Timestamptz(6)
 
-  supplier suppliers @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+  maquina maquinas @relation(fields: [maquina_id], references: [id], onDelete: Cascade)
+  perfil  perfiles @relation(fields: [perfil_id], references: [id], onDelete: Cascade)
 
-  @@unique([supplier_id, audience, sent_on])
+  @@unique([maquina_id, perfil_id, enviado_el])
+}
+
+model ajustes {
+  clave      String   @id
+  valor      Json
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
 }
