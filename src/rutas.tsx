@@ -16,6 +16,7 @@ import MiBox from '@/pages/mi-box'
 import MiMaquina from '@/pages/mi-maquina'
 import Panel from '@/pages/panel'
 import Administracion from '@/pages/administracion'
+import Ajustes from '@/pages/ajustes'
 import SinPermiso from '@/pages/sin-permiso'
 import NoEncontrada from '@/pages/no-encontrada'
 
@@ -42,6 +43,7 @@ export function Rutas() {
         <Route path="/boxes/:id" element={<Box />} />
         <Route path="/boxes/:id/importar" element={<ImportarParque />} />
         <Route path="/boxes/:id/maquinas/:maquinaId" element={<Maquina />} />
+        <Route path="/ajustes" element={<Ajustes />} />
       </Route>
 
       <Route element={<Protegida roles={['admin']} />}>

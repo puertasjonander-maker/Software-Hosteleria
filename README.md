@@ -13,7 +13,7 @@ y cómo ponerlo en producción bajo `app.ergobox.es` en [`DESPLIEGUE.md`](DESPLI
 
 ---
 
-## Estado: fases 0 a 4
+## Estado: las cinco fases
 
 Este repositorio es un fork de Mise, un sistema de aprovisionamiento para
 hostelería que compartía forma con este problema: multi-inquilino con aislamiento
@@ -28,10 +28,10 @@ servida como ficheros estáticos: la razón está más abajo, en las decisiones.
 | **Hecho** | Esquema, RLS, lógica en base de datos, bucket privado de fotos, roles, navegación, boxes y parque con importación CSV, la visita en campo con fotos y cola sin cobertura, el histórico por máquina, el panel, la vista del cliente y la gestión de accesos |
 | **Conservado de Mise** | Autenticación, PWA, cola offline, sistema visual, kit de UI, navegación |
 | **Retirado** | Escandallo, proveedores, pedidos, recepción, histórico de precios y su seed |
-| **Pendiente** | Fase 5: avisos de próxima revisión (cron y push) |
+| **Pendiente** | Nada de la v1. Queda probar la visita con un cronómetro dentro de un box y los avisos con un móvil delante |
 
 Las pantallas están construidas: `/visitas`, `/boxes`, la ficha de máquina con su
-historial, `/panel`, `/mi-box` y `/admin`.
+historial, `/panel`, `/mi-box`, `/admin` y `/ajustes`.
 
 **La fase 2 no está cerrada.** El código está, pero la pantalla de trabajo es la
 que decide si el sistema se usa o se abandona, y eso solo lo dice un cronómetro
@@ -141,6 +141,13 @@ doce máquinas con fotos de antes y después son unas setenta imágenes: sin
 comprimir son casi 300 MB en el navegador, que es cuando el sistema operativo
 decide borrarte la pestaña. Comprimidas, quince megas.
 
+**Los avisos callan más de lo que hablan.** Una máquina que entra en la ventana de
+revisión sigue dentro catorce días. Un cron diario ingenuo mandaría catorce avisos
+de la misma máquina, y el resultado conocido es que se silencian las
+notificaciones de la aplicación entera. La regla está en `avisos_pendientes()`: no
+se repite un aviso a la misma persona mientras quede uno suyo dentro de la
+ventana. `npm run probar:sql` la cubre por los dos lados del borde.
+
 **No hay servidor, y es la decisión de fondo.** La aplicación se descarga entera
 y habla directamente con Supabase. Suena a menos seguro y no lo es: las políticas
 de la base de datos resuelven quién eres a partir de tu token y deciden lo mismo
@@ -193,7 +200,7 @@ cliente vale igual contra PostgREST. Si tocas una política, vuelve a pasarlo.
 | `npm run lint` | ESLint |
 | `npm run probar:parque` | Prueba el intérprete del CSV del parque |
 | `npm run probar:pantallas` | Abre la app construida en un navegador y recorre las pantallas de cada rol |
-| `npm run probar:sql` | Prueba el histórico y el aislamiento entre boxes contra Postgres |
+| `npm run probar:sql` | Prueba el histórico, los avisos y el aislamiento entre boxes contra Postgres |
 | `node scripts/generar-iconos.mjs` | Regenera los iconos PNG de la PWA |
 
 ## Estructura
@@ -211,7 +218,9 @@ public/               Manifiesto, service worker, iconos y los dos ficheros de
                       reescritura (_redirects para Netlify, .htaccess para Apache)
 supabase/
   migrations/         Esquema, lógica, RLS y almacenamiento — la fuente de verdad
-  functions/          `alta-usuario`: lo único que corre fuera del navegador
+  functions/          Lo único que corre fuera del navegador: `alta-usuario` y
+                      `avisar-revisiones`
+  cron/               El snippet que programa el aviso diario
 seed/                 Parque de demo para probar la importación
 scripts/              Iconos, prueba del CSV y las dos pruebas SQL
 ```

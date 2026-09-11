@@ -233,6 +233,15 @@ async function ir(pagina, ruta) {
 
 const texto = (pagina) => pagina.locator('body').innerText()
 
+/**
+ * Buscar sin distinguir mayúsculas.
+ *
+ * Los títulos de sección van en versalitas por CSS y `innerText` los devuelve ya
+ * en mayúsculas, así que comparar tal cual falla por algo que en pantalla se lee
+ * perfectamente. Ya ha pasado dos veces.
+ */
+const contiene = (texto, aguja) => texto.toLowerCase().includes(aguja.toLowerCase())
+
 console.log('\n════ Como administrador ════')
 await comoRol('admin', async (pagina) => {
   await ir(pagina, '/')
@@ -270,11 +279,16 @@ await comoRol('admin', async (pagina) => {
 
   await ir(pagina, '/visitas')
   const visitas = await texto(pagina)
-  // Los títulos de grupo van en versalitas por CSS, así que `innerText` los
-  // devuelve en mayúsculas. Se compara sin distinguirlas.
-  const sinCaja = visitas.toLowerCase()
-  comprobar('las visitas se agrupan por estado', sinCaja.includes('por hacer') && sinCaja.includes('terminadas'))
+  comprobar(
+    'las visitas se agrupan por estado',
+    contiene(visitas, 'Por hacer') && contiene(visitas, 'Terminadas'),
+  )
   comprobar('y cada una dice cuántas máquinas lleva hechas', visitas.includes('0/1'))
+
+  await ir(pagina, '/ajustes')
+  const ajustes = await texto(pagina)
+  comprobar('los ajustes enseñan los avisos de revisión', contiene(ajustes, 'Avisos de revisión'))
+  comprobar('y dicen algo en vez de quedarse comprobando', !contiene(ajustes, 'Comprobando'))
 
   await ir(pagina, '/mi-box')
   comprobar('un interno en /mi-box va a su sitio', (await texto(pagina)).includes('Ir a boxes'))
@@ -306,6 +320,9 @@ await comoRol('cliente', async (pagina) => {
 
   await ir(pagina, '/admin')
   comprobar('y administración también', pagina.url().includes('/sin-permiso'))
+
+  await ir(pagina, '/ajustes')
+  comprobar('los ajustes son del equipo, no suyos', pagina.url().includes('/sin-permiso'))
 })
 
 console.log('\n════ Sin sesión ════')

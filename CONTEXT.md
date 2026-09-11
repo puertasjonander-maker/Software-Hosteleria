@@ -113,7 +113,7 @@ Cada una deja algo utilizable. El orden no es negociable.
 | **F2** | Visita en campo: ficha, fotos, offline | hecha, sin probar en un box |
 | **F3** | Histórico y semáforo del parque | hecha |
 | **F4** | Vista del cliente y gestión de accesos | hecha |
-| **F5** | Avisos de próxima revisión | pendiente |
+| **F5** | Avisos de próxima revisión | hecha, sin probar en un móvil |
 
 La fase 2 está construida pero **no probada en un box de verdad**, que es lo
 único que la da por buena. El listón está escrito: una máquina completa, con sus

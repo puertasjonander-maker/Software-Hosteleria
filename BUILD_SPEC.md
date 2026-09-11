@@ -211,7 +211,7 @@ mira es el número de filas escritas.
 
 ---
 
-## 7. Fase 5 — Avisos
+## 7. Fase 5 — Avisos · hecha
 
 **EBX-501 · Cron de revisiones.** Recorre `maquinas` con `proxima_revision` dentro
 de la ventana de aviso y notifica. Un aviso por máquina, persona y día
@@ -226,10 +226,23 @@ La suscripción del navegador a los avisos también se escribe directamente cont
 `push_subscriptions`, que ya tiene su política (`push_propio`): cada usuario
 escribe las suyas y ninguna otra. No hace falta ningún endpoint.
 
-**Lo que hay que volver a escribir.** El envío de notificaciones se hizo en su día
-con `web-push` sobre Node y se retiró al pasar a una página única, porque era
-código de servidor sin servidor donde correr. En Deno se resuelve con la API de
-criptografía del propio runtime; las claves VAPID que ya existan siguen valiendo.
+**La decisión que costó pensar no fue enviar, fue callar.** Una máquina que entra
+en la ventana sigue dentro catorce días, y un cron diario ingenuo mandaría catorce
+avisos de la misma máquina. La regla es: no se repite un aviso a la misma persona
+mientras quede uno suyo dentro de la ventana. Salen dos por ciclo —uno al entrar y
+otro al vencer— y no se pierde ninguno si el cron falla un día, porque la
+condición mira el estado y no el cruce exacto de un umbral.
+
+Vive en `avisos_pendientes()` y se prueba en `scripts/probar-avisos.sql`, 19
+comprobaciones: la ventana, los dos lados de su borde, que un servicio hecho apaga
+el aviso, que el dueño del box no recibe ninguno y que nadie salvo el cron puede
+ejecutar las funciones.
+
+**Lo que solo se puede probar con un móvil delante.** El envío en sí —claves
+VAPID, service worker, permisos del sistema— no se puede comprobar sin un servicio
+de push de verdad. Por eso `/ajustes` lleva un botón que manda una notificación de
+prueba a quien lo pulsa: es el camino entero en un toque, sin esperar a que a una
+máquina le toque revisión.
 
 ---
 

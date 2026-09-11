@@ -12,7 +12,7 @@
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "probar:parque": "tsx scripts/probar-parque.ts",
     "probar:pantallas": "node scripts/probar-pantallas.mjs",
-    "probar:sql": "psql -v ON_ERROR_STOP=1 -f scripts/probar-historico.sql && psql -v ON_ERROR_STOP=1 -f scripts/probar-aislamiento.sql"
+    "probar:sql": "psql -v ON_ERROR_STOP=1 -f scripts/probar-historico.sql && psql -v ON_ERROR_STOP=1 -f scripts/probar-avisos.sql && psql -v ON_ERROR_STOP=1 -f scripts/probar-aislamiento.sql"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.1",

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   BarChart3,
+  Bell,
   Building2,
   ChevronLeft,
   Dumbbell,
@@ -58,6 +59,7 @@ const TITULOS: Array<[RegExp, string]> = [
   [/^\/mi-box/, 'Mi box'],
   [/^\/panel/, 'Panel'],
   [/^\/admin/, 'Administración'],
+  [/^\/ajustes/, 'Ajustes'],
   [/^\/sin-permiso/, 'Sin permiso'],
 ]
 
@@ -207,6 +209,16 @@ export function Navegacion({
               </MenuLabel>
 
               <MenuSeparator />
+
+              {/* Los ajustes van en el menú y no en la barra: se entra una vez,
+                  al configurar el móvil, no cada día. */}
+              {rol !== 'cliente' ? (
+                <MenuItem asChild>
+                  <Link to="/ajustes" className="w-full">
+                    <Bell /> Avisos
+                  </Link>
+                </MenuItem>
+              ) : null}
 
               {/* Sin navegación después de salir: el proveedor de sesión se
                   entera por `onAuthStateChange` y el guarda de ruta manda al

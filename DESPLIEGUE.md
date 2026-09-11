@@ -78,6 +78,7 @@ orden de nombre**. Ninguno es opcional:
 | `..._vista_parque_completa.sql` | Tres columnas que faltaban en la vista |
 | `..._historico.sql` | Cambios de estado, bajas y validación de anotaciones |
 | `..._email_perfil.sql` | El correo copiado al perfil, para no leerlo con la clave de servicio |
+| `..._avisos.sql` | A quién avisar y de qué, con la regla que evita repetirse |
 
 ### 2.3 Comprobar que el aislamiento funciona
 
@@ -92,20 +93,24 @@ Tiene que terminar en `TODO EN ORDEN`. **Si falla, no des acceso a ningún clien
 hasta arreglarlo**: en esta arquitectura las políticas no son una capa más, son la
 única.
 
-### 2.4 Desplegar la función de alta de usuarios
+### 2.4 Desplegar las dos funciones
 
-Es la única pieza del producto que corre fuera del navegador. Existe porque crear
-un usuario o cambiarle la contraseña exige la clave de servicio, y esa clave no
-puede bajar al móvil de nadie.
+Son las únicas piezas del producto que corren fuera del navegador, y las dos
+existen por lo mismo: necesitan la clave de servicio, que no puede bajar al móvil
+de nadie.
 
 ```bash
 supabase functions deploy alta-usuario
+supabase functions deploy avisar-revisiones
 supabase secrets set ORIGEN_PERMITIDO=https://app.ergobox.es
 ```
 
-La clave de servicio ya está disponible dentro de la función sin configurarla:
-Supabase la inyecta. `ORIGEN_PERMITIDO` no es imprescindible, pero sin él la
-función acepta peticiones desde cualquier página.
+La clave de servicio ya está disponible dentro de las funciones sin configurarla:
+Supabase la inyecta. `ORIGEN_PERMITIDO` no es imprescindible, pero sin él aceptan
+peticiones desde cualquier página.
+
+Sin `alta-usuario` la aplicación funciona entera menos el botón de dar de alta a
+un dueño de box. Sin `avisar-revisiones`, menos los avisos.
 
 ### 2.5 Variables de la aplicación
 
@@ -114,15 +119,46 @@ De *Project Settings → API*:
 ```
 VITE_SUPABASE_URL=https://<ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon key>
+VITE_VAPID_PUBLIC_KEY=<la pública del par VAPID, ver §2.6>
 ```
 
-Las dos viajan al navegador; el prefijo `VITE_` lo dice. La anónima es pública por
-diseño y no concede nada por sí sola.
+Las tres viajan al navegador; el prefijo `VITE_` lo dice. La clave anónima es
+pública por diseño y no concede nada por sí sola, y la VAPID pública es
+literalmente la mitad pública de un par de claves.
 
 **Si alguna vez ves una variable `VITE_` con la palabra `service` o `secret` en el
 nombre, es un incidente de seguridad y no una configuración.**
 
-### 2.6 El primer administrador
+### 2.6 Los avisos de revisión
+
+Hacen falta un par de claves VAPID, que es lo que demuestra a los servicios de
+push (Google, Apple, Mozilla) que el aviso viene de nosotros:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+La pública va al `.env.local` de la aplicación como `VITE_VAPID_PUBLIC_KEY`. La
+privada, al entorno de la función, junto con un secreto inventado que es lo que
+distingue una llamada del cron de una llamada de cualquiera:
+
+```bash
+supabase secrets set VAPID_PRIVATE_KEY=...
+supabase secrets set VAPID_PUBLIC_KEY=...
+supabase secrets set VAPID_SUBJECT=mailto:hola@ergobox.es
+supabase secrets set CRON_SECRET=<una cadena larga inventada>
+```
+
+Después se programa el aviso diario. La vía cómoda es el panel de Supabase, en
+*Integrations → Cron*, creando un job que invoque `avisar-revisiones` una vez al
+día y añadiendo a mano la cabecera `x-cron-secret`. La vía en SQL, con sus
+comentarios, está en `supabase/cron/programar-avisos.sql`.
+
+**Para comprobar que llega**, no hace falta esperar a que a una máquina le toque:
+entra en `/ajustes` desde el móvil, activa los avisos y pulsa "enviarme una de
+prueba". Si llega, el camino entero funciona.
+
+### 2.7 El primer administrador
 
 El resto de altas se hacen desde `/admin`, pero esa pantalla exige ser
 administrador, así que el primero se pone a mano una vez:
@@ -233,3 +269,5 @@ Ese cambio hay que hacerlo en el otro repositorio, no en este.
 - [ ] Ese usuario ve las fotos de su historial.
 - [ ] Desde el móvil, "Añadir a pantalla de inicio" instala la aplicación, y una
       vez instalada abre en modo avión.
+- [ ] En `/ajustes`, activar los avisos y pulsar "enviarme una de prueba" hace que
+      llegue una notificación al móvil.
