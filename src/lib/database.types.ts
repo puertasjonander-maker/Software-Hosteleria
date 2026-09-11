@@ -129,7 +129,7 @@ export type FotoRow = {
   id: string
   parte_id: string
   momento: MomentoFoto
-  /** Ruta en el bucket privado. Nunca se expone tal cual: se firma en servidor. */
+  /** Ruta en el bucket privado. Nunca se expone tal cual: se pide firmada. */
   ruta: string
   orden: number
   bytes: number | null

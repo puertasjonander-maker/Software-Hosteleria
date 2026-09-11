@@ -14,7 +14,8 @@ import { EstadoVacio } from '@/components/ui/states'
  * dentro del evento y no en una galería aparte — una foto sin la fecha y el
  * trabajo al lado no prueba nada.
  *
- * Componente de servidor: las URL de las fotos llegan ya firmadas y caducan solas.
+ * Las fotos llegan ya firmadas desde `datos/historico` y su enlace caduca en una
+ * hora. Este componente solo las pinta: no decide quién puede verlas.
  */
 
 const ICONO: Record<TipoEvento, React.ComponentType<{ className?: string }>> = {
