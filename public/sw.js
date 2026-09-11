@@ -22,7 +22,8 @@ const CACHE_SHELL = `${VERSION}-shell`
 const CACHE_ESTATICOS = `${VERSION}-estaticos`
 
 const DOCUMENTO = '/index.html'
-const SHELL = [DOCUMENTO, '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']
+const CONFIG = '/config.json'
+const SHELL = [DOCUMENTO, CONFIG, '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -60,6 +61,29 @@ self.addEventListener('fetch', (event) => {
   // Supabase vive en otro origen, así que esta condición ya deja fuera todos los
   // datos y todas las fotos. No hay nada nuestro que convenga cachear aparte.
   if (url.origin !== self.location.origin) return
+
+  /*
+   * La configuración, de red primero y de caché si no hay.
+   *
+   * Sin esto, abrir la aplicación sin cobertura dentro de un box daría "falta
+   * configurar": el fichero no se descargaría y la app no sabría a dónde
+   * conectarse, justo en el momento en que más importa que arranque. De red
+   * primero para que un cambio de claves llegue en cuanto haya señal.
+   */
+  if (url.pathname === CONFIG) {
+    event.respondWith(
+      fetch(request)
+        .then((respuesta) => {
+          if (respuesta.ok) {
+            const copia = respuesta.clone()
+            caches.open(CACHE_SHELL).then((cache) => cache.put(CONFIG, copia))
+          }
+          return respuesta
+        })
+        .catch(() => caches.match(CONFIG).then((c) => c ?? Response.error())),
+    )
+    return
+  }
 
   if (esEstatico(url)) {
     event.respondWith(

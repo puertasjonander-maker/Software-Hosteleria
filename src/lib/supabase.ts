@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { configuracion } from '@/lib/configuracion'
 import type { Database } from '@/lib/database.types'
 
 /**
@@ -16,16 +17,9 @@ import type { Database } from '@/lib/database.types'
  * una función de Supabase (`supabase/functions/alta-usuario`).
  */
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const claveAnonima = import.meta.env.VITE_SUPABASE_ANON_KEY
+const { supabaseUrl, supabaseAnonKey } = configuracion()
 
-if (!url || !claveAnonima) {
-  throw new Error(
-    'Faltan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY. Copia .env.example a .env.local.',
-  )
-}
-
-export const supabase = createClient<Database>(url, claveAnonima, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

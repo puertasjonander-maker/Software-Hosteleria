@@ -325,6 +325,86 @@ await comoRol('cliente', async (pagina) => {
   comprobar('los ajustes son del equipo, no suyos', pagina.url().includes('/sin-permiso'))
 })
 
+console.log('\n════ La configuración del despliegue ════')
+{
+  // config.json manda sobre lo que se cocinó en el build. Es lo que permite
+  // cambiar de proyecto de Supabase editando un fichero en el servidor.
+  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })
+
+  await ctx.route('**/config.json', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        supabaseUrl: 'https://desde-config.supabase.co',
+        supabaseAnonKey: 'una-clave-larga-de-mentira-para-la-prueba',
+        vapidPublicKey: '',
+      }),
+    }),
+  )
+
+  let hablóConElDeConfig = false
+  await ctx.route('**/desde-config.supabase.co/**', (route) => {
+    hablóConElDeConfig = true
+    return route.fulfill({ status: 401, contentType: 'application/json', body: '{"message":"no"}' })
+  })
+
+  const pagina = await ctx.newPage()
+  pagina.on('pageerror', (e) => fallos.push(`error de página (config): ${e.message}`))
+
+  /*
+   * Con una sesión guardada, el cliente de Supabase sale a comprobarla nada más
+   * arrancar. Es lo que demuestra contra qué servidor se ha construido: sin
+   * sesión no llamaría a ninguno y la prueba no probaría nada.
+   *
+   * La clave de almacenamiento la forma supabase-js con la referencia del
+   * proyecto, que aquí es la primera etiqueta del dominio.
+   */
+  await pagina.goto(`http://localhost:${PUERTO}/entrar`)
+  await pagina.evaluate(() => {
+    localStorage.setItem(
+      'sb-desde-config-auth-token',
+      JSON.stringify({
+        access_token: 'falso', token_type: 'bearer', expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'falso',
+        user: { id: '00000000-0000-0000-0000-0000000000a1', aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' },
+      }),
+    )
+  })
+
+  await ir(pagina, '/boxes')
+  comprobar('la app usa el Supabase de config.json y no el del build', hablóConElDeConfig)
+
+  await ctx.close()
+}
+
+console.log('\n════ Sin configurar ════')
+{
+  // Lo primero que se ve si se sube `dist/` sin poner el config.json al lado.
+  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })
+
+  // El hosting, con su regla de reescritura, devuelve index.html para cualquier
+  // fichero que no exista. Así que un config.json ausente llega como HTML.
+  await ctx.route('**/config.json', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><p>no soy json' }),
+  )
+
+  const pagina = await ctx.newPage()
+  pagina.on('pageerror', (e) => fallos.push(`error de página (sin configurar): ${e.message}`))
+
+  await pagina.addInitScript(() => {
+    // Simula un build sin variables de entorno, que es como se publica.
+    Object.defineProperty(window, '__SIN_ENTORNO__', { value: true })
+  })
+
+  await ir(pagina, '/')
+  const texto0 = await texto(pagina)
+  const arrancó = contiene(texto0, 'Ergobox') || contiene(texto0, 'Contraseña')
+  comprobar('con un config.json ilegible no se queda en blanco', texto0.trim().length > 0 && arrancó)
+
+  await ctx.close()
+}
+
 console.log('\n════ Sin sesión ════')
 {
   const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })

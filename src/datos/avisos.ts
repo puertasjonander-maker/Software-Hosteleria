@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { configuracion } from '@/lib/configuracion'
 import { resultado, traducir, type Resultado } from '@/datos/resultado'
 
 /**
@@ -20,7 +21,7 @@ export type EstadoAvisos =
   | 'desactivado'
   | 'activado'
 
-const CLAVE_PUBLICA = import.meta.env.VITE_VAPID_PUBLIC_KEY
+const CLAVE_PUBLICA = configuracion().vapidPublicKey
 
 /**
  * La clave VAPID viaja en base64url y `pushManager` la quiere en bytes.

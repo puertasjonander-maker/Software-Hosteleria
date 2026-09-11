@@ -21,3 +21,7 @@ yarn-error.log*
 # Solo el seed DEMO (seed/*.demo.csv) está versionado.
 seed/real/
 .capturas/
+
+# La configuración real del despliegue no va al repositorio.
+config.json
+public/config.json
