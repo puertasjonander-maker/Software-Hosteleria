@@ -17,7 +17,7 @@ Lo que ya está hecho y no hay que volver a hacer:
 | ✅ | Las tres funciones desplegadas | §2.4 |
 | ✅ | Primer administrador creado | §2.9 |
 | ✅ | `dist/` construido con su `config.json` | §2.5 |
-| ⬜ | Publicar: o subir `dist/` a Hostinger (§3.1), o conectar Netlify y olvidarse (§3.2) | §3 |
+| ⬜ | Conectar Hostinger a la rama `publicar` (una vez) y desplegar | §3.2 |
 | ⬜ | Revocar la clave de Hostinger | §0 |
 | ⬜ | Correo de alta: cuenta de Resend y registros DNS | §2.6 |
 | ⬜ | Importar desde Notion **sin configurar nada**: exportar a CSV y soltarlo | §2.7 |
@@ -178,8 +178,9 @@ roto, lo que se cocinó en el build con variables `VITE_`.
 Los dos caminos existen porque las dos formas de publicar son distintas. **En
 Hostinger manda `config.json`**, porque los ficheros se suben a mano y así
 cambiar de proyecto es editar tres líneas por FTP en vez de reconstruirlo todo.
-**En Netlify mandan las variables** (§3.2), porque allí se reconstruye igualmente
-en cada cambio. Lo que sigue es el camino de Hostinger. Así cambiar de proyecto
+Si algún día se sirve desde un sitio que reconstruye en cada cambio, las
+variables `VITE_` son el sitio natural y no hace falta tocar nada más. Lo que
+sigue es el camino de Hostinger. Así cambiar de proyecto
 de Supabase es editar tres líneas por FTP, sin reinstalar Node ni reconstruir
 nada. La plantilla está en `public/config.example.json`.
 
@@ -349,104 +350,79 @@ a su box y enseña una contraseña temporal una sola vez.
 
 ---
 
-## 3. Dónde se publica
+## 3. Dónde se publica: Hostinger, con el subdominio
 
-Al ser ficheros estáticos, sirve cualquier sitio. Dos condiciones y solo dos:
+Ergobox vive en `app.ergobox.es`, en el Hostinger que ya pagas. No hay proveedor
+nuevo, no hay factura nueva y no hay servidor que mantener.
+
+Al ser ficheros estáticos, sirve cualquier hosting, con dos condiciones:
 
 1. **HTTPS.** Sin él la cámara del móvil no está disponible desde el navegador y
    la aplicación no se puede instalar. La mitad del producto deja de funcionar.
-2. **Que cualquier dirección se sirva con `index.html`.** El repositorio ya trae
-   los dos ficheros que lo consiguen: `public/_redirects` para Netlify y
-   `public/.htaccess` para Apache, que es lo que usa Hostinger. Sin eso, entrar
-   directamente en `app.ergobox.es/boxes` daría un 404.
+2. **Que cualquier dirección se sirva con `index.html`.** El repositorio trae los
+   ficheros que lo consiguen: `public/.htaccess` para Apache, que es lo que usa
+   Hostinger, y `public/_redirects` por si algún día se sirve desde otro sitio.
+   Sin eso, entrar directamente en `app.ergobox.es/boxes` daría un 404.
 
-| Dónde | Coste | Cómo se publica |
-|---|---|---|
-| **Hostinger** (el que ya tienes) | 0 € | Subes `dist/` al subdominio |
-| Netlify | 0 € | Conectas el repositorio y se publica en cada `git push` |
-| Cloudflare Pages | 0 € | Igual que Netlify |
+### 3.1 La rama `publicar`, que es la clave de todo
 
-**Recomendación: Hostinger**, ya que era lo que querías y ahora sí puede. No hay
-factura nueva, no hay proveedor nuevo y no hay servidor que mantener. Lo único que
-pierdes frente a Netlify es el despliegue automático al hacer `git push`: aquí hay
-que subir la carpeta a mano o con Git deploy.
+Hostinger sirve los ficheros que encuentra: no sabe construir nada, y su
+integración con Git tampoco ejecuta `npm run build`. Solo trae lo que hay en una
+rama.
 
-### 3.1 En Hostinger
+Por eso existe la rama **`publicar`**, que no lleva código fuente. Lleva
+exactamente lo que tiene que haber dentro de la carpeta del subdominio: el
+`index.html`, los `assets`, los iconos, el `sw.js`, el `.htaccess` y el
+`config.json` ya relleno. Dieciséis ficheros.
 
-1. hPanel → *Dominios → Subdominios* → crea `app`. Hostinger creará una carpeta,
-   normalmente `/public_html/app` o `/domains/app.ergobox.es/public_html`.
-2. Sube **el contenido** del `.zip` que acompaña a esta entrega (no la carpeta que
-   lo envuelve) a esa ruta, por FTP o desde el administrador de archivos. Ya lleva
-   dentro el `config.json` con los datos del proyecto.
-
-   Dos ficheros empiezan por punto o se parecen a basura y **no se pueden dejar
-   fuera**:
-
-   | Fichero | Qué pasa si falta |
-   |---|---|
-   | `.htaccess` | Entrar directo en `/boxes` da un 404. Muchos clientes de FTP lo esconden por empezar por punto |
-   | `config.json` | La aplicación arranca y dice "falta configurar" |
-
-3. hPanel → *SSL* → activa el certificado para el subdominio.
-
-Para reconstruirlo desde el repositorio en vez de usar el `.zip`:
+La genera `scripts/publicar.sh` después de cada cambio:
 
 ```bash
-npm ci
-npm run build
-cp public/config.example.json dist/config.json   # y rellénalo (§2.5)
+bash scripts/publicar.sh
 ```
 
-`dist/config.json` está en el `.gitignore` a propósito: es lo único que cambia
-entre un despliegue y otro, y no tiene por qué viajar en el repositorio.
+Construye, le pone la configuración de producción al lado, y reemplaza la rama
+`publicar` con el resultado. Con una sola entrega de historia: a nadie le
+interesa el histórico de una carpeta de ficheros construidos.
 
-Para actualizar: reconstruye y vuelve a subir. El `config.json` que ya está en el
-servidor puedes dejarlo tal cual.
+**Eso lo lanzo yo.** Tú no necesitas ejecutarlo nunca.
 
-### 3.2 En Netlify, para que se publique solo
+**Por qué el `config.json` sí viaja en esa rama.** La clave anónima es pública
+por diseño: baja a cada navegador que abre la aplicación, y no concede nada por
+sí sola. Quien decide qué datos salen son las políticas de §2.3. La clave de
+servicio, que sí lo concede todo, no está en ninguna rama de este repositorio.
 
-Se conecta una vez y a partir de ahí publicar deja de ser tarea de nadie: cada
-empujón a la rama de producción se construye y se publica. Se acabaron el `.zip`
-y el FTP.
+### 3.2 Montarlo una vez
 
-El repositorio ya trae `netlify.toml` con el comando, la carpeta, la versión de
-Node y las cabeceras de caché, así que en el panel no hay casi nada que rellenar.
+1. hPanel → *Dominios → Subdominios* → crea `app` si no existe. Apunta la carpeta
+   que te diga, del estilo `/domains/app.ergobox.es/public_html`.
+2. hPanel → busca **Git** (suele estar en *Avanzado → Git*). Crea un repositorio:
+   - Dirección: `https://github.com/puertasjonander-maker/Software-Hosteleria`
+   - Rama: **`publicar`**
+   - Directorio: la carpeta del subdominio del paso 1.
+3. Si el repositorio es privado, Hostinger te dará una clave pública SSH. Se añade
+   en GitHub, en *Settings → Deploy keys* del repositorio, con permiso de solo
+   lectura.
+4. hPanel → *SSL* → activa el certificado para el subdominio.
 
-1. En netlify.com, *Add new site → Import an existing project*, y elige este
-   repositorio.
-2. **La rama de producción es `claude/ergobox-mantenimiento`**, no la que Netlify
-   propone por defecto. Se cambia en *Site configuration → Build & deploy →
-   Branches*.
-3. El comando y la carpeta los coge del `netlify.toml`. Si el panel te los pide
-   igualmente: `npm run build` y `dist`.
-4. *Site configuration → Environment variables*, dos:
+### 3.3 Redesplegar, que es lo que harás de aquí en adelante
 
-   ```
-   VITE_SUPABASE_URL       https://pbepyegrmajoozplpjxy.supabase.co
-   VITE_SUPABASE_ANON_KEY  <la clave anon, de Project Settings → API>
-   ```
+En el hPanel, en esa misma pantalla de Git, hay un botón de **desplegar**.
+Púlsalo y Hostinger trae la última versión de la rama `publicar`. Eso es todo.
 
-5. *Domain management → Add a domain*: `app.ergobox.es`. Netlify te dará un
-   destino; en el hPanel de Hostinger, en el DNS de `ergobox.es`, apunta `app`
-   ahí con un registro `CNAME`. Eso reemplaza al subdominio que creaste antes.
+Ni FTP, ni `.zip`, ni arrastrar carpetas. Cuando yo toque algo, actualizo la rama
+y te aviso; tú pulsas el botón.
 
-**Por qué aquí sí van variables de entorno y en Hostinger no.** En Hostinger los
-ficheros se suben a mano, así que `config.json` permite cambiar de proyecto
-editando tres líneas por FTP en vez de reconstruir. En Netlify se reconstruye de
-todas formas en cada cambio, así que la variable es el sitio natural. La
-aplicación admite los dos: busca `config.json` y, si no lo encuentra o está roto,
-usa lo que se cocinó en el build.
+*(No puedo comprobar los nombres exactos de los menús del hPanel desde donde
+trabajo, así que si alguno no se llama igual, dímelo y lo ajusto. La idea es la
+misma: un repositorio, la rama `publicar`, la carpeta del subdominio.)*
 
-*(Comprobado: con un `dist/` construido con esas variables y sin `config.json`
-al lado, la aplicación arranca, lleva al login y habla con el Supabase correcto.)*
+### 3.4 Si algún día quieres que se publique solo
 
-**La red de seguridad.** `npm run build` pasa `tsc --noEmit` antes de empaquetar.
-Si algo no compila, la construcción falla, Netlify no publica y se queda la
-versión anterior en pie. Y si se publica algo que no te gusta, *Deploys → Publish
-deploy* vuelve a la anterior en un clic.
-
-**Hostinger puede quedarse como está** hasta que el DNS apunte a Netlify. Las dos
-formas de publicar conviven: son los mismos ficheros.
+Se puede, con Netlify o Cloudflare Pages conectados al repositorio, y entonces no
+hace falta ni pulsar el botón. Cambia el sitio donde vive la aplicación y obliga a
+mover el DNS, así que no se hace mientras Hostinger funcione bien. Queda apuntado
+por si algún día molesta pulsar el botón.
 
 ---
 
