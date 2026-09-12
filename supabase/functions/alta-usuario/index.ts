@@ -20,9 +20,19 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
+/*
+ * `x-client-info` y `apikey` no son opcionales en esta lista.
+ *
+ * La librería de Supabase las manda siempre, y el navegador, antes del POST de
+ * verdad, pregunta con un OPTIONS si están permitidas. Si una sola falta, corta
+ * ahí y la petición real no llega a salir. Desde el navegador se ve como
+ * «Failed to send a request to the Edge Function», que suena a que la función
+ * está caída cuando en realidad ni se ha enterado: en los registros del proyecto
+ * aparece el OPTIONS con un 200 y ningún POST detrás.
+ */
 const CABECERAS_CORS = {
   'Access-Control-Allow-Origin': Deno.env.get('ORIGEN_PERMITIDO') ?? '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 

@@ -23,9 +23,15 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
 
+/*
+ * `x-client-info` y `apikey` no son opcionales en esta lista: las manda siempre
+ * la librería de Supabase, y si el OPTIONS previo no las permite el navegador
+ * corta antes de enviar nada. Ver la nota larga en `alta-usuario`.
+ */
 const CABECERAS_CORS = {
   'Access-Control-Allow-Origin': Deno.env.get('ORIGEN_PERMITIDO') ?? '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type, x-cron-secret',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-cron-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
