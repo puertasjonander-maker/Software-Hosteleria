@@ -310,6 +310,10 @@ await comoRol('admin', async (pagina) => {
   const admin = await texto(pagina)
   comprobar('administración lista a los usuarios', admin.includes('Jon Puertas') && admin.includes('Antonio Ruiz'))
   comprobar('con el correo que ahora sale del perfil', admin.includes('antonio@ironbuster.es'))
+  // Fase D: el alta ya no es «dar acceso» a secas, sino un paso de revisión, y se
+  // puede dar de alta a un técnico y no solo al dueño de un box.
+  comprobar('el alta pasa por revisión', contiene(admin, 'Revisar y dar acceso'))
+  comprobar('y se puede dar de alta a un técnico', contiene(admin, 'Técnico de Ergobox'))
 
   await ir(pagina, '/visitas')
   const visitas = await texto(pagina)

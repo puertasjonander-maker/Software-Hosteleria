@@ -12,17 +12,20 @@ Lo que ya está hecho y no hay que volver a hacer:
 | | Qué | Dónde |
 |---|---|---|
 | ✅ | Proyecto de Supabase creado | ref `pbepyegrmajoozplpjxy`, región eu-west-1 |
-| ✅ | Las nueve migraciones aplicadas | §2.2 |
+| ✅ | Las once migraciones aplicadas | §2.2 |
 | ✅ | Prueba de aislamiento pasada contra el Supabase real | §2.3 |
 | ✅ | Las dos funciones desplegadas | §2.4 |
-| ✅ | Primer administrador creado | §2.7 |
+| ✅ | Primer administrador creado | §2.8 |
 | ✅ | `dist/` construido con su `config.json` | §2.5 |
 | ⬜ | Subir `dist/` al subdominio y activar el SSL | §3.1 |
 | ⬜ | Revocar la clave de Hostinger | §0 |
-| ⬜ | Avisos de revisión: secretos VAPID y cron | §2.6 |
+| ⬜ | Correo de alta: cuenta de Resend y registros DNS | §2.6 |
+| ⬜ | Avisos de revisión: secretos VAPID y cron | §2.7 |
 
-Los avisos son lo único que queda a medias, y la aplicación funciona entera sin
-ellos: la pantalla de ajustes dice que faltan en vez de romperse.
+Las dos últimas son las que dependen de dar de alta algo fuera, y la aplicación
+funciona entera sin ellas. Sin correo, el alta enseña la contraseña para que la
+pases tú, igual que hasta ahora. Sin avisos, la pantalla de ajustes dice que no
+están disponibles en vez de romperse.
 
 ---
 
@@ -104,6 +107,8 @@ orden de nombre**. Ninguno es opcional:
 | `..._email_perfil.sql` | El correo copiado al perfil, para no leerlo con la clave de servicio |
 | `..._avisos.sql` | A quién avisar y de qué, con la regla que evita repetirse |
 | `..._permisos_funciones.sql` | Quita de la API pública las funciones que no pinta nadie ahí |
+| `..._cadencia_sugerida.sql` | La cadencia que decide el técnico al cerrar un parte |
+| `..._fotos_de_maquina.sql` | Fotos de inventario, que cuelgan de la máquina y no de un parte |
 
 ### 2.3 Comprobar que el aislamiento funciona
 
@@ -128,9 +133,10 @@ final es lo que hace que se deshaga la siembra de prueba y no quede ni un box
 inventado en la base de datos. Lo que hay que mirar es el texto: si empieza por
 `FALLO ·`, ha ido mal.
 
-**Pasada el 12 de septiembre de 2026 contra `pbepyegrmajoozplpjxy`**: 52
-comprobaciones, ninguna fila de un box asomando en las consultas del otro, ninguna
-escritura de cliente aceptada, y la base de datos vacía al terminar.
+**Pasada el 12 de septiembre de 2026 contra `pbepyegrmajoozplpjxy`**: 57
+comprobaciones, incluidas las de las fotos de inventario, ninguna fila de un box
+asomando en las consultas del otro, ninguna escritura de cliente aceptada, y la
+base de datos igual que antes al terminar.
 
 Hay que repetirla cada vez que se toque una política, y otra vez antes de dar de
 alta al primer usuario de un box nuevo.
@@ -141,8 +147,8 @@ Son las únicas piezas del producto que corren fuera del navegador, y las dos
 existen por lo mismo: necesitan la clave de servicio, que no puede bajar al móvil
 de nadie.
 
-**Las dos están desplegadas** en `pbepyegrmajoozplpjxy`, versión 1. Para volver a
-subirlas después de tocarlas:
+**Las dos están desplegadas** en `pbepyegrmajoozplpjxy`. Para volver a subirlas
+después de tocarlas:
 
 ```bash
 supabase functions deploy alta-usuario
@@ -178,7 +184,7 @@ anónima es pública por diseño y no concede nada por sí sola —quien decide 
 datos salen son las políticas de §2.3— y la VAPID pública es literalmente la mitad
 pública de un par de claves.
 
-`vapidPublicKey` se deja vacía hasta haber puesto los secretos de §2.6. Con la
+`vapidPublicKey` se deja vacía hasta haber puesto los secretos de §2.7. Con la
 clave puesta y los secretos sin poner, el botón de aviso de prueba daría un error
 de servidor; vacía, la pantalla dice que los avisos no están disponibles, que es
 la verdad y se entiende.
@@ -191,7 +197,45 @@ falta y con qué forma.
 variable `VITE_` con la palabra `service` o `secret` en el nombre, es un incidente
 de seguridad y no una configuración.**
 
-### 2.6 Los avisos de revisión
+### 2.6 El correo de alta
+
+Cuando das de alta a alguien desde `/admin`, la aplicación puede mandarle sus
+claves por correo desde `hola@ergobox.es` en vez de que las dictes tú.
+
+**Sin configurar esto no se rompe nada.** El alta sigue funcionando igual: crea el
+usuario, enseña la contraseña una sola vez y la pantalla dice que el envío no está
+montado. Puedes dejarlo para otro día.
+
+Hace falta un servicio que mande correo. Va con **Resend** porque es una clave y
+una llamada, sin servidor SMTP que mantener:
+
+1. Crea la cuenta en resend.com y añade el dominio `ergobox.es`.
+2. Resend te da tres o cuatro registros DNS. Se añaden en el hPanel de Hostinger,
+   en *Dominios → ergobox.es → DNS*. Son de tipo TXT y CNAME, y sirven para
+   demostrar que el dominio es tuyo y para firmar los envíos.
+3. Espera a que Resend marque el dominio como verificado. Suele tardar minutos,
+   a veces alguna hora.
+4. Crea una API key y guárdala como secreto de la función:
+
+```bash
+supabase secrets set RESEND_API_KEY=re_...
+supabase secrets set URL_APP=https://app.ergobox.es
+```
+
+También se pueden poner desde el panel, en *Edge Functions → alta-usuario →
+Secrets*.
+
+**Por qué los registros DNS no son opcional.** Sin ellos, un correo que dice venir
+de `hola@ergobox.es` no lo puede demostrar, y acaba en spam o directamente
+rechazado. Es lo que separa un correo de bienvenida de uno que nadie lee.
+
+Opcionalmente, `REMITENTE_CORREO` cambia el remitente; por defecto es
+`Ergobox <hola@ergobox.es>`.
+
+**Para comprobar que llega**, date de alta a ti mismo con otra dirección tuya. La
+pantalla te dirá si el correo salió, y si no salió, por qué.
+
+### 2.7 Los avisos de revisión
 
 Hacen falta un par de claves VAPID, que es lo que demuestra a los servicios de
 push (Google, Apple, Mozilla) que el aviso viene de nosotros:
@@ -220,7 +264,7 @@ comentarios, está en `supabase/cron/programar-avisos.sql`.
 entra en `/ajustes` desde el móvil, activa los avisos y pulsa "enviarme una de
 prueba". Si llega, el camino entero funciona.
 
-### 2.7 El primer administrador
+### 2.8 El primer administrador
 
 **Ya está creado**, con el correo `puertas.jonander@gmail.com` y rol `admin`. La
 contraseña temporal se entregó aparte y **hay que cambiarla al entrar**: está
@@ -343,7 +387,7 @@ Ese cambio hay que hacerlo en el otro repositorio, no en este.
 - [ ] La clave de Hostinger, revocada (§0).
 - [x] `probar-aislamiento.sql` termina en `TODO EN ORDEN` contra el Supabase real.
 - [ ] `https://app.ergobox.es` carga con candado y sin avisos.
-- [ ] Has cambiado la contraseña temporal del administrador (§2.7).
+- [ ] Has cambiado la contraseña temporal del administrador (§2.8).
 - [ ] Entrar directamente en `https://app.ergobox.es/boxes` funciona y no da 404.
       Si lo da, falta el `.htaccess` o el `_redirects`.
 - [ ] Entras como administrador y ves los boxes.
@@ -353,5 +397,5 @@ Ese cambio hay que hacerlo en el otro repositorio, no en este.
 - [ ] Desde el móvil, "Añadir a pantalla de inicio" instala la aplicación, y una
       vez instalada abre en modo avión.
 - [ ] En `/ajustes`, activar los avisos y pulsar "enviarme una de prueba" hace que
-      llegue una notificación al móvil. *(Solo después de §2.6; hasta entonces la
+      llegue una notificación al móvil. *(Solo después de §2.7; hasta entonces la
       pantalla dirá que no están disponibles, y eso no impide lanzar.)*

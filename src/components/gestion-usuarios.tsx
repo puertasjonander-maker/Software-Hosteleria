@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, KeyRound, Loader2, UserPlus } from 'lucide-react'
+import { Copy, KeyRound, Loader2, Mail, MailX, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useOcupado } from '@/lib/ocupado'
 import type { RolUsuario } from '@/lib/database.types'
@@ -20,8 +20,9 @@ import {
   activarUsuario,
   asignarBox,
   cambiarRol,
-  invitarDuenoBox,
+  invitarUsuario,
   restablecerContrasena,
+  type Credencial,
   type UsuarioFila,
 } from '@/datos/usuarios'
 
@@ -41,11 +42,11 @@ export function GestionUsuarios({
   miId: string
   onCambio: () => void
 }) {
-  const [credencial, setCredencial] = useState<{ email: string; contrasena: string } | null>(null)
+  const [credencial, setCredencial] = useState<Credencial | null>(null)
 
   return (
     <div className="space-y-4">
-      <AltaDuenoBox boxes={boxes} onCredencial={setCredencial} onCambio={onCambio} />
+      <AltaUsuario boxes={boxes} onCredencial={setCredencial} onCambio={onCambio} />
 
       <div className="space-y-3">
         <h2 className="titulo-seccion">Usuarios</h2>
@@ -73,25 +74,42 @@ export function GestionUsuarios({
   )
 }
 
-/** Alta del dueño de un box: correo, nombre y a qué box se le da acceso. */
-function AltaDuenoBox({
+/**
+ * Alta de alguien nuevo, en dos tiempos (EBX-402).
+ *
+ * Se rellena, se revisa y solo entonces se manda. El paso de revisión no es
+ * ceremonia: un correo no se puede recuperar, y aquí lo que se manda es una
+ * contraseña a una dirección tecleada a mano. Equivocarse de letra significa
+ * mandarle las claves de un box a un desconocido.
+ *
+ * Y el envío es una elección, no lo que pasa por no hacer nada: hay un botón para
+ * crear y mandar, y otro para crear sin mandar y dictar la contraseña como hasta
+ * ahora.
+ */
+function AltaUsuario({
   boxes,
   onCredencial,
   onCambio,
 }: {
   boxes: BoxOpcion[]
-  onCredencial: (c: { email: string; contrasena: string }) => void
+  onCredencial: (c: Credencial) => void
   onCambio: () => void
 }) {
+  const [rol, setRol] = useState<'cliente' | 'tecnico'>('cliente')
   const [email, setEmail] = useState('')
   const [nombre, setNombre] = useState('')
   // Arranca en el primer box y no en vacío: con `value=""` el navegador enseña
   // la primera opción mientras el estado dice otra cosa, y se acaba dando acceso
   // al box que no era.
   const [clienteId, setClienteId] = useState(boxes[0]?.id ?? '')
+  const [revisando, setRevisando] = useState(false)
   const [creando, iniciar] = useOcupado()
 
-  if (boxes.length === 0) {
+  const correo = email.trim().toLowerCase()
+  const pareceCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)
+  const box = boxes.find((b) => b.id === (clienteId || boxes[0]?.id)) ?? null
+
+  if (boxes.length === 0 && rol === 'cliente') {
     return (
       <EstadoVacio
         titulo="Primero da de alta un box"
@@ -100,13 +118,20 @@ function AltaDuenoBox({
     )
   }
 
-  function crear() {
-    const destino = clienteId || boxes[0].id
+  function crear(enviarCorreo: boolean) {
     iniciar(async () => {
-      const r = await invitarDuenoBox(destino, email, nombre)
+      const r = await invitarUsuario({
+        rol,
+        clienteId: rol === 'cliente' ? clienteId || boxes[0].id : null,
+        email: correo,
+        nombre: nombre.trim(),
+        enviarCorreo,
+      })
+
       if (r.ok) {
         setEmail('')
         setNombre('')
+        setRevisando(false)
         onCredencial(r.credencial)
         onCambio()
       } else {
@@ -116,48 +141,122 @@ function AltaDuenoBox({
   }
 
   return (
-    <Card>
-      <CardContent className="flex flex-wrap items-end gap-3 pt-6">
-        <div className="min-w-[14rem] flex-1 space-y-1.5">
-          <Label htmlFor="email">Correo del dueño</Label>
-          <Input
-            id="email"
-            type="email"
-            inputMode="email"
-            autoComplete="off"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="antonio@ironbuster.es"
-          />
-        </div>
+    <>
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-3 pt-6">
+          <div className="min-w-[10rem] flex-1 space-y-1.5">
+            <Label htmlFor="alta-rol">Quién es</Label>
+            <Select
+              id="alta-rol"
+              value={rol}
+              onChange={(e) => setRol(e.target.value as 'cliente' | 'tecnico')}
+            >
+              <option value="cliente">Dueño de un box</option>
+              <option value="tecnico">Técnico de Ergobox</option>
+            </Select>
+          </div>
 
-        <div className="min-w-[10rem] flex-1 space-y-1.5">
-          <Label htmlFor="nombre">Nombre</Label>
-          <Input
-            id="nombre"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            placeholder="Antonio"
-          />
-        </div>
+          <div className="min-w-[14rem] flex-1 space-y-1.5">
+            <Label htmlFor="email">Correo</Label>
+            <Input
+              id="email"
+              type="email"
+              inputMode="email"
+              autoComplete="off"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="antonio@ironbuster.es"
+            />
+          </div>
 
-        <div className="min-w-[12rem] flex-1 space-y-1.5">
-          <Label htmlFor="box">Box</Label>
-          <Select id="box" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-            {boxes.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.nombre}
-              </option>
-            ))}
-          </Select>
-        </div>
+          <div className="min-w-[10rem] flex-1 space-y-1.5">
+            <Label htmlFor="nombre">Nombre</Label>
+            <Input
+              id="nombre"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Antonio"
+            />
+          </div>
 
-        <Button onClick={crear} disabled={creando || email.trim() === ''}>
-          {creando ? <Loader2 className="animate-spin" /> : <UserPlus />}
-          Dar acceso
-        </Button>
-      </CardContent>
-    </Card>
+          {rol === 'cliente' ? (
+            <div className="min-w-[12rem] flex-1 space-y-1.5">
+              <Label htmlFor="box">Box</Label>
+              <Select id="box" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
+                {boxes.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.nombre}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
+
+          <Button onClick={() => setRevisando(true)} disabled={!pareceCorreo}>
+            <UserPlus />
+            Revisar y dar acceso
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Dialog open={revisando} onOpenChange={(v) => (v ? null : setRevisando(false))}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Repasa antes de mandarlo</DialogTitle>
+            <DialogDescription>
+              Un correo no se puede recuperar, y este lleva dentro una contraseña.
+            </DialogDescription>
+          </DialogHeader>
+
+          <dl className="space-y-3 rounded-lg border bg-muted/40 p-4">
+            <Repaso titulo="Correo" valor={correo} destacado />
+            <Repaso titulo="Nombre" valor={nombre.trim() || 'Sin nombre'} />
+            <Repaso
+              titulo="Entra como"
+              valor={rol === 'cliente' ? `Dueño de ${box?.nombre ?? 'un box'}` : 'Técnico de Ergobox'}
+            />
+            <Repaso
+              titulo="Podrá"
+              valor={
+                rol === 'cliente'
+                  ? 'Ver su parque, su historial y sus fotos. No cambiar nada.'
+                  : 'Trabajar en todos los boxes: visitas, partes y fotos.'
+              }
+            />
+          </dl>
+
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => crear(true)} disabled={creando}>
+              {creando ? <Loader2 className="animate-spin" /> : <Mail />}
+              Crear y mandarle el correo
+            </Button>
+            <Button variant="outline" onClick={() => crear(false)} disabled={creando}>
+              <MailX />
+              Crear sin mandar correo
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function Repaso({
+  titulo,
+  valor,
+  destacado,
+}: {
+  titulo: string
+  valor: string
+  destacado?: boolean
+}) {
+  return (
+    <div>
+      <dt className="texto-micro uppercase tracking-wide text-muted-foreground">{titulo}</dt>
+      <dd className={destacado ? 'break-all font-mono text-cuerpo font-semibold' : 'text-cuerpo'}>
+        {valor}
+      </dd>
+    </div>
   )
 }
 
@@ -171,7 +270,7 @@ function FilaUsuario({
   usuario: UsuarioFila
   boxes: BoxOpcion[]
   miId: string
-  onCredencial: (c: { email: string; contrasena: string }) => void
+  onCredencial: (c: Credencial) => void
   onCambio: () => void
 }) {
   const [ocupado, iniciar] = useOcupado()
@@ -279,7 +378,7 @@ function DialogoCredencial({
   credencial,
   onCerrar,
 }: {
-  credencial: { email: string; contrasena: string } | null
+  credencial: Credencial | null
   onCerrar: () => void
 }) {
   async function copiar() {
@@ -301,7 +400,7 @@ function DialogoCredencial({
         <DialogHeader>
           <DialogTitle>Acceso listo</DialogTitle>
           <DialogDescription>
-            Cópiala y pásasela ahora. No se puede volver a consultar: si se pierde, se genera otra.
+            La contraseña no se puede volver a consultar: si se pierde, se genera otra.
           </DialogDescription>
         </DialogHeader>
 
@@ -312,10 +411,53 @@ function DialogoCredencial({
           <p className="break-all font-mono text-cuerpo font-semibold">{credencial?.contrasena}</p>
         </div>
 
+        {credencial ? <QuePasoConElCorreo correo={credencial.correo} /> : null}
+
         <Button onClick={copiar}>
           <Copy /> Copiar acceso
         </Button>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Qué pasó con el correo.
+ *
+ * Se cuenta siempre, incluso cuando salió bien, porque la contraseña sigue a la
+ * vista y hay que saber si hace falta dictarla o no. Y «no está configurado» se
+ * distingue de «ha fallado» a propósito: lo primero es una tarea pendiente de
+ * montar, lo segundo es un problema de ahora mismo.
+ */
+function QuePasoConElCorreo({ correo }: { correo: Credencial['correo'] }) {
+  if (correo.estado === 'no_pedido') {
+    return (
+      <p className="texto-meta text-muted-foreground">
+        No se ha mandado ningún correo. Pásale el acceso tú.
+      </p>
+    )
+  }
+
+  if (correo.estado === 'enviado') {
+    return (
+      <p className="texto-meta text-ok-foreground">
+        Correo enviado. Si no le llega, mira en spam antes de volver a mandarlo.
+      </p>
+    )
+  }
+
+  if (correo.estado === 'sin_configurar') {
+    return (
+      <p className="texto-meta text-muted-foreground">
+        El envío de correo todavía no está montado, así que el usuario está creado pero no ha
+        recibido nada. Pásale el acceso tú.
+      </p>
+    )
+  }
+
+  return (
+    <p className="texto-meta text-destructive">
+      El usuario está creado, pero el correo no ha salido: {correo.detalle}. Pásale el acceso tú.
+    </p>
   )
 }

@@ -19,6 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { asuntoAcceso, htmlAcceso, textoAcceso, type DatosAcceso } from './correo.ts'
 
 /*
  * `x-client-info` y `apikey` no son opcionales en esta lista.
@@ -59,6 +60,61 @@ function responder(cuerpo: unknown, estado = 200): Response {
     status: estado,
     headers: { ...CABECERAS_CORS, 'Content-Type': 'application/json' },
   })
+}
+
+/** Qué ha pasado con el correo. La pantalla lo cuenta tal cual. */
+type EstadoCorreo =
+  | { estado: 'enviado' }
+  | { estado: 'no_pedido' }
+  | { estado: 'sin_configurar' }
+  | { estado: 'fallo'; detalle: string }
+
+/**
+ * Manda el correo de acceso con Resend.
+ *
+ * El envío NUNCA puede tumbar el alta. El usuario ya está creado cuando se llega
+ * aquí, y perder eso porque un servicio de correo esté caído sería cambiar un
+ * problema pequeño —hay que dictar la contraseña por WhatsApp— por uno grande:
+ * un usuario a medio crear. Por eso todo lo de aquí devuelve un estado en vez de
+ * lanzar, y la pantalla enseña la contraseña igual pase lo que pase.
+ *
+ * Sin `RESEND_API_KEY` no se intenta nada y se dice que no está configurado, que
+ * es distinto de que haya fallado.
+ */
+async function enviarAcceso(datos: DatosAcceso): Promise<EstadoCorreo> {
+  const clave = Deno.env.get('RESEND_API_KEY')
+  if (!clave) return { estado: 'sin_configurar' }
+
+  const remitente = Deno.env.get('REMITENTE_CORREO') ?? 'Ergobox <hola@ergobox.es>'
+
+  try {
+    const respuesta = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${clave}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: remitente,
+        to: [datos.email],
+        // Quien recibe esto va a tener dudas, y la respuesta natural es darle a
+        // «responder». Que llegue a un buzón que alguien lee.
+        reply_to: 'hola@ergobox.es',
+        subject: asuntoAcceso(datos),
+        html: htmlAcceso(datos),
+        text: textoAcceso(datos),
+      }),
+    })
+
+    if (!respuesta.ok) {
+      const cuerpo = await respuesta.text()
+      return { estado: 'fallo', detalle: `${respuesta.status} · ${cuerpo.slice(0, 200)}` }
+    }
+
+    return { estado: 'enviado' }
+  } catch (e) {
+    return { estado: 'fallo', detalle: e instanceof Error ? e.message : String(e) }
+  }
 }
 
 Deno.serve(async (peticion) => {
@@ -110,12 +166,18 @@ Deno.serve(async (peticion) => {
   if (cuerpo.accion === 'crear') {
     const email = String(cuerpo.email ?? '').trim().toLowerCase()
     const nombre = String(cuerpo.nombre ?? '').trim()
-    const clienteId = String(cuerpo.clienteId ?? '')
+    // Solo estos dos. Un admin no se da de alta desde aquí: se asciende a mano a
+    // alguien que ya existe, que es una decisión que merece dos pasos.
+    const rol = cuerpo.rol === 'tecnico' ? 'tecnico' : 'cliente'
+    const clienteId = rol === 'cliente' ? String(cuerpo.clienteId ?? '') : null
+    const quiereCorreo = cuerpo.enviarCorreo === true
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return responder({ error: 'Ese correo no tiene buena pinta.' }, 400)
     }
-    if (!clienteId) return responder({ error: 'Elige a qué box se le da acceso.' }, 400)
+    if (rol === 'cliente' && !clienteId) {
+      return responder({ error: 'Elige a qué box se le da acceso.' }, 400)
+    }
 
     const { data, error } = await admin.auth.admin.createUser({
       email,
@@ -140,19 +202,45 @@ Deno.serve(async (peticion) => {
     // El perfil lo ha creado el trigger `handle_new_user`, siempre con rol
     // `cliente` y sin box. Lo único que se hace aquí es atarlo: nadie se da de
     // alta con permisos, ni siquiera pasando por esta función.
+    // `cliente_id` va a null para un técnico, y no es opcional: la restricción
+    // `perfiles_cliente_coherente` exige que un interno no esté atado a ningún box.
     const { error: errorPerfil } = await admin
       .from('perfiles')
-      .update({ nombre, rol: 'cliente', cliente_id: clienteId, activo: true })
+      .update({ nombre, rol, cliente_id: clienteId, activo: true })
       .eq('id', data.user.id)
 
     if (errorPerfil) {
       return responder(
-        { error: `Usuario creado, pero sin box asignado: ${errorPerfil.message}` },
+        { error: `Usuario creado, pero sin terminar de configurar: ${errorPerfil.message}` },
         500,
       )
     }
 
-    return responder({ email, contrasena })
+    // El nombre del box solo para el texto del correo. Si falla, el correo lo
+    // dice de forma genérica en vez de no salir.
+    let box: string | null = null
+    if (clienteId) {
+      const { data: fila } = await admin
+        .from('clientes')
+        .select('nombre')
+        .eq('id', clienteId)
+        .maybeSingle()
+      box = fila?.nombre ?? null
+    }
+
+    const correo: EstadoCorreo = quiereCorreo
+      ? await enviarAcceso({
+          nombre,
+          email,
+          contrasena,
+          box,
+          url: Deno.env.get('URL_APP') ?? 'https://app.ergobox.es',
+        })
+      : { estado: 'no_pedido' }
+
+    // La contraseña va en la respuesta pase lo que pase con el correo. Si el
+    // envío ha fallado, la pantalla la enseña y se pasa por WhatsApp como antes.
+    return responder({ email, contrasena, correo })
   }
 
   // ── Contraseña nueva para quien perdió la suya ─────────────────────────────

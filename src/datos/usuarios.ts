@@ -47,7 +47,14 @@ export async function listarUsuarios(miId: string): Promise<UsuarioFila[]> {
     })
 }
 
-export type Credencial = { email: string; contrasena: string }
+/** Qué ha pasado con el correo de acceso. Lo decide la función, no el navegador. */
+export type EstadoCorreo =
+  | { estado: 'enviado' }
+  | { estado: 'no_pedido' }
+  | { estado: 'sin_configurar' }
+  | { estado: 'fallo'; detalle: string }
+
+export type Credencial = { email: string; contrasena: string; correo: EstadoCorreo }
 export type ResultadoCredencial = { ok: true; credencial: Credencial } | { ok: false; mensaje: string }
 
 /** Llama a la función de Supabase con el token de la sesión actual. */
@@ -55,6 +62,7 @@ async function llamarFuncion(cuerpo: Record<string, unknown>): Promise<Resultado
   const { data, error } = await supabase.functions.invoke<{
     email?: string
     contrasena?: string
+    correo?: EstadoCorreo
     error?: string
   }>('alta-usuario', { body: cuerpo })
 
@@ -67,7 +75,16 @@ async function llamarFuncion(cuerpo: Record<string, unknown>): Promise<Resultado
   if (!data || data.error) return { ok: false, mensaje: data?.error ?? 'No ha funcionado.' }
   if (!data.contrasena) return { ok: false, mensaje: 'La función no ha devuelto contraseña.' }
 
-  return { ok: true, credencial: { email: data.email ?? '', contrasena: data.contrasena } }
+  return {
+    ok: true,
+    credencial: {
+      email: data.email ?? '',
+      contrasena: data.contrasena,
+      // Una función desplegada antes de que esto existiera no manda `correo`. Se
+      // trata como «no se pidió», que es exactamente lo que hacía.
+      correo: data.correo ?? { estado: 'no_pedido' },
+    },
+  }
 }
 
 async function leerError(error: unknown): Promise<string | null> {
@@ -81,13 +98,26 @@ async function leerError(error: unknown): Promise<string | null> {
   }
 }
 
-/** Da de alta al dueño de un box y lo ata a su cliente. */
-export function invitarDuenoBox(
-  clienteId: string,
-  email: string,
-  nombre: string,
-): Promise<ResultadoCredencial> {
-  return llamarFuncion({ accion: 'crear', clienteId, email, nombre })
+export type Invitacion = {
+  /** Dueño de un box, o alguien del equipo de Ergobox. */
+  rol: 'cliente' | 'tecnico'
+  /** El box del que es dueño. Se ignora para un técnico, que no está atado a ninguno. */
+  clienteId: string | null
+  email: string
+  nombre: string
+  /**
+   * Si se le manda el correo de acceso.
+   *
+   * Va explícito y por defecto no, en vez de darlo por hecho. Un correo no se
+   * puede recuperar, así que mandarlo tiene que ser una decisión que alguien tomó
+   * mirando los datos, no lo que pasa por no hacer nada.
+   */
+  enviarCorreo: boolean
+}
+
+/** Da de alta a alguien y, si se pide, le manda sus claves por correo. */
+export function invitarUsuario(invitacion: Invitacion): Promise<ResultadoCredencial> {
+  return llamarFuncion({ accion: 'crear', ...invitacion })
 }
 
 /** Contraseña nueva. Se enseña una sola vez y no se guarda en ninguna parte. */
