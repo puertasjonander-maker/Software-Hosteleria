@@ -1,3 +1,5 @@
+import type { MomentoFoto } from '@/lib/database.types'
+
 /**
  * Recompresión de fotos antes de guardarlas (EBX-204).
  *
@@ -92,3 +94,12 @@ export function tamano(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} kB`
   return `${(bytes / (1024 * 1024)).toLocaleString('es-ES', { maximumFractionDigits: 1 })} MB`
 }
+
+/**
+ * Una foto que ya está subida, con su enlace firmado y caducable.
+ *
+ * Vive aquí y no en el componente que la pinta porque la usan los dos lados: los
+ * módulos de datos la producen y la interfaz la consume. Un módulo de datos
+ * importando un tipo de un componente sería la flecha al revés.
+ */
+export type FotoSubida = { id: string; momento: MomentoFoto; url: string }

@@ -133,7 +133,13 @@ export type ParteRow = {
 
 export type FotoRow = {
   id: string
-  parte_id: string
+  /**
+   * Una foto cuelga de un parte o de una máquina, y de uno solo. De un parte es
+   * el trabajo de campo; de una máquina es el inventario, cuando todavía no hay
+   * ningún parte del que colgar. La base de datos lo exige con un check.
+   */
+  parte_id: string | null
+  maquina_id: string | null
   momento: MomentoFoto
   /** Ruta en el bucket privado. Nunca se expone tal cual: se pide firmada. */
   ruta: string
@@ -218,7 +224,9 @@ export type Database = {
       >
       fotos: Table<
         FotoRow,
-        Partial<FotoRow> & { parte_id: string; momento: MomentoFoto; ruta: string }
+        // `parte_id` ya no es obligatorio al insertar: puede venir `maquina_id`
+        // en su lugar. Cuál de los dos, lo decide el check de la tabla.
+        Partial<FotoRow> & { momento: MomentoFoto; ruta: string }
       >
       eventos_maquina: Table<
         EventoMaquinaRow,

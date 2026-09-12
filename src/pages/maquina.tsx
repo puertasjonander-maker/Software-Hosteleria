@@ -5,6 +5,7 @@ import { cargarHistorico } from '@/datos/historico'
 import { Cargador, useTitulo } from '@/components/cargador'
 import { CabeceraMaquina } from '@/components/ficha-maquina'
 import { ControlesMaquina } from '@/components/controles-maquina'
+import { FotosMaquina } from '@/components/fotos-maquina'
 import { HistoricoMaquina } from '@/components/historico-maquina'
 import { Skeleton, SkeletonLista } from '@/components/ui/skeleton'
 
@@ -54,6 +55,8 @@ export default function Maquina() {
               maquina={maquina}
               onCambio={consulta.recargar}
             />
+
+            <FotosMaquina maquinaId={maquinaId} clienteId={id} />
 
             <section className="space-y-3">
               <h2 className="titulo-seccion">Historial</h2>

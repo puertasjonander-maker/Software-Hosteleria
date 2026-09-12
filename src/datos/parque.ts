@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { oReventar, resultado, type Resultado } from '@/datos/resultado'
 import { comoMaquinaFila, type FilaParque, type MaquinaFila } from '@/lib/parque'
 import type { Semaforo, TipoMaquina } from '@/lib/database.types'
+import type { FotoSubida } from '@/lib/foto'
 
 /** El parque de un box: alta, ficha, importación (EBX-102, EBX-103, EBX-104). */
 
@@ -151,4 +152,35 @@ export async function importarParque(
   }
 
   return { ok: true, creadas: nuevas.length, actualizadas: existentes.length }
+}
+
+/**
+ * Enlaces firmados de las fotos de inventario de una máquina.
+ *
+ * Son las que cuelgan de la máquina y no de ningún parte: las de cómo llegó. Se
+ * firman con la sesión de quien pregunta, igual que las de un parte, así que la
+ * misma política que protege la tabla decide qué se firma. Si la máquina no es
+ * alcanzable, la consulta vuelve vacía y no hay nada que firmar.
+ */
+export async function urlsFotosDeMaquina(maquinaId: string): Promise<FotoSubida[]> {
+  const { data: fotos } = await supabase
+    .from('fotos')
+    .select('id, momento, ruta')
+    .eq('maquina_id', maquinaId)
+    .order('orden')
+
+  if (!fotos || fotos.length === 0) return []
+
+  const { data: firmadas } = await supabase.storage
+    .from('fotos')
+    .createSignedUrls(
+      fotos.map((f) => f.ruta),
+      3600,
+    )
+
+  const urlPorRuta = new Map((firmadas ?? []).map((f) => [f.path, f.signedUrl]))
+
+  return fotos
+    .map((f) => ({ id: f.id, momento: f.momento, url: urlPorRuta.get(f.ruta) ?? '' }))
+    .filter((f) => f.url !== '')
 }

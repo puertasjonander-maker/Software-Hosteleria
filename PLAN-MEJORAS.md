@@ -1,6 +1,6 @@
 # PLAN-MEJORAS.md — las cinco de después del lanzamiento
 
-> **Dónde va:** A y B hechas. Siguientes, C, D y E.
+> **Dónde va:** A, B y C hechas. Siguientes, D y E, que son las que necesitan un alta fuera.
 
 Cinco peticiones tras usar Ergobox con un cliente real. Van ordenadas por lo que
 aportan dividido entre lo que arriesgan, no por el orden en que se pidieron.

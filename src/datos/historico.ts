@@ -81,25 +81,54 @@ export async function cargarHistorico(
 
   const parteIds = [...new Set(eventos.map((e) => e.parte_id).filter(Boolean))] as string[]
 
-  const fotos = parteIds.length
-    ? (
-        await supabase
+  /*
+   * Dos consultas y no una: las fotos de los partes cuelgan de un parte, y las
+   * del inventario cuelgan de la máquina. Se piden a la vez para no encadenar dos
+   * viajes, y se firman todas juntas en una sola llamada.
+   */
+  const [deIPartes, deMaquina] = await Promise.all([
+    parteIds.length
+      ? supabase
           .from('fotos')
           .select('id, parte_id, momento, ruta, orden')
           .in('parte_id', parteIds)
           .order('momento')
           .order('orden')
-      ).data ?? []
-    : []
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from('fotos')
+      .select('id, parte_id, momento, ruta, orden')
+      .eq('maquina_id', maquinaId)
+      .order('orden'),
+  ])
 
-  const firmadas = await firmarFotos(fotos.map((f) => f.ruta))
+  const fotos = deIPartes.data ?? []
+  const fotosDelAlta = deMaquina.data ?? []
+
+  const firmadas = await firmarFotos([...fotos, ...fotosDelAlta].map((f) => f.ruta))
 
   const porParte = new Map<string, FotoHistorico[]>()
   for (const f of fotos) {
+    // El filtro `in('parte_id', …)` garantiza que aquí no hay nulos, pero el tipo
+    // ya no lo sabe: desde que una foto puede colgar de una máquina, `parte_id`
+    // es opcional. Se comprueba en vez de forzarlo.
+    if (!f.parte_id) continue
     const lista = porParte.get(f.parte_id) ?? []
     lista.push({ id: f.id, momento: f.momento, url: firmadas.get(f.ruta) ?? null })
     porParte.set(f.parte_id, lista)
   }
+
+  /*
+   * Las del inventario se cuelgan del alta, que es el evento que cuenta cómo
+   * llegó la máquina. Es el único sitio donde tienen sentido: enseñar «cómo
+   * estaba antes de tocarla» al lado de un servicio de hace dos meses confundiría
+   * las dos cosas.
+   */
+  const delAlta: FotoHistorico[] = fotosDelAlta.map((f) => ({
+    id: f.id,
+    momento: f.momento,
+    url: firmadas.get(f.ruta) ?? null,
+  }))
 
   /*
    * Los nombres de los técnicos solo se piden para una pantalla interna. Para un
@@ -122,7 +151,7 @@ export async function cargarHistorico(
     texto: e.texto,
     estadoResultante: e.estado_resultante,
     autor: e.autor_id ? autores.get(e.autor_id) ?? null : null,
-    fotos: e.parte_id ? porParte.get(e.parte_id) ?? [] : [],
+    fotos: e.parte_id ? porParte.get(e.parte_id) ?? [] : e.tipo === 'alta' ? delAlta : [],
   }))
 }
 

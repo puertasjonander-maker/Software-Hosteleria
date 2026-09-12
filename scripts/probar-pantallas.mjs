@@ -294,6 +294,10 @@ await comoRol('admin', async (pagina) => {
   comprobar('la ficha de máquina pinta el historial', maquina.includes('Cadena engrasada'))
   comprobar('con el alta al final', maquina.includes('Alta en el parque'))
   comprobar('y los botones de editar y anotar', maquina.includes('Editar ficha') && maquina.includes('Anotar'))
+  // Fase C: el sitio donde se hacen las fotos de cómo llegó la máquina. Sale
+  // siempre para un interno, tenga o no fotos ya hechas, porque es la superficie
+  // de captura y no un escaparate.
+  comprobar('y el sitio para las fotos de cómo llegó', contiene(maquina, 'Cómo llegó'))
   await pagina.screenshot({ path: `${SP}/spa-maquina.png`, fullPage: true })
 
   await ir(pagina, '/panel')

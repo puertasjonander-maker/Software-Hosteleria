@@ -21,7 +21,13 @@ import { supabase } from '@/lib/supabase'
  */
 
 const BD = 'ergobox'
-const VERSION = 1
+/*
+ * Versión 2: se añadió el índice `maquinaId` para las fotos de inventario. Subir
+ * la versión es obligatorio para crear un índice nuevo, y el paso de 1 a 2 no
+ * toca ni borra nada de lo que ya hubiera en la cola: un móvil con fotos a medio
+ * subir las conserva y las sube igual.
+ */
+const VERSION = 2
 const PARTES = 'partes'
 const FOTOS = 'fotos'
 
@@ -42,17 +48,39 @@ export type ParteEncolado = {
   actualizadoEn: number
 }
 
+/**
+ * Una foto de la cola cuelga de un parte o de una máquina, nunca de los dos.
+ *
+ * De un parte es el caso normal, el trabajo de campo. De una máquina es el
+ * inventario: al dar de alta el parque por primera vez todavía no hay ningún
+ * parte, y esa es precisamente la foto que demuestra cómo llegó la máquina.
+ *
+ * Los dos campos son opcionales en el tipo en vez de una unión discriminada, por
+ * una razón práctica: estos objetos viven en IndexedDB, y un índice de IndexedDB
+ * ignora los registros cuyo valor de índice no es una clave válida. `undefined`
+ * no lo es, así que una foto de máquina sencillamente no aparece en el índice
+ * `parteId`, y `fotosDe(parteId)` sigue devolviendo exactamente lo de antes sin
+ * tener que filtrar nada.
+ */
 export type FotoEncolada = {
   /** Id local. También es el nombre del fichero en el bucket, así que reintentar no duplica. */
   id: string
-  parteId: string
+  parteId?: string
+  maquinaId?: string
   clienteId: string
-  servicioId: string
+  servicioId?: string
   momento: 'antes' | 'despues'
   orden: number
   blob: Blob
   bytes: number
   creadaEn: number
+}
+
+/** Dónde va a parar una foto dentro del bucket privado. */
+function rutaDeFoto(foto: FotoEncolada): string {
+  return foto.maquinaId
+    ? `${foto.clienteId}/maquinas/${foto.maquinaId}/${foto.id}.jpg`
+    : `${foto.clienteId}/${foto.servicioId}/${foto.parteId}/${foto.id}.jpg`
 }
 
 export type Pendientes = { partes: number; fotos: number; bytes: number }
@@ -68,10 +96,15 @@ function abrir(): Promise<IDBDatabase> {
     peticion.onupgradeneeded = () => {
       const bd = peticion.result
       if (!bd.objectStoreNames.contains(PARTES)) bd.createObjectStore(PARTES, { keyPath: 'parteId' })
-      if (!bd.objectStoreNames.contains(FOTOS)) {
-        const almacen = bd.createObjectStore(FOTOS, { keyPath: 'id' })
-        almacen.createIndex('parteId', 'parteId')
-      }
+
+      const almacen = bd.objectStoreNames.contains(FOTOS)
+        ? // Al subir de versión el almacén ya existe, y la única manera de
+          // alcanzarlo aquí es por la transacción de la propia actualización.
+          peticion.transaction!.objectStore(FOTOS)
+        : bd.createObjectStore(FOTOS, { keyPath: 'id' })
+
+      if (!almacen.indexNames.contains('parteId')) almacen.createIndex('parteId', 'parteId')
+      if (!almacen.indexNames.contains('maquinaId')) almacen.createIndex('maquinaId', 'maquinaId')
     }
     peticion.onsuccess = () => resolver(peticion.result)
     peticion.onerror = () => rechazar(peticion.error)
@@ -130,6 +163,13 @@ export async function encolarFoto(foto: Omit<FotoEncolada, 'creadaEn'>): Promise
 export async function fotosDe(parteId: string): Promise<FotoEncolada[]> {
   return conTransaccion([FOTOS], 'readonly', (tx) =>
     pedir(tx.objectStore(FOTOS).index('parteId').getAll(parteId)),
+  )
+}
+
+/** Las de inventario, las que cuelgan de la máquina y no de ningún parte. */
+export async function fotosDeMaquina(maquinaId: string): Promise<FotoEncolada[]> {
+  return conTransaccion([FOTOS], 'readonly', (tx) =>
+    pedir(tx.objectStore(FOTOS).index('maquinaId').getAll(maquinaId)),
   )
 }
 
@@ -194,7 +234,7 @@ export async function sincronizar(): Promise<ResultadoSync> {
     )) as FotoEncolada[]
 
     for (const foto of fotos.sort((a, b) => a.creadaEn - b.creadaEn)) {
-      const ruta = `${foto.clienteId}/${foto.servicioId}/${foto.parteId}/${foto.id}.jpg`
+      const ruta = rutaDeFoto(foto)
 
       const subida = await supabase.storage
         .from('fotos')
@@ -211,7 +251,10 @@ export async function sincronizar(): Promise<ResultadoSync> {
         .from('fotos')
         .upsert(
           {
-            parte_id: foto.parteId,
+            // Uno de los dos y solo uno: la tabla lo exige con un check, y aquí
+            // se manda null explícito en el que no toca en vez de omitirlo.
+            parte_id: foto.parteId ?? null,
+            maquina_id: foto.maquinaId ?? null,
             momento: foto.momento,
             ruta,
             orden: foto.orden,

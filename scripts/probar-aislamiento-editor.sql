@@ -14,7 +14,7 @@
 --
 -- CÓMO SE LEE EL RESULTADO — importante, porque no es lo que parece:
 --
---   · Sale en rojo `TODO EN ORDEN — 52 comprobaciones superadas`  → ha ido bien.
+--   · Sale en rojo `TODO EN ORDEN — 57 comprobaciones superadas`  → ha ido bien.
 --   · Sale en rojo cualquier cosa que empiece por `FALLO ·`       → ha ido mal.
 --
 -- El "error" final es a propósito. Un bloque `do` es una sola sentencia, así que
@@ -124,9 +124,18 @@ begin
     (A_PAR, 'antes', A_BOX || '/' || A_SRV || '/a.jpg'),
     (B_PAR, 'antes', B_BOX || '/' || B_SRV || '/b.jpg');
 
+  -- Y las de inventario, que cuelgan de la máquina y no de ningún parte. Son el
+  -- camino que abrió la fase C, y es un camino nuevo hasta el box: hay que
+  -- comprobar que aísla igual que el viejo.
+  insert into fotos (maquina_id, momento, ruta) values
+    (A_MAQ, 'antes', A_BOX || '/maquinas/' || A_MAQ || '/i.jpg'),
+    (B_MAQ, 'antes', B_BOX || '/maquinas/' || B_MAQ || '/i.jpg');
+
   insert into storage.objects (bucket_id, name) values
     ('fotos', A_BOX || '/' || A_SRV || '/a.jpg'),
-    ('fotos', B_BOX || '/' || B_SRV || '/b.jpg');
+    ('fotos', B_BOX || '/' || B_SRV || '/b.jpg'),
+    ('fotos', A_BOX || '/maquinas/' || A_MAQ || '/i.jpg'),
+    ('fotos', B_BOX || '/maquinas/' || B_MAQ || '/i.jpg');
 
   -- ── 1. El cliente de IronBuster solo ve IronBuster ────────────────────────
   -- `set local role` más el `sub` del token es exactamente lo que hace PostgREST
@@ -147,17 +156,20 @@ begin
   perform prueba.afirmar('ve su parte', (select count(*) from partes), 1);
   perform prueba.afirmar('no ve partes ajenos',
     (select count(*) from partes where id = B_PAR), 0);
-  perform prueba.afirmar('ve su foto', (select count(*) from fotos), 1);
-  perform prueba.afirmar('no ve fotos ajenas',
+  perform prueba.afirmar('ve sus dos fotos, la del parte y la del inventario',
+    (select count(*) from fotos), 2);
+  perform prueba.afirmar('no ve fotos ajenas de un parte',
     (select count(*) from fotos where parte_id = B_PAR), 0);
+  perform prueba.afirmar('no ve fotos ajenas de inventario',
+    (select count(*) from fotos where maquina_id = B_MAQ), 0);
   perform prueba.afirmar('ve su histórico (alta + servicio)',
     (select count(*) from eventos_maquina), 2);
   perform prueba.afirmar('no ve el histórico ajeno',
     (select count(*) from eventos_maquina where maquina_id = B_MAQ), 0);
   perform prueba.afirmar('la vista del parque también aísla',
     (select count(*) from parque_estado), 1);
-  perform prueba.afirmar('ve su fichero del bucket',
-    (select count(*) from storage.objects where bucket_id = 'fotos'), 1);
+  perform prueba.afirmar('ve sus dos ficheros del bucket',
+    (select count(*) from storage.objects where bucket_id = 'fotos'), 2);
   perform prueba.afirmar('no ve ficheros ajenos',
     (select count(*) from storage.objects where name like B_BOX || '/%'), 0);
   perform prueba.afirmar('no ve el perfil de nadie más',
@@ -179,8 +191,10 @@ begin
     format($f$insert into servicios (cliente_id) values (%L)$f$, A_BOX));
   perform prueba.debe_rechazar('no cierra partes',
     format($f$update partes set hecho = true where id = %L$f$, A_PAR));
-  perform prueba.debe_rechazar('no registra fotos',
+  perform prueba.debe_rechazar('no registra fotos de un parte',
     format($f$insert into fotos (parte_id, momento, ruta) values (%L, 'antes', 'colada.jpg')$f$, A_PAR));
+  perform prueba.debe_rechazar('no registra fotos de inventario',
+    format($f$insert into fotos (maquina_id, momento, ruta) values (%L, 'antes', 'colada2.jpg')$f$, A_MAQ));
   perform prueba.debe_rechazar('no da de alta boxes',
     $f$insert into clientes (nombre) values ('PRUEBA Box fantasma')$f$);
   perform prueba.debe_rechazar('no sube ficheros al bucket',
@@ -202,8 +216,10 @@ begin
   perform prueba.afirmar('ve solo su box', (select count(*) from clientes), 1);
   perform prueba.afirmar('no ve máquinas ajenas (Marbella)',
     (select count(*) from maquinas where cliente_id = A_BOX), 0);
-  perform prueba.afirmar('no ve fotos ajenas (Marbella)',
+  perform prueba.afirmar('no ve fotos ajenas de un parte (Marbella)',
     (select count(*) from fotos where parte_id = A_PAR), 0);
+  perform prueba.afirmar('no ve fotos ajenas de inventario (Marbella)',
+    (select count(*) from fotos where maquina_id = A_MAQ), 0);
   perform prueba.afirmar('no ve el histórico ajeno (Marbella)',
     (select count(*) from eventos_maquina where maquina_id = A_MAQ), 0);
   perform prueba.afirmar('no ve ficheros ajenos (Marbella)',
@@ -240,9 +256,22 @@ begin
   perform set_config('request.jwt.claim.sub', TEC::text, true);
   set local role authenticated;
 
-  perform prueba.afirmar('el técnico ve los dos boxes', (select count(*) from clientes), 2);
-  perform prueba.afirmar('y las dos máquinas', (select count(*) from maquinas), 2);
-  perform prueba.afirmar('y los dos históricos', (select count(*) from eventos_maquina), 4);
+  /*
+   * Contadas sobre la siembra y no sobre la tabla entera, al revés que las de un
+   * cliente. Un cliente solo alcanza lo suyo, así que contar todo lo que ve ES la
+   * comprobación. Un interno alcanza todo, y en una base con datos de verdad
+   * —los boxes reales del negocio— un contador absoluto diría 4 donde esperábamos
+   * 2 y la prueba fallaría sin que nada estuviera mal. Pasó de verdad.
+   */
+  perform prueba.afirmar('el técnico ve los dos boxes de la prueba',
+    (select count(*) from clientes where id in (A_BOX, B_BOX)), 2);
+  perform prueba.afirmar('y las dos máquinas',
+    (select count(*) from maquinas where cliente_id in (A_BOX, B_BOX)), 2);
+  perform prueba.afirmar('y las cuatro fotos',
+    (select count(*) from fotos
+      where parte_id in (A_PAR, B_PAR) or maquina_id in (A_MAQ, B_MAQ)), 4);
+  perform prueba.afirmar('y los dos históricos',
+    (select count(*) from eventos_maquina where maquina_id in (A_MAQ, B_MAQ)), 4);
   perform prueba.debe_rechazar('pero no da de alta boxes',
     $f$insert into clientes (nombre) values ('PRUEBA Box del técnico')$f$);
   perform prueba.debe_rechazar('ni administra usuarios',
@@ -250,8 +279,8 @@ begin
 
   perform set_config('role', 'none', true);
 
-  -- Si se llega hasta aquí, las 52 han pasado. Se revienta a propósito: ver la
+  -- Si se llega hasta aquí, las 57 han pasado. Se revienta a propósito: ver la
   -- cabecera del fichero.
-  raise exception 'TODO EN ORDEN — 52 comprobaciones superadas, siembra deshecha';
+  raise exception 'TODO EN ORDEN — 57 comprobaciones superadas, siembra deshecha';
 end
 $prueba$;
