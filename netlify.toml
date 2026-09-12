@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Ergobox en Netlify
+#
+# Existe para que publicar deje de ser una tarea de nadie: se conecta el
+# repositorio una vez y cada empujón a la rama de producción se publica solo.
+# La alternativa, subir `dist/` por FTP a Hostinger, sigue funcionando igual y
+# está en DESPLIEGUE.md §3.1.
+#
+# La red de seguridad la da el propio `npm run build`, que pasa `tsc --noEmit`
+# antes de empaquetar: si algo no compila, la construcción falla y Netlify deja
+# publicada la versión anterior en vez de tumbar la aplicación.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # La misma con la que se construye aquí. Fijarla evita que un cambio de la
+  # imagen por defecto de Netlify rompa una construcción que llevaba meses bien.
+  NODE_VERSION = "22"
+
+# El desvío de la aplicación de una sola página NO se repite aquí a propósito.
+# Vive en `public/_redirects`, que viaja dentro de `dist/` y es el mismo fichero
+# que se sube a Hostinger. Con la regla en dos sitios, tarde o temprano una de
+# las dos se queda atrás y nadie sabe cuál manda.
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    # Si se queda pegado un service worker viejo, la aplicación no se actualiza
+    # nunca. Mismo motivo que en el .htaccess de Hostinger.
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/config.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    # Los nombres llevan el hash del contenido dentro, así que un fichero de
+    # `assets` nunca cambia: si cambia el contenido, cambia el nombre.
+    Cache-Control = "public, max-age=31536000, immutable"

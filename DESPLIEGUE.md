@@ -17,7 +17,7 @@ Lo que ya está hecho y no hay que volver a hacer:
 | ✅ | Las tres funciones desplegadas | §2.4 |
 | ✅ | Primer administrador creado | §2.9 |
 | ✅ | `dist/` construido con su `config.json` | §2.5 |
-| ⬜ | Subir `dist/` al subdominio y activar el SSL | §3.1 |
+| ⬜ | Publicar: o subir `dist/` a Hostinger (§3.1), o conectar Netlify y olvidarse (§3.2) | §3 |
 | ⬜ | Revocar la clave de Hostinger | §0 |
 | ⬜ | Correo de alta: cuenta de Resend y registros DNS | §2.6 |
 | ⬜ | Importar desde Notion **sin configurar nada**: exportar a CSV y soltarlo | §2.7 |
@@ -396,17 +396,50 @@ entre un despliegue y otro, y no tiene por qué viajar en el repositorio.
 Para actualizar: reconstruye y vuelve a subir. El `config.json` que ya está en el
 servidor puedes dejarlo tal cual.
 
-### 3.2 En Netlify, si prefieres que se publique solo
+### 3.2 En Netlify, para que se publique solo
 
-1. *Add new site → Import an existing project*, apuntando a este repositorio.
-2. Build command `npm run build`, directorio de publicación `dist`.
-3. Sube el `config.json` de §2.5 a `public/` antes de conectar el repositorio, o
-   deja que Netlify lo genere en el build. Las variables `VITE_` también valen
-   aquí, pero entonces cambiar de proyecto obliga a reconstruir.
-4. *Domain management → Add a domain*: `app.ergobox.es`.
+Se conecta una vez y a partir de ahí publicar deja de ser tarea de nadie: cada
+empujón a la rama de producción se construye y se publica. Se acabaron el `.zip`
+y el FTP.
 
-Cada `git push` publica. Si algo sale mal, *Deploys → Publish deploy* vuelve a la
-versión anterior en un clic.
+El repositorio ya trae `netlify.toml` con el comando, la carpeta, la versión de
+Node y las cabeceras de caché, así que en el panel no hay casi nada que rellenar.
+
+1. En netlify.com, *Add new site → Import an existing project*, y elige este
+   repositorio.
+2. **La rama de producción es `claude/ergobox-mantenimiento`**, no la que Netlify
+   propone por defecto. Se cambia en *Site configuration → Build & deploy →
+   Branches*.
+3. El comando y la carpeta los coge del `netlify.toml`. Si el panel te los pide
+   igualmente: `npm run build` y `dist`.
+4. *Site configuration → Environment variables*, dos:
+
+   ```
+   VITE_SUPABASE_URL       https://pbepyegrmajoozplpjxy.supabase.co
+   VITE_SUPABASE_ANON_KEY  <la clave anon, de Project Settings → API>
+   ```
+
+5. *Domain management → Add a domain*: `app.ergobox.es`. Netlify te dará un
+   destino; en el hPanel de Hostinger, en el DNS de `ergobox.es`, apunta `app`
+   ahí con un registro `CNAME`. Eso reemplaza al subdominio que creaste antes.
+
+**Por qué aquí sí van variables de entorno y en Hostinger no.** En Hostinger los
+ficheros se suben a mano, así que `config.json` permite cambiar de proyecto
+editando tres líneas por FTP en vez de reconstruir. En Netlify se reconstruye de
+todas formas en cada cambio, así que la variable es el sitio natural. La
+aplicación admite los dos: busca `config.json` y, si no lo encuentra o está roto,
+usa lo que se cocinó en el build.
+
+*(Comprobado: con un `dist/` construido con esas variables y sin `config.json`
+al lado, la aplicación arranca, lleva al login y habla con el Supabase correcto.)*
+
+**La red de seguridad.** `npm run build` pasa `tsc --noEmit` antes de empaquetar.
+Si algo no compila, la construcción falla, Netlify no publica y se queda la
+versión anterior en pie. Y si se publica algo que no te gusta, *Deploys → Publish
+deploy* vuelve a la anterior en un clic.
+
+**Hostinger puede quedarse como está** hasta que el DNS apunte a Netlify. Las dos
+formas de publicar conviven: son los mismos ficheros.
 
 ---
 
