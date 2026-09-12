@@ -171,8 +171,15 @@ como siempre.
 
 ### 2.5 La configuración de la aplicación publicada
 
-La aplicación publicada **no lee variables de entorno**: lee un fichero
-`config.json` que va junto a `index.html` en el servidor. Así cambiar de proyecto
+La aplicación busca su configuración en dos sitios, y en este orden: primero un
+fichero `config.json` junto a `index.html` en el servidor, y si no está o está
+roto, lo que se cocinó en el build con variables `VITE_`.
+
+Los dos caminos existen porque las dos formas de publicar son distintas. **En
+Hostinger manda `config.json`**, porque los ficheros se suben a mano y así
+cambiar de proyecto es editar tres líneas por FTP en vez de reconstruirlo todo.
+**En Netlify mandan las variables** (§3.2), porque allí se reconstruye igualmente
+en cada cambio. Lo que sigue es el camino de Hostinger. Así cambiar de proyecto
 de Supabase es editar tres líneas por FTP, sin reinstalar Node ni reconstruir
 nada. La plantilla está en `public/config.example.json`.
 
