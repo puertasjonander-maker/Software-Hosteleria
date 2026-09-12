@@ -1,5 +1,7 @@
 # PLAN-MEJORAS.md — las cinco de después del lanzamiento
 
+> **Dónde va:** A y B hechas. Siguientes, C, D y E.
+
 Cinco peticiones tras usar Ergobox con un cliente real. Van ordenadas por lo que
 aportan dividido entre lo que arriesgan, no por el orden en que se pidieron.
 

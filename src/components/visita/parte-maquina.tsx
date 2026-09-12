@@ -58,6 +58,14 @@ export function ParteMaquina({
     const previos = parte.trabajoHecho?.split(' · ') ?? []
     return previos.filter((p) => !protocolo.pasos.includes(p)).join(' · ')
   })
+  /*
+   * Cada cuánto vuelve a tocar. Se propone la que ya tiene la máquina, así que en
+   * el caso normal son cero toques; y si nunca tuvo, se propone «no repetir», que
+   * es la verdad de esa máquina hasta que alguien decida otra cosa.
+   */
+  const [cadencia, setCadencia] = useState<number>(
+    parte.cadenciaSugeridaMeses ?? parte.cadenciaMaquinaMeses ?? 0,
+  )
   const [piezas, setPiezas] = useState(parte.piezas ?? '')
   const [damper, setDamper] = useState(parte.damper?.toString() ?? '')
   const [dragFactor, setDragFactor] = useState(parte.dragFactor?.toString() ?? '')
@@ -127,6 +135,7 @@ export function ParteMaquina({
         damper: damper === '' ? null : Number(damper),
         dragFactor: dragFactor === '' ? null : Number(dragFactor),
         minutos: null,
+        cadenciaSugeridaMeses: cadencia,
         hecho: cerrar,
       })
       onGuardado(parte.id, cerrar)
@@ -270,6 +279,8 @@ export function ParteMaquina({
           ) : null}
 
           <Semaforos titulo="Cómo queda" valor={estadoDespues} onCambio={setEstadoDespues} />
+
+          <Cadencia valor={cadencia} onCambio={setCadencia} />
         </div>
 
         {/* Pegado abajo: en una ficha larga, el botón de terminar no puede estar
@@ -290,6 +301,61 @@ export function ParteMaquina({
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Cada cuánto vuelve a tocar esta máquina.
+ *
+ * Va al final, después de «cómo queda», porque es la última decisión y solo se
+ * puede tomar bien con la máquina ya revisada delante: hasta que no se ha abierto
+ * no se sabe si aguanta seis meses o hay que volver en dos.
+ *
+ * Seis opciones y no un campo numérico. Las cadencias de este negocio se cuentan
+ * con los dedos de una mano, y escribir un número en un móvil con las manos
+ * sucias es exactamente lo que este producto evita en todas las demás pantallas.
+ */
+const CADENCIAS = [1, 2, 3, 6, 12, 0] as const
+
+function etiquetaCadencia(meses: number): string {
+  if (meses === 0) return 'No repetir'
+  if (meses === 1) return '1 mes'
+  if (meses === 12) return '1 año'
+  return `${meses} meses`
+}
+
+function Cadencia({ valor, onCambio }: { valor: number; onCambio: (m: number) => void }) {
+  /*
+   * Si la máquina viene con una cadencia que no está en la lista —importada de un
+   * CSV con un 5, por ejemplo— se añade como opción en vez de dejar el selector
+   * sin nada marcado. Un selector sin selección se lee como «no hay cadencia», y
+   * aquí sí la hay.
+   */
+  const opciones = CADENCIAS.includes(valor as (typeof CADENCIAS)[number])
+    ? [...CADENCIAS]
+    : [valor, ...CADENCIAS]
+
+  return (
+    <div className="space-y-2">
+      <Label>Vuelve a tocar dentro de</Label>
+      <div className="grid grid-cols-3 gap-2">
+        {opciones.map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={valor === m}
+            onClick={() => onCambio(m)}
+            className={
+              valor === m
+                ? 'flex min-h-[44px] items-center justify-center rounded-md bg-primary px-1 text-micro font-semibold leading-tight text-primary-foreground'
+                : 'flex min-h-[44px] items-center justify-center rounded-md border border-input px-1 text-micro font-medium leading-tight text-muted-foreground transition-colors duration-rapido ease-estandar hover:bg-accent'
+            }
+          >
+            {etiquetaCadencia(m)}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 

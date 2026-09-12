@@ -102,6 +102,8 @@ export type ParteTrabajo = {
   numSerie: string | null
   ubicacion: string | null
   estadoMaquina: Semaforo
+  /** La que tiene hoy la máquina. Es lo que se propone al cerrar el parte. */
+  cadenciaMaquinaMeses: number | null
   trabajoHecho: string | null
   piezas: string | null
   estadoAntes: Semaforo | null
@@ -109,6 +111,7 @@ export type ParteTrabajo = {
   damper: number | null
   dragFactor: number | null
   minutos: number | null
+  cadenciaSugeridaMeses: number | null
   hecho: boolean
 }
 
@@ -135,6 +138,7 @@ type ParteConMaquina = ParteRow & {
     num_serie: string | null
     ubicacion: string | null
     estado: Semaforo
+    cadencia_meses: number | null
   } | null
 }
 
@@ -147,7 +151,7 @@ export async function obtenerVisita(id: string): Promise<Visita> {
     supabase.from('clientes').select('nombre').eq('id', servicio.cliente_id).maybeSingle(),
     supabase
       .from('partes')
-      .select('*, maquinas(nombre, tipo, marca, num_serie, ubicacion, estado)')
+      .select('*, maquinas(nombre, tipo, marca, num_serie, ubicacion, estado, cadencia_meses)')
       .eq('servicio_id', id),
   ])
 
@@ -162,6 +166,7 @@ export async function obtenerVisita(id: string): Promise<Visita> {
       numSerie: p.maquinas!.num_serie,
       ubicacion: p.maquinas!.ubicacion,
       estadoMaquina: p.maquinas!.estado,
+      cadenciaMaquinaMeses: p.maquinas!.cadencia_meses,
       trabajoHecho: p.trabajo_hecho,
       piezas: p.piezas,
       estadoAntes: p.estado_antes,
@@ -169,6 +174,7 @@ export async function obtenerVisita(id: string): Promise<Visita> {
       damper: p.damper,
       dragFactor: p.drag_factor,
       minutos: p.minutos,
+      cadenciaSugeridaMeses: p.cadencia_sugerida_meses,
       hecho: p.hecho,
     }))
 

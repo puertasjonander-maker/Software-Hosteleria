@@ -36,6 +36,8 @@ export type ParteEncolado = {
   damper: number | null
   dragFactor: number | null
   minutos: number | null
+  /** Cero = sin recurrencia. Null = no se tocó. Ver `ParteRow`. */
+  cadenciaSugeridaMeses: number | null
   hecho: boolean
   actualizadoEn: number
 }
@@ -248,6 +250,10 @@ export async function sincronizar(): Promise<ResultadoSync> {
           damper: parte.damper,
           drag_factor: parte.dragFactor,
           minutos: parte.minutos,
+          // `?? null` y no a secas: un parte encolado antes de que existiera este
+          // campo se lee sin él, y `undefined` desaparecería al serializar el
+          // JSON. Null es explícito y el trigger lo entiende como «no se tocó».
+          cadencia_sugerida_meses: parte.cadenciaSugeridaMeses ?? null,
           hecho: parte.hecho,
         })
         .eq('id', parte.parteId)

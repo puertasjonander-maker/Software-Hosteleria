@@ -119,6 +119,12 @@ export type ParteRow = {
   minutos: number | null
   importe: number | null
   hecho: boolean
+  /**
+   * Cada cuántos meses vuelve a tocar, decidido al cerrar el parte. Cero es «sin
+   * recurrencia» y null es «el técnico no lo tocó»: son cosas distintas, y sin
+   * las dos no se le podría quitar la cadencia a una máquina desde el campo.
+   */
+  cadencia_sugerida_meses: number | null
   /** Idempotencia de la cola offline: el móvil lo genera antes de tener red. */
   client_ref: string | null
   created_at: string
