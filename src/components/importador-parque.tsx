@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, Download, Loader2, Upload } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import {
   COLUMNAS_PARQUE,
@@ -23,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { importarParque, type ResumenImportacion } from '@/datos/parque'
+import { importarParque, leerParqueDeNotion, type ResumenImportacion } from '@/datos/parque'
 
 /**
  * Importador del parque de un box (EBX-103).
@@ -52,6 +54,9 @@ export function ImportadorParque({
   const [resumen, setResumen] = useState<ResumenImportacion | null>(null)
   const [importando, iniciar] = useOcupado()
 
+  const [baseNotion, setBaseNotion] = useState('')
+  const [leyendoNotion, setLeyendoNotion] = useState(false)
+
   async function alElegirFichero(e: React.ChangeEvent<HTMLInputElement>) {
     const fichero = e.target.files?.[0]
     if (!fichero) return
@@ -72,6 +77,42 @@ export function ImportadorParque({
       })
     } finally {
       setLeyendo(false)
+    }
+  }
+
+  /**
+   * Trae las filas de Notion y las mete por el mismo sitio que un fichero.
+   *
+   * `setFilas` es la misma que usa el CSV, así que a partir de aquí todo es
+   * idéntico: el mismo previsualizador, los mismos motivos fila a fila y el
+   * mismo botón de importar. Lo de Notion se acaba en esta función.
+   */
+  async function traerDeNotion() {
+    if (baseNotion.trim() === '') return
+
+    setLeyendoNotion(true)
+    setResumen(null)
+    try {
+      const r = await leerParqueDeNotion(baseNotion)
+
+      if (!r.ok) {
+        toast.error(
+          r.sinConfigurar ? 'Notion no está conectado todavía' : 'No hemos podido leer Notion',
+          { description: r.mensaje },
+        )
+        return
+      }
+
+      if (r.filas.length === 0) {
+        toast.error('Esa base de Notion no tiene ninguna máquina con nombre')
+        return
+      }
+
+      setNombreFichero(`Notion · ${plural(r.filas.length, 'máquina', 'máquinas')}`)
+      setFilas(r.filas)
+      setFaltanColumnas([])
+    } finally {
+      setLeyendoNotion(false)
     }
   }
 
@@ -128,7 +169,7 @@ export function ImportadorParque({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="titulo-tarjeta">1 · El fichero</CardTitle>
+          <CardTitle className="titulo-tarjeta">Desde un fichero…</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="texto-meta">
@@ -170,6 +211,44 @@ export function ImportadorParque({
               máquina habla cada fila.
             </p>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="titulo-tarjeta">…o directamente desde Notion</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="texto-meta">
+            Si el parque de este box ya está en una base de Notion, se lee de ahí y te sale la
+            misma previsualización. Pega la dirección de la base y dale a traer.
+          </p>
+
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[16rem] flex-1 space-y-1.5">
+              <Label htmlFor="base-notion">Dirección de la base</Label>
+              <Input
+                id="base-notion"
+                value={baseNotion}
+                onChange={(e) => setBaseNotion(e.target.value)}
+                placeholder="https://www.notion.so/…"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void traerDeNotion()}
+              disabled={leyendoNotion || baseNotion.trim() === ''}
+            >
+              {leyendoNotion ? <Loader2 className="animate-spin" /> : <Download />}
+              Traer de Notion
+            </Button>
+          </div>
+
+          <p className="texto-micro text-muted-foreground">
+            La base tiene que estar compartida con la integración de Ergobox. En Notion, menú de
+            los tres puntos, Conexiones.
+          </p>
         </CardContent>
       </Card>
 

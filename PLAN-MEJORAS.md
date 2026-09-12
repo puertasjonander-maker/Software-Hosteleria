@@ -1,6 +1,6 @@
 # PLAN-MEJORAS.md — las cinco de después del lanzamiento
 
-> **Dónde va:** A, B, C y D hechas. Queda la E, Notion.
+> **Dónde va:** las cinco hechas. D y E esperan a que se den de alta Resend y la integración de Notion; el código está y se enciende solo cuando aparezcan los secretos.
 
 Cinco peticiones tras usar Ergobox con un cliente real. Van ordenadas por lo que
 aportan dividido entre lo que arriesgan, no por el orden en que se pidieron.

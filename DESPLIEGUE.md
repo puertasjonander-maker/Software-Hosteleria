@@ -14,18 +14,20 @@ Lo que ya está hecho y no hay que volver a hacer:
 | ✅ | Proyecto de Supabase creado | ref `pbepyegrmajoozplpjxy`, región eu-west-1 |
 | ✅ | Las once migraciones aplicadas | §2.2 |
 | ✅ | Prueba de aislamiento pasada contra el Supabase real | §2.3 |
-| ✅ | Las dos funciones desplegadas | §2.4 |
-| ✅ | Primer administrador creado | §2.8 |
+| ✅ | Las tres funciones desplegadas | §2.4 |
+| ✅ | Primer administrador creado | §2.9 |
 | ✅ | `dist/` construido con su `config.json` | §2.5 |
 | ⬜ | Subir `dist/` al subdominio y activar el SSL | §3.1 |
 | ⬜ | Revocar la clave de Hostinger | §0 |
 | ⬜ | Correo de alta: cuenta de Resend y registros DNS | §2.6 |
-| ⬜ | Avisos de revisión: secretos VAPID y cron | §2.7 |
+| ⬜ | Importar desde Notion: integración y compartir las bases | §2.7 |
+| ⬜ | Avisos de revisión: secretos VAPID y cron | §2.8 |
 
-Las dos últimas son las que dependen de dar de alta algo fuera, y la aplicación
-funciona entera sin ellas. Sin correo, el alta enseña la contraseña para que la
-pases tú, igual que hasta ahora. Sin avisos, la pantalla de ajustes dice que no
-están disponibles en vez de romperse.
+Las tres últimas dependen de dar de alta algo fuera, y la aplicación funciona
+entera sin ellas. Sin correo, el alta enseña la contraseña para que la pases tú.
+Sin la integración de Notion, se importa por fichero como siempre. Sin los
+secretos de los avisos, la pantalla de ajustes dice que no están disponibles en
+vez de romperse.
 
 ---
 
@@ -141,18 +143,19 @@ base de datos igual que antes al terminar.
 Hay que repetirla cada vez que se toque una política, y otra vez antes de dar de
 alta al primer usuario de un box nuevo.
 
-### 2.4 Desplegar las dos funciones
+### 2.4 Desplegar las funciones
 
-Son las únicas piezas del producto que corren fuera del navegador, y las dos
-existen por lo mismo: necesitan la clave de servicio, que no puede bajar al móvil
-de nadie.
+Son las únicas piezas del producto que corren fuera del navegador, y las tres
+existen por lo mismo: necesitan una llave que no puede bajar al móvil de nadie.
+La de servicio en dos de ellas, el token de Notion en la tercera.
 
-**Las dos están desplegadas** en `pbepyegrmajoozplpjxy`. Para volver a subirlas
+**Las tres están desplegadas** en `pbepyegrmajoozplpjxy`. Para volver a subirlas
 después de tocarlas:
 
 ```bash
 supabase functions deploy alta-usuario
 supabase functions deploy avisar-revisiones
+supabase functions deploy importar-notion
 supabase secrets set ORIGEN_PERMITIDO=https://app.ergobox.es
 ```
 
@@ -161,8 +164,10 @@ Supabase la inyecta. `ORIGEN_PERMITIDO` no es imprescindible, pero sin él acept
 peticiones desde cualquier página, y ese sí conviene ponerlo en cuanto el
 subdominio esté en pie.
 
-Sin `alta-usuario` la aplicación funciona entera menos el botón de dar de alta a
-un dueño de box. Sin `avisar-revisiones`, menos los avisos.
+Cada una se puede quedar sin configurar y lo único que pasa es que su botón dice
+que no está montado: sin `alta-usuario` no se da de alta a nadie, sin
+`avisar-revisiones` no hay avisos, y sin `importar-notion` se importa por fichero
+como siempre.
 
 ### 2.5 La configuración de la aplicación publicada
 
@@ -184,7 +189,7 @@ anónima es pública por diseño y no concede nada por sí sola —quien decide 
 datos salen son las políticas de §2.3— y la VAPID pública es literalmente la mitad
 pública de un par de claves.
 
-`vapidPublicKey` se deja vacía hasta haber puesto los secretos de §2.7. Con la
+`vapidPublicKey` se deja vacía hasta haber puesto los secretos de §2.8. Con la
 clave puesta y los secretos sin poner, el botón de aviso de prueba daría un error
 de servidor; vacía, la pantalla dice que los avisos no están disponibles, que es
 la verdad y se entiende.
@@ -235,7 +240,49 @@ Opcionalmente, `REMITENTE_CORREO` cambia el remitente; por defecto es
 **Para comprobar que llega**, date de alta a ti mismo con otra dirección tuya. La
 pantalla te dirá si el correo salió, y si no salió, por qué.
 
-### 2.7 Los avisos de revisión
+### 2.7 Importar el parque desde Notion
+
+Si el parque de un box ya está en una base de Notion, la pantalla de importar lo
+lee de ahí y te enseña la misma previsualización que con un CSV.
+
+**Sin configurar esto no se rompe nada.** El botón está, y si no hay integración
+dice que Notion no está conectado. La importación por fichero sigue igual.
+
+1. Ve a notion.so/my-integrations y crea una **integración interna**. Dale acceso
+   de solo lectura al contenido: no necesita escribir nada.
+2. Copia su token, que empieza por `ntn_` o `secret_`, y guárdalo como secreto:
+
+```bash
+supabase secrets set NOTION_TOKEN=ntn_...
+```
+
+3. **Comparte cada base de máquinas con la integración.** Esto es lo que se
+   olvida siempre: crear el token no da acceso a nada. En Notion, abre la base,
+   menú de los tres puntos arriba a la derecha, *Conexiones*, y añade la
+   integración de Ergobox. Hay que hacerlo una vez por base, y hay una por box.
+
+Después, en la pantalla de importar de un box, pega la dirección de su base y
+pulsa *Traer de Notion*.
+
+**Qué columnas se leen**, y da igual cómo estén escritas mientras se parezcan:
+
+| En Notion | En Ergobox |
+|---|---|
+| La columna de título, se llame como se llame | `nombre` |
+| `Tipo` | `tipo` |
+| `Nº serie` | `num_serie` |
+| `Estado` | `estado` |
+| `Notas` | `notas` |
+| `Fecha de servicio` | `ultima_revision` |
+| `Marca`, `Modelo`, `Ubicación` | los suyos |
+
+`Servicio hecho` entra como verde y `Por revisar` como sin revisar, que es lo que
+significan. Damper, drag factor, importes y trabajo hecho **no** se importan: eso
+no es la ficha de una máquina, es lo que pasó en una visita, y va en un parte.
+
+Si Notion responde que no encuentra la base, casi siempre es el paso 3.
+
+### 2.8 Los avisos de revisión
 
 Hacen falta un par de claves VAPID, que es lo que demuestra a los servicios de
 push (Google, Apple, Mozilla) que el aviso viene de nosotros:
@@ -264,7 +311,7 @@ comentarios, está en `supabase/cron/programar-avisos.sql`.
 entra en `/ajustes` desde el móvil, activa los avisos y pulsa "enviarme una de
 prueba". Si llega, el camino entero funciona.
 
-### 2.8 El primer administrador
+### 2.9 El primer administrador
 
 **Ya está creado**, con el correo `puertas.jonander@gmail.com` y rol `admin`. La
 contraseña temporal se entregó aparte y **hay que cambiarla al entrar**: está
@@ -387,7 +434,7 @@ Ese cambio hay que hacerlo en el otro repositorio, no en este.
 - [ ] La clave de Hostinger, revocada (§0).
 - [x] `probar-aislamiento.sql` termina en `TODO EN ORDEN` contra el Supabase real.
 - [ ] `https://app.ergobox.es` carga con candado y sin avisos.
-- [ ] Has cambiado la contraseña temporal del administrador (§2.8).
+- [ ] Has cambiado la contraseña temporal del administrador (§2.9).
 - [ ] Entrar directamente en `https://app.ergobox.es/boxes` funciona y no da 404.
       Si lo da, falta el `.htaccess` o el `_redirects`.
 - [ ] Entras como administrador y ves los boxes.
@@ -397,5 +444,5 @@ Ese cambio hay que hacerlo en el otro repositorio, no en este.
 - [ ] Desde el móvil, "Añadir a pantalla de inicio" instala la aplicación, y una
       vez instalada abre en modo avión.
 - [ ] En `/ajustes`, activar los avisos y pulsar "enviarme una de prueba" hace que
-      llegue una notificación al móvil. *(Solo después de §2.7; hasta entonces la
+      llegue una notificación al móvil. *(Solo después de §2.8; hasta entonces la
       pantalla dirá que no están disponibles, y eso no impide lanzar.)*

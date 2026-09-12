@@ -184,3 +184,55 @@ export async function urlsFotosDeMaquina(maquinaId: string): Promise<FotoSubida[
     .map((f) => ({ id: f.id, momento: f.momento, url: urlPorRuta.get(f.ruta) ?? '' }))
     .filter((f) => f.url !== '')
 }
+
+// ── Importar desde Notion (EBX-106) ──────────────────────────────────────────
+
+export type LecturaNotion =
+  | { ok: true; filas: Record<string, unknown>[]; leidas: number }
+  | { ok: false; mensaje: string; sinConfigurar: boolean }
+
+/**
+ * Lee el parque de un box desde su base de Notion.
+ *
+ * Devuelve las filas en crudo, con las mismas claves que un CSV de la plantilla,
+ * y aquí se acaba lo especial de Notion: a partir de este punto pasan por
+ * `interpretarParque()` y por `importarParque()` igual que un fichero. Un solo
+ * camino de escritura, y es el que ya está probado.
+ */
+export async function leerParqueDeNotion(base: string): Promise<LecturaNotion> {
+  const { data, error } = await supabase.functions.invoke<{
+    filas?: Record<string, unknown>[]
+    leidas?: number
+    error?: string
+    codigo?: string
+  }>('importar-notion', { body: { base } })
+
+  if (error) {
+    // `invoke` deja el cuerpo del error en `context`, no en el mensaje. Sin
+    // leerlo, cualquier fallo se vería como "non-2xx status" y no diría nada.
+    const contexto = (error as { context?: unknown }).context
+    if (contexto instanceof Response) {
+      try {
+        const cuerpo = await contexto.json()
+        return {
+          ok: false,
+          mensaje: typeof cuerpo?.error === 'string' ? cuerpo.error : error.message,
+          sinConfigurar: cuerpo?.codigo === 'sin_configurar',
+        }
+      } catch {
+        /* cuerpo ilegible: se cae al mensaje de abajo */
+      }
+    }
+    return { ok: false, mensaje: error.message, sinConfigurar: false }
+  }
+
+  if (!data || data.error) {
+    return {
+      ok: false,
+      mensaje: data?.error ?? 'No ha funcionado.',
+      sinConfigurar: data?.codigo === 'sin_configurar',
+    }
+  }
+
+  return { ok: true, filas: data.filas ?? [], leidas: data.leidas ?? 0 }
+}

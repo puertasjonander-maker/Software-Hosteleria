@@ -103,10 +103,15 @@ const TIPOS: Record<string, TipoMaquina> = {
   echo: 'air_bike',
   'echo bike': 'air_bike',
   'eco bike': 'air_bike',
+  // Tal cual lo escribe Notion en su columna Tipo.
+  'assault / echo': 'air_bike',
+  'assault/echo': 'air_bike',
   cinta: 'cinta',
   treadmill: 'cinta',
   barra: 'barra',
   barras: 'barra',
+  'barra olímpica': 'barra',
+  'barra olimpica': 'barra',
   disco: 'disco',
   discos: 'disco',
   rack: 'rack',
@@ -129,6 +134,17 @@ const ESTADOS: Record<string, Semaforo> = {
   sin_revisar: 'sin_revisar',
   'sin revisar': 'sin_revisar',
   '': 'sin_revisar',
+  /*
+   * Los dos de Notion. «Por revisar» es literalmente sin revisar, y «Servicio
+   * hecho» es verde: en aquella tabla el estado y el trabajo comparten columna,
+   * y lo que significa es que se tocó y quedó bien.
+   *
+   * Viven aquí y no en el importador de Notion porque esto es lo que decide qué
+   * significa una palabra, y un CSV escrito a mano con «servicio hecho» dentro
+   * debería entenderse igual.
+   */
+  'por revisar': 'sin_revisar',
+  'servicio hecho': 'verde',
 }
 
 function texto(valor: unknown): string {
