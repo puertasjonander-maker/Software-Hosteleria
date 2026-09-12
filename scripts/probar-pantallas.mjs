@@ -52,9 +52,39 @@ const TIPOS = {
   '.webmanifest': 'application/manifest+json',
 }
 
+/*
+ * El `config.json` de la prueba, y por qué lo sirve el servidor.
+ *
+ * Dos razones, y las dos costaron un rato:
+ *
+ *   · `dist/config.json` está en el .gitignore porque lleva la dirección del
+ *     Supabase de producción. Si la prueba lo leyera, pasaría o fallaría según lo
+ *     que cada uno tenga en su carpeta, y estas pantallas hablarían con la base de
+ *     datos real, que es lo último que queremos.
+ *   · Interceptarlo desde Playwright no basta. A partir de la segunda carga el
+ *     service worker ya está activo y es ÉL quien pide `/config.json`, y esas
+ *     peticiones no pasan por `ctx.route`. La aplicación acababa arrancando contra
+ *     otro servidor a mitad del recorrido, sin decir nada.
+ *
+ * Sirviéndolo desde aquí lo ven igual la página y el service worker, que es
+ * exactamente lo que pasa en el hosting de verdad.
+ */
+const CONFIG_DE_PRUEBA = JSON.stringify({
+  supabaseUrl: 'https://ejemplo.supabase.co',
+  supabaseAnonKey: 'una-clave-larga-de-mentira-para-la-prueba',
+  vapidPublicKey: '',
+})
+
 // ── El servidor estático, con el mismo fallback que _redirects ───────────────
 const servidor = createServer(async (peticion, respuesta) => {
   const ruta = decodeURIComponent(new URL(peticion.url, 'http://x').pathname)
+
+  if (ruta === '/config.json') {
+    respuesta.writeHead(200, { 'Content-Type': 'application/json' })
+    respuesta.end(CONFIG_DE_PRUEBA)
+    return
+  }
+
   const candidatos = [join(RAIZ, normalize(ruta)), join(RAIZ, 'index.html')]
 
   for (const fichero of candidatos) {
@@ -329,7 +359,14 @@ console.log('\n════ La configuración del despliegue ════')
 {
   // config.json manda sobre lo que se cocinó en el build. Es lo que permite
   // cambiar de proyecto de Supabase editando un fichero en el servidor.
-  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })
+  //
+  // Sin service worker a propósito: aquí lo que se prueba es de dónde saca la
+  // aplicación su configuración, y el service worker pide `/config.json` por su
+  // cuenta sin pasar por `ctx.route`, con lo que se colaría el del servidor.
+  const ctx = await navegador.newContext({
+    viewport: { width: 390, height: 844 },
+    serviceWorkers: 'block',
+  })
 
   await ctx.route('**/config.json', (route) =>
     route.fulfill({
@@ -381,7 +418,11 @@ console.log('\n════ La configuración del despliegue ════')
 console.log('\n════ Sin configurar ════')
 {
   // Lo primero que se ve si se sube `dist/` sin poner el config.json al lado.
-  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })
+  // Sin service worker, por el mismo motivo que la sección anterior.
+  const ctx = await navegador.newContext({
+    viewport: { width: 390, height: 844 },
+    serviceWorkers: 'block',
+  })
 
   // El hosting, con su regla de reescritura, devuelve index.html para cualquier
   // fichero que no exista. Así que un config.json ausente llega como HTML.
