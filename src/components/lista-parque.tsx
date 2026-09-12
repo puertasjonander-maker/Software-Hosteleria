@@ -72,7 +72,7 @@ export function ListaParque({
                 {revision ? (
                   <p
                     className={
-                      revision.urgente
+                      revision.avisa
                         ? 'texto-micro text-destructive'
                         : 'texto-micro text-muted-foreground'
                     }

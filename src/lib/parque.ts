@@ -380,24 +380,54 @@ export function resumirParque(maquinas: MaquinaFila[]): ResumenParque {
 }
 
 /**
- * Cómo se lee la próxima revisión en una línea de lista.
+ * Cómo se lee la próxima revisión.
+ *
+ * En la unidad en la que se piensa a esa distancia. Nadie divide 47 entre treinta
+ * de cabeza para saber que falta mes y medio, así que lejos se cuenta en meses,
+ * cerca en semanas y encima en días:
+ *
+ *   más de 30 días → «en 2 meses»
+ *   de 8 a 30      → «en 3 semanas»
+ *   de 1 a 7       → «en 5 días»
+ *   hoy            → «toca hoy»
+ *   vencida        → «13 días tarde», y además avisa
+ *
+ * El último caso es el único que cambia de tono. Mientras falta es información;
+ * cuando ha vencido es un aviso, y por eso se dice el retraso y no la fecha: «el
+ * 8 de julio» obliga a calcular, «13 días tarde» ya está calculado.
+ *
+ * Se redondea siempre hacia abajo, y es una decisión de seguridad, no de estilo.
+ * Redondear al alza diría que queda más tiempo del que queda: «en 2 meses» con 31
+ * días por delante deja a alguien tranquilo un mes de más. Hacia abajo el error
+ * cae del otro lado, que es el que no rompe nada: como mucho llaman antes.
  *
  * Null = sin cadencia contratada, que no es lo mismo que estar al día: esa
  * máquina simplemente no entra en el calendario de revisiones.
  */
 export function textoRevision(
   m: Pick<MaquinaFila, 'diasHastaRevision'>,
-): { texto: string; urgente: boolean } | null {
-  if (m.diasHastaRevision === null) return null
-  if (m.diasHastaRevision < 0) {
-    const dias = Math.abs(m.diasHastaRevision)
-    return { texto: `vencida hace ${dias === 1 ? '1 día' : `${dias} días`}`, urgente: true }
+): { texto: string; avisa: boolean } | null {
+  const dias = m.diasHastaRevision
+  if (dias === null) return null
+
+  if (dias < 0) {
+    const tarde = Math.abs(dias)
+    return { texto: `${tarde === 1 ? '1 día' : `${tarde} días`} tarde`, avisa: true }
   }
-  if (m.diasHastaRevision === 0) return { texto: 'toca hoy', urgente: true }
-  return {
-    texto: `en ${m.diasHastaRevision === 1 ? '1 día' : `${m.diasHastaRevision} días`}`,
-    urgente: m.diasHastaRevision <= 14,
+
+  if (dias === 0) return { texto: 'toca hoy', avisa: true }
+
+  if (dias <= 7) {
+    return { texto: `en ${dias === 1 ? '1 día' : `${dias} días`}`, avisa: true }
   }
+
+  if (dias <= 30) {
+    const semanas = Math.floor(dias / 7)
+    return { texto: `en ${semanas === 1 ? '1 semana' : `${semanas} semanas`}`, avisa: false }
+  }
+
+  const meses = Math.floor(dias / 30)
+  return { texto: `en ${meses === 1 ? '1 mes' : `${meses} meses`}`, avisa: false }
 }
 
 /** Contenido de la plantilla que se descarga desde el importador. */

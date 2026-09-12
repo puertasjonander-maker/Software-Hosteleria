@@ -41,7 +41,7 @@ export function CabeceraMaquina({ maquina }: { maquina: MaquinaFila }) {
           titulo="Próxima"
           valor={maquina.proximaRevision ? formatearFecha(maquina.proximaRevision) : '—'}
           pie={revision?.texto}
-          urgente={revision?.urgente}
+          avisa={revision?.avisa}
         />
         <Dato
           titulo="Cadencia"
@@ -63,19 +63,19 @@ function Dato({
   titulo,
   valor,
   pie,
-  urgente,
+  avisa,
 }: {
   titulo: string
   valor: string
   pie?: string
-  urgente?: boolean
+  avisa?: boolean
 }) {
   return (
     <div className="min-w-0">
       <dt className="texto-micro uppercase tracking-wide text-muted-foreground">{titulo}</dt>
       <dd className="truncate text-cuerpo font-semibold">{valor}</dd>
       {pie ? (
-        <dd className={urgente ? 'texto-micro text-destructive' : 'texto-micro text-muted-foreground'}>
+        <dd className={avisa ? 'texto-micro text-destructive' : 'texto-micro text-muted-foreground'}>
           {pie}
         </dd>
       ) : null}

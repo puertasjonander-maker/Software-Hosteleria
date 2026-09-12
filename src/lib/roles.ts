@@ -39,10 +39,18 @@ export function inicioSegunRol(rol: RolUsuario): string {
 
 // ── Semáforo ─────────────────────────────────────────────────────────────────
 
+/*
+ * El semáforo, en palabras.
+ *
+ * El rojo se llamaba «Urgente» y se cambió después de la primera visita con un
+ * cliente delante: en la pantalla del dueño de un box, «urgente» suena a evacuar
+ * el local. El color ya carga la urgencia; la palabra no tiene que repetirla, así
+ * que dice qué hay que hacer y no cómo hay que sentirse.
+ */
 export const ETIQUETA_SEMAFORO: Record<Semaforo, string> = {
   verde: 'Correcta',
-  ambar: 'Atención',
-  rojo: 'Urgente',
+  ambar: 'A vigilar',
+  rojo: 'Para arreglar',
   sin_revisar: 'Sin revisar',
 }
 

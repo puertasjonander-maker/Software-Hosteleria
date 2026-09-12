@@ -141,7 +141,7 @@ export default function Panel() {
                             <div className="shrink-0 text-right">
                               <p
                                 className={
-                                  revision?.urgente
+                                  revision?.avisa
                                     ? 'texto-micro text-destructive'
                                     : 'texto-micro text-muted-foreground'
                                 }

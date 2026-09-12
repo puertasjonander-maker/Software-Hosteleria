@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { interpretarParque, leerFecha, peorSemaforo } from '../src/lib/parque'
+import { interpretarParque, leerFecha, peorSemaforo, textoRevision } from '../src/lib/parque'
 import type { Semaforo } from '../src/lib/database.types'
 
 /*
@@ -107,6 +107,33 @@ const casos: Array<[Semaforo[], Semaforo | null]> = [
 ]
 for (const [entrada, esperado] of casos) {
   comprobar(`[${entrada.join(', ')}]`, peorSemaforo(entrada), esperado)
+}
+
+// ── Cómo se lee la próxima revisión ──────────────────────────────────────────
+// Lejos en meses, cerca en semanas, encima en días y vencida como retraso. Las
+// fronteras son lo único interesante: 7 y 8 días, 30 y 31, y el cero.
+
+console.log('\n== Texto de la próxima revisión ==')
+const revisiones: Array<[number | null, { texto: string; avisa: boolean } | null]> = [
+  [null, null],
+  [-13, { texto: '13 días tarde', avisa: true }],
+  [-1, { texto: '1 día tarde', avisa: true }],
+  [0, { texto: 'toca hoy', avisa: true }],
+  [1, { texto: 'en 1 día', avisa: true }],
+  [7, { texto: 'en 7 días', avisa: true }],
+  [8, { texto: 'en 1 semana', avisa: false }],
+  [14, { texto: 'en 2 semanas', avisa: false }],
+  [21, { texto: 'en 3 semanas', avisa: false }],
+  [30, { texto: 'en 4 semanas', avisa: false }],
+  // Redondeo hacia abajo: 31 días son «1 mes», nunca «2». Nadie se queda
+  // tranquilo de más por culpa de una división.
+  [31, { texto: 'en 1 mes', avisa: false }],
+  [59, { texto: 'en 1 mes', avisa: false }],
+  [60, { texto: 'en 2 meses', avisa: false }],
+  [180, { texto: 'en 6 meses', avisa: false }],
+]
+for (const [dias, esperado] of revisiones) {
+  comprobar(`${dias === null ? 'sin cadencia' : `${dias} días`}`, textoRevision({ diasHastaRevision: dias }), esperado)
 }
 
 console.log(`\n${fallos === 0 ? 'TODO OK' : `${fallos} FALLOS`}`)
