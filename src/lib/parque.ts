@@ -46,6 +46,82 @@ export type FilaParque = {
 export type ProblemaFila = { fila: number; motivo: string }
 
 /**
+ * Cabeceras que entendemos además de las nuestras.
+ *
+ * Casi todas son las de Notion, y están aquí por una razón práctica: Notion
+ * exporta cualquier base a CSV con un par de clics, y eso no necesita ni token
+ * ni integración ni permisos. Reconocer sus columnas convierte «exportar y
+ * soltar el fichero» en el camino corto de verdad.
+ *
+ * La clave de este mapa va normalizada —sin mayúsculas, sin acentos y sin
+ * signos— porque «Nº serie», «N.º Serie» y «numero serie» son la misma columna
+ * escrita por la misma persona en tres días distintos.
+ */
+const ALIAS_COLUMNAS: Record<string, string> = {
+  maquina: 'nombre',
+  name: 'nombre',
+  tipodemaquina: 'tipo',
+  fabricante: 'marca',
+  nserie: 'num_serie',
+  numserie: 'num_serie',
+  numerodeserie: 'num_serie',
+  serie: 'num_serie',
+  semaforo: 'estado',
+  sala: 'ubicacion',
+  zona: 'ubicacion',
+  cadencia: 'cadencia_meses',
+  cadenciameses: 'cadencia_meses',
+  cadacuantosmeses: 'cadencia_meses',
+  fechadeservicio: 'ultima_revision',
+  ultimarevision: 'ultima_revision',
+  fecha: 'ultima_revision',
+  observaciones: 'notas',
+}
+
+function normalizarCabecera(cabecera: string): string {
+  return cabecera
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+}
+
+/**
+ * Deja cada fila con nuestros nombres de columna, vengan como vengan.
+ *
+ * Las columnas propias mandan: si una hoja trae `ultima_revision` Y `Fecha de
+ * servicio`, la primera gana y la segunda no la pisa. Un alias solo rellena lo
+ * que está vacío, que es lo que evita que dos columnas parecidas se peleen.
+ *
+ * Lo que no se reconoce se conserva tal cual. No estorba —`interpretarParque`
+ * solo mira las columnas que conoce— y así una hoja con columnas de más se
+ * importa igual en vez de rechazarse.
+ */
+export function canonizarFilas(filas: Record<string, unknown>[]): Record<string, unknown>[] {
+  return filas.map((fila) => {
+    const salida: Record<string, unknown> = {}
+
+    // Primero las nuestras, que tienen prioridad.
+    for (const [clave, valor] of Object.entries(fila)) {
+      const normal = normalizarCabecera(clave)
+      const propia = COLUMNAS_PARQUE.find((c) => normalizarCabecera(c) === normal)
+      if (propia) salida[propia] = valor
+      else salida[clave] = valor
+    }
+
+    // Y después los alias, solo donde no haya nada todavía.
+    for (const [clave, valor] of Object.entries(fila)) {
+      const destino = ALIAS_COLUMNAS[normalizarCabecera(clave)]
+      if (!destino) continue
+      if (salida[destino] === undefined || salida[destino] === '') salida[destino] = valor
+    }
+
+    return salida
+  })
+}
+
+/**
  * Lee el fichero elegido y devuelve una fila por máquina, con todo en crudo.
  *
  * Los dos caminos existen por una razón concreta, no por comodidad. Un CSV se
@@ -68,15 +144,17 @@ export async function leerFicheroParque(fichero: File): Promise<Record<string, u
       skipEmptyLines: 'greedy',
       transformHeader: (h) => h.trim(),
     })
-    return data
+    return canonizarFilas(data)
   }
 
   const XLSX = await import('xlsx')
   const wb = XLSX.read(await fichero.arrayBuffer(), { type: 'array', cellDates: true })
-  return XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], {
-    defval: '',
-    raw: true,
-  })
+  return canonizarFilas(
+    XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[wb.SheetNames[0]], {
+      defval: '',
+      raw: true,
+    }),
+  )
 }
 
 /*
@@ -201,7 +279,47 @@ export function leerFecha(valor: unknown): string | null {
     return `${local[3]}-${mes}-${dia}`
   }
 
+  /*
+   * Con el mes escrito: «8 de septiembre de 2026» y «September 8, 2026».
+   *
+   * Así es como exporta las fechas Notion en su CSV, en el idioma que tenga
+   * puesto el espacio de trabajo. Sin esto, la columna de última revisión de un
+   * parque exportado llegaría entera vacía y todas las máquinas parecerían no
+   * haberse revisado nunca — que es peor que un error, porque no se ve.
+   */
+  const conMes = leerFechaConMes(bruto)
+  if (conMes) return conMes
+
   return null
+}
+
+const MESES: Record<string, number> = {
+  enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
+  julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10,
+  noviembre: 11, diciembre: 12,
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+}
+
+function leerFechaConMes(bruto: string): string | null {
+  const limpio = bruto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  // Se buscan las tres piezas sueltas en vez de encajar un formato entero: así
+  // da igual el orden, las comas, los «de» y si el año va delante o detrás.
+  const nombreMes = Object.keys(MESES).find((m) => limpio.includes(m))
+  if (!nombreMes) return null
+
+  const numeros = limpio.replace(nombreMes, ' ').match(/\d{1,4}/g)
+  if (!numeros) return null
+
+  const anio = numeros.find((n) => n.length === 4)
+  const dia = numeros.find((n) => n.length <= 2)
+  if (!anio || !dia) return null
+
+  return `${anio}-${String(MESES[nombreMes]).padStart(2, '0')}-${dia.padStart(2, '0')}`
 }
 
 export function interpretarParque(filas: Record<string, unknown>[]): {

@@ -181,6 +181,22 @@ export function ImportadorParque({
             Columnas que se leen: {COLUMNAS_PARQUE.join(', ')}.
           </p>
 
+          {/* El camino corto de verdad para el parque que ya está en Notion: dos
+              clics allí y soltar el fichero aquí, sin dar de alta nada. */}
+          <div className="rounded-lg border border-dashed bg-muted/30 p-3">
+            <p className="text-meta font-semibold">¿El parque está en Notion?</p>
+            <p className="mt-1 texto-meta">
+              Exporta la base desde Notion —menú de los tres puntos, <em>Exportar</em>, formato
+              CSV— y suelta ese fichero aquí. Se entienden sus columnas tal cual:{' '}
+              <span className="font-mono">Máquina</span>,{' '}
+              <span className="font-mono">Tipo</span>,{' '}
+              <span className="font-mono">Nº serie</span>,{' '}
+              <span className="font-mono">Estado</span> y{' '}
+              <span className="font-mono">Fecha de servicio</span>. «Servicio hecho» entra como
+              correcta y «Por revisar» como sin revisar.
+            </p>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={descargarPlantilla}>
               <Download /> Descargar plantilla
@@ -216,12 +232,13 @@ export function ImportadorParque({
 
       <Card>
         <CardHeader>
-          <CardTitle className="titulo-tarjeta">…o directamente desde Notion</CardTitle>
+          <CardTitle className="titulo-tarjeta">Conectado a Notion</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="texto-meta">
-            Si el parque de este box ya está en una base de Notion, se lee de ahí y te sale la
-            misma previsualización. Pega la dirección de la base y dale a traer.
+            Solo si has dado de alta la integración de Notion. Trae el parque sin exportar nada,
+            pegando la dirección de la base. Si no la tienes montada, usa la exportación de arriba:
+            hace lo mismo.
           </p>
 
           <div className="flex flex-wrap items-end gap-2">

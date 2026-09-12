@@ -20,7 +20,7 @@ Lo que ya está hecho y no hay que volver a hacer:
 | ⬜ | Subir `dist/` al subdominio y activar el SSL | §3.1 |
 | ⬜ | Revocar la clave de Hostinger | §0 |
 | ⬜ | Correo de alta: cuenta de Resend y registros DNS | §2.6 |
-| ⬜ | Importar desde Notion: integración y compartir las bases | §2.7 |
+| ⬜ | Importar desde Notion **sin configurar nada**: exportar a CSV y soltarlo | §2.7 |
 | ⬜ | Avisos de revisión: secretos VAPID y cron | §2.8 |
 
 Las tres últimas dependen de dar de alta algo fuera, y la aplicación funciona
@@ -242,11 +242,18 @@ pantalla te dirá si el correo salió, y si no salió, por qué.
 
 ### 2.7 Importar el parque desde Notion
 
-Si el parque de un box ya está en una base de Notion, la pantalla de importar lo
-lee de ahí y te enseña la misma previsualización que con un CSV.
+Hay dos caminos y el corto no necesita dar de alta nada.
 
-**Sin configurar esto no se rompe nada.** El botón está, y si no hay integración
-dice que Notion no está conectado. La importación por fichero sigue igual.
+**El corto, sin configurar nada.** En Notion, abre la base de máquinas del box,
+menú de los tres puntos, *Exportar*, formato CSV. Suelta ese fichero en la
+pantalla de importar de Ergobox. Sus columnas se entienden tal cual y no hay que
+renombrar nada.
+
+**El largo, con la integración.** Trae el parque sin exportar, pegando la
+dirección de la base. Ahorra dos clics por importación a cambio de montar una
+integración, así que solo compensa si vas a importar a menudo.
+
+Para el largo:
 
 1. Ve a notion.so/my-integrations y crea una **integración interna**. Dale acceso
    de solo lectura al contenido: no necesita escribir nada.
@@ -264,7 +271,8 @@ supabase secrets set NOTION_TOKEN=ntn_...
 Después, en la pantalla de importar de un box, pega la dirección de su base y
 pulsa *Traer de Notion*.
 
-**Qué columnas se leen**, y da igual cómo estén escritas mientras se parezcan:
+**Qué columnas se leen**, en los dos caminos, y da igual cómo estén escritas
+mientras se parezcan:
 
 | En Notion | En Ergobox |
 |---|---|
@@ -279,6 +287,11 @@ pulsa *Traer de Notion*.
 `Servicio hecho` entra como verde y `Por revisar` como sin revisar, que es lo que
 significan. Damper, drag factor, importes y trabajo hecho **no** se importan: eso
 no es la ficha de una máquina, es lo que pasó en una visita, y va en un parte.
+
+Las fechas se entienden con el mes escrito, en español y en inglés: «8 de
+septiembre de 2026» y «September 8, 2026». Notion exporta en el idioma que tenga
+puesto el espacio de trabajo, y sin esto la columna de última revisión llegaría
+entera vacía y todas las máquinas parecerían no haberse revisado nunca.
 
 Si Notion responde que no encuentra la base, casi siempre es el paso 3.
 

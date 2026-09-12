@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
-import { interpretarParque, leerFecha, peorSemaforo, textoRevision } from '../src/lib/parque'
+import { canonizarFilas, interpretarParque, leerFecha, peorSemaforo, textoRevision } from '../src/lib/parque'
 import type { Semaforo } from '../src/lib/database.types'
 
 /*
@@ -135,6 +135,50 @@ const revisiones: Array<[number | null, { texto: string; avisa: boolean } | null
 for (const [dias, esperado] of revisiones) {
   comprobar(`${dias === null ? 'sin cadencia' : `${dias} días`}`, textoRevision({ diasHastaRevision: dias }), esperado)
 }
+
+// ── Un CSV exportado de Notion, tal cual sale ────────────────────────────────
+// Las columnas son las suyas, los valores de Estado y Tipo son los suyos, y las
+// fechas van con el mes escrito. Este es el camino corto: exportar de Notion y
+// soltar el fichero, sin token ni integración.
+
+console.log('\n== CSV exportado de Notion ==')
+
+const notion = Papa.parse<Record<string, unknown>>(
+  [
+    'Máquina,Tipo,Nº serie,Estado,Notas,Fecha de servicio,Damper,Importe €',
+    'RowErg 5,RowErg,250123,Servicio hecho,Cadena algo seca,"September 8, 2026",5,45',
+    'Echo bike 1,Assault / Echo,,Por revisar,,,N/A,',
+    'Barra 3,Barra olímpica,,Rojo,Rosca pasada,8 de septiembre de 2026,,',
+  ].join('\n'),
+  { header: true, skipEmptyLines: 'greedy', transformHeader: (h: string) => h.trim() },
+).data
+
+const deNotion = interpretarParque(canonizarFilas(notion))
+
+comprobar('entran las tres máquinas', deNotion.validas.length, 3)
+comprobar('sin ninguna fila rechazada', deNotion.problemas.length, 0)
+comprobar('el título es el nombre', deNotion.validas[0].nombre, 'RowErg 5')
+comprobar('«Servicio hecho» es verde', deNotion.validas[0].estado, 'verde')
+comprobar('«Por revisar» es sin revisar', deNotion.validas[1].estado, 'sin_revisar')
+comprobar('«Assault / Echo» es air_bike', deNotion.validas[1].tipo, 'air_bike')
+comprobar('«Barra olímpica» es barra', deNotion.validas[2].tipo, 'barra')
+comprobar('«Nº serie» llega a num_serie', deNotion.validas[0].numSerie, '250123')
+comprobar('fecha en inglés', deNotion.validas[0].ultimaRevision, '2026-09-08')
+comprobar('fecha en español', deNotion.validas[2].ultimaRevision, '2026-09-08')
+comprobar('sin fecha se queda vacía', deNotion.validas[1].ultimaRevision, null)
+comprobar('las columnas de más no estorban', deNotion.validas[0].notas, 'Cadena algo seca')
+
+// Nuestra columna gana sobre el alias: una hoja con las dos no se pisa.
+const ambas = canonizarFilas([
+  { nombre: 'RowErg 1', ultima_revision: '2026-01-02', 'Fecha de servicio': '2020-01-01' },
+])
+comprobar('la columna propia gana al alias', ambas[0].ultima_revision, '2026-01-02')
+
+console.log('\n== Meses sueltos ==')
+comprobar('marzo', leerFecha('3 de marzo de 2026'), '2026-03-03')
+comprobar('March', leerFecha('March 3, 2026'), '2026-03-03')
+comprobar('sin año no vale', leerFecha('3 de marzo'), null)
+comprobar('texto cualquiera', leerFecha('la semana pasada'), null)
 
 console.log(`\n${fallos === 0 ? 'TODO OK' : `${fallos} FALLOS`}`)
 process.exit(fallos === 0 ? 0 : 1)
