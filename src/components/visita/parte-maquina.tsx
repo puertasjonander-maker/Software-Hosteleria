@@ -270,7 +270,15 @@ export function ParteMaquina({
           />
 
           <div className="space-y-2">
-            <Label>Trabajo hecho</Label>
+            {/* Un contador de pasos: marca el ritmo. Con la máquina abierta y los
+                guantes puestos, saber que vas 4 de 6 es lo que evita cerrar el
+                parte con la mitad sin marcar. */}
+            <div className="flex items-baseline justify-between gap-2">
+              <Label>Trabajo hecho</Label>
+              <span className="texto-micro tabular-nums text-muted-foreground">
+                {marcados.size}/{protocolo.pasos.length}
+              </span>
+            </div>
             <ul className="divide-y rounded-lg border">
               {protocolo.pasos.map((paso) => (
                 <li key={paso}>

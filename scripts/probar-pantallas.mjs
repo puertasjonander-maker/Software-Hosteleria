@@ -521,9 +521,13 @@ console.log('\n════ La hoja del parte, a medio rellenar ════')
   await pagina.getByRole('button', { name: /RowErg 5/ }).first().click()
   await pagina.waitForTimeout(400)
   comprobar('el parte trae el protocolo precargado', contiene(await texto(pagina), 'Engrasar cadena'))
+  // El contador de pasos: marca el ritmo y avisa de cerrar a medias.
+  comprobar('y el contador de pasos empieza a cero', contiene(await texto(pagina), '0/6'))
   await pagina.screenshot({ path: `${SP}/spa-parte.png` })
 
   await pagina.getByText('Engrasar cadena').click()
+  await pagina.waitForTimeout(200)
+  comprobar('y sube al marcar un paso', contiene(await texto(pagina), '1/6'))
   await pagina.keyboard.press('Escape')
   await pagina.waitForTimeout(400)
   comprobar(
