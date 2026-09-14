@@ -143,6 +143,10 @@ const FOTOS = [
 
 const PARTES = [
   { id: '40000000-0000-0000-0000-00000000000a', servicio_id: '30000000-0000-0000-0000-00000000000a', maquina_id: MAQ, trabajo_previsto: 'Limpiar raíl · Engrasar cadena', trabajo_hecho: null, piezas: null, estado_antes: null, estado_despues: null, damper: null, drag_factor: null, minutos: null, importe: null, hecho: false, client_ref: null, created_at: '', updated_at: '', maquinas: { nombre: 'RowErg 5', tipo: 'rowerg', marca: 'Concept2', num_serie: '250123', ubicacion: 'sala principal', estado: 'rojo' } },
+  // Un parte CERRADO en la visita que ya está hecha. Es lo que alimenta el bloque
+  // «Última visita» de la vista del cliente: sin él, esa ruta no la ejercitaba
+  // ninguna prueba y se quedaba sin comprobar.
+  { id: '40000000-0000-0000-0000-00000000000b', servicio_id: '30000000-0000-0000-0000-00000000000b', maquina_id: MAQ, trabajo_previsto: 'Aspirar carcasa y volante · Limpiar y engrasar cadena', trabajo_hecho: 'Aspirar carcasa y volante · Limpiar y engrasar cadena', piezas: null, estado_antes: 'rojo', estado_despues: 'verde', damper: 4, drag_factor: 122, minutos: 24, importe: null, hecho: true, client_ref: null, created_at: '', updated_at: '', maquinas: { nombre: 'RowErg 5', tipo: 'rowerg', marca: 'Concept2', num_serie: '250123', ubicacion: 'sala principal', estado: 'verde' } },
 ]
 
 /** Responde a una consulta de PostgREST mirando la tabla y los filtros. */
@@ -215,7 +219,11 @@ async function comoRol(rol, recorrido) {
       return json({ id: PERFILES[rol].id, email: PERFILES[rol].email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' })
     }
     if (url.pathname.startsWith('/storage/v1/object/sign')) {
-      return json(FOTOS.map((f) => ({ path: f.ruta, signedURL: `/sin-foto.jpg?p=${f.ruta}`, error: null })))
+      // Las dos grafías: la respuesta REST trae `signedURL` y el envoltorio de
+      // supabase-js lo normaliza a `signedUrl`. La app lee `signedUrl`, así que
+      // devolver solo la mayúscula dejaba las fotos sin URL y ninguna prueba se
+      // enteraba.
+      return json(FOTOS.map((f) => ({ path: f.ruta, signedURL: `/sin-foto.jpg?p=${f.ruta}`, signedUrl: `/sin-foto.jpg?p=${f.ruta}`, error: null })))
     }
     if (url.pathname.startsWith('/rest/v1/')) {
       const filas = responder(url, rol)
@@ -512,8 +520,15 @@ await comoRol('cliente', async (pagina) => {
   comprobar('y su parque', miBox.includes('RowErg 5'))
   comprobar('y el valor estimado de su parque', contiene(miBox, 'Valor estimado del parque'))
   // JTBD-3: «¿qué me hicisteis el otro día?» tiene que responderse al entrar, sin
-  // abrir máquina a máquina.
+  // abrir máquina a máquina. Con un parte cerrado en el mock, se comprueba de
+  // verdad: la fecha, lo que se hizo y las fotos del después.
   comprobar('y qué se hizo en la última visita', contiene(miBox, 'Última visita'))
+  comprobar('con las máquinas que se tocaron', contiene(miBox, '1 máquina tocada'))
+  comprobar('y el trabajo hecho, tal y como se apuntó', contiene(miBox, 'Limpiar y engrasar cadena'))
+  comprobar(
+    'y las fotos del después',
+    (await pagina.getByRole('img', { name: /Foto de después/ }).count()) >= 1,
+  )
   await pagina.screenshot({ path: `${SP}/spa-mi-box.png`, fullPage: true })
 
   await ir(pagina, `/mi-box/maquinas/${MAQ}`)
