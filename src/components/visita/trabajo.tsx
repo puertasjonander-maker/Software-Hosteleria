@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, CloudOff, RefreshCw, Upload } from 'lucide-react'
+import { Check, ChevronRight, CloudOff, RefreshCw, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { ETIQUETA_ESTADO_SERVICIO, ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
 import { fecha as formatearFecha, plural } from '@/lib/format'
@@ -264,6 +264,18 @@ function FilaParte({ parte, onAbrir }: { parte: ParteTrabajo; onAbrir: () => voi
               .join(' · ')}
           </p>
         </div>
+
+        {/*
+         * El chevron no es adorno: la fila entera es el botón para empezar a
+         * trabajar la máquina, y sin ninguna señal de que se toca el técnico se
+         * queda mirando la pantalla. Lo dijo una revisión visual de esta pantalla
+         * concreta —«no tiene ninguna señal de que sea pulsable»— y la lista del
+         * parque ya lo llevaba: dos listas de máquinas con la misma forma tienen
+         * que comportarse igual.
+         */}
+        {parte.hecho ? null : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
       </button>
     </li>
   )

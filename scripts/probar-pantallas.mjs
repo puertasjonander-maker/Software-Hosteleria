@@ -515,6 +515,11 @@ console.log('\n════ La hoja del parte, a medio rellenar ════')
   const visita = await texto(pagina)
   comprobar('la visita lista lo que queda por hacer', contiene(visita, 'Por hacer'))
   comprobar('y ofrece añadir una máquina que aparece sobre la marcha', contiene(visita, 'Añadir máquina'))
+  // La fila de la máquina es el botón para empezar: tiene que parecerlo.
+  comprobar(
+    'y la fila de la máquina se ve pulsable',
+    (await pagina.locator('button:has-text("RowErg 5") svg.lucide-chevron-right').count()) >= 1,
+  )
   await pagina.screenshot({ path: `${SP}/spa-visita.png`, fullPage: true })
 
   // Abrir el parte de la primera máquina y marcar un paso del protocolo.
