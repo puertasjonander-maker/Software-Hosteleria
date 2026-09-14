@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { ETIQUETA_ESTADO_SERVICIO, ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
 import { fecha as formatearFecha, plural } from '@/lib/format'
 import { tamano } from '@/lib/foto'
-import { contarPendientes, partesEnCola, sincronizar, type Pendientes } from '@/lib/cola-visita'
+import { contarPendientes, fotosAtascadas, partesEnCola, sincronizar, type Pendientes } from '@/lib/cola-visita'
 import { Button } from '@/components/ui/button'
 import { AvisoDesactualizado } from '@/components/ui/states'
 import { PuntoSemaforo } from '@/components/chip-semaforo'
@@ -60,10 +60,18 @@ export function Trabajo({
   const [pendientes, setPendientes] = useState<Pendientes>({ partes: 0, fotos: 0, bytes: 0 })
   const [enLinea, setEnLinea] = useState(true)
   const [subiendo, setSubiendo] = useState(false)
+  /** Las fotos que llevan dos intentos sin subir, con la máquina a la que son. */
+  const [atascadas, setAtascadas] = useState<string[]>([])
 
   const refrescarPendientes = useCallback(async () => {
     setPendientes(await contarPendientes())
-  }, [])
+    // El nombre de la máquina y no el id: lo que el técnico tiene delante es el
+    // nombre, y «una foto no sube» sin decir de qué máquina obliga a buscarla.
+    const enFallo = await fotosAtascadas()
+    setAtascadas(
+      enFallo.map((f) => partes.find((p) => p.id === f.parteId)?.nombre ?? 'una máquina'),
+    )
+  }, [partes])
 
   const vaciarCola = useCallback(
     async (silencioso: boolean) => {
@@ -75,6 +83,13 @@ export function Trabajo({
       const r = await sincronizar()
       setPendientes(r.pendientes)
       setSubiendo(false)
+
+      /*
+       * Se vuelve a mirar qué hay en la cola: un fallo tiene que aparecer en
+       * pantalla como «esta foto no sube», y eso se apunta en la cola, no en el
+       * resultado de esta pasada.
+       */
+      void refrescarPendientes()
 
       /*
        * «Todo subido» solo si de verdad se subió todo.
@@ -163,6 +178,23 @@ export function Trabajo({
        * lo que se registre aquí se encola igual y se resuelve al subir.
        */}
       {delRetrato ? <AvisoDesactualizado onReintentar={onCambio} /> : null}
+
+      {/*
+       * Una foto que no sube, dicha con nombre y apellidos.
+       *
+       * Un parte con una foto atascada no se cierra nunca en el servidor, así que
+       * ese trabajo no llega al cliente. Antes el contador decía «1 foto» y el
+       * técnico no podía saber cuál ni de qué máquina: aquí lo dice, y el botón de
+       * la cola reintenta.
+       */}
+      {atascadas.length > 0 ? (
+        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 texto-meta text-destructive">
+          {atascadas.length === 1
+            ? `Una foto de ${atascadas[0]} no sube`
+            : `${atascadas.length} fotos no suben: ${atascadas.join(', ')}`}
+          . Reintenta con el botón de arriba; si sigue igual, avisa.
+        </p>
+      ) : null}
 
       {/*
        * Avance y cola. Van juntos porque son la misma pregunta: cuánto queda.

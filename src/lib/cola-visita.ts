@@ -77,6 +77,17 @@ export type FotoEncolada = {
   blob: Blob
   bytes: number
   creadaEn: number
+  /**
+   * Intentos fallidos de subida.
+   *
+   * Existe porque un fallo no dice cuál falla: el contador decía «1 foto» y el
+   * técnico no sabía si era la de la máquina que acababa de hacer o una vieja. Con
+   * esto se puede decir «esta foto no sube» y en qué máquina. Opcional porque las
+   * entradas que ya están en la cola de un móvil no lo tienen.
+   */
+  fallos?: number
+  /** Cuándo falló por última vez. Sirve para no alarmar por un fallo de un segundo. */
+  ultimoFalloEn?: number
 }
 
 /** Dónde va a parar una foto dentro del bucket privado. */
@@ -221,6 +232,48 @@ export async function fotosDe(parteId: string): Promise<FotoEncolada[]> {
   )
 }
 
+/**
+ * Apunta que esta foto no ha subido.
+ *
+ * Se lee y se escribe dentro de la misma transacción, encadenando por callback y no
+ * por `await`: entre dos `await` la transacción se cierra sola y el guardado
+ * saltaría con TransactionInactiveError.
+ */
+async function apuntarFalloDeFoto(foto: FotoEncolada): Promise<void> {
+  try {
+    await conTransaccion([FOTOS], 'readwrite', (tx) => {
+      const almacen = tx.objectStore(FOTOS)
+      const lectura = almacen.get(foto.id) as IDBRequest<FotoEncolada | undefined>
+      lectura.onsuccess = () => {
+        const actual = lectura.result
+        if (!actual) return
+        almacen.put({ ...actual, fallos: (actual.fallos ?? 0) + 1, ultimoFalloEn: Date.now() })
+      }
+    })
+  } catch {
+    // Si esto falla, la foto sigue en la cola igual: solo se pierde la cuenta.
+  }
+}
+
+/**
+ * Las fotos que llevan varios intentos sin subir.
+ *
+ * Un fallo suelto es normal —una red que va y viene— y no se le cuenta al técnico.
+ * Dos intentos fallidos ya significan algo: el fichero, el bucket o la sesión. Y
+ * decirlo importa porque un parte con una foto atascada no se cierra nunca en el
+ * servidor, así que ese trabajo no llega al cliente.
+ */
+export async function fotosAtascadas(minimoFallos = 2): Promise<FotoEncolada[]> {
+  try {
+    const todas = (await conTransaccion([FOTOS], 'readonly', (tx) =>
+      pedir(tx.objectStore(FOTOS).getAll()),
+    )) as FotoEncolada[]
+    return todas.filter((f) => (f.fallos ?? 0) >= minimoFallos)
+  } catch {
+    return []
+  }
+}
+
 /** Las de inventario, las que cuelgan de la máquina y no de ningún parte. */
 export async function fotosDeMaquina(maquinaId: string): Promise<FotoEncolada[]> {
   return conTransaccion([FOTOS], 'readonly', (tx) =>
@@ -296,6 +349,7 @@ export async function sincronizar(): Promise<ResultadoSync> {
         .upload(ruta, foto.blob, { contentType: 'image/jpeg', upsert: true })
 
       if (subida.error) {
+        await apuntarFalloDeFoto(foto)
         fallos++
         continue
       }
@@ -319,6 +373,7 @@ export async function sincronizar(): Promise<ResultadoSync> {
         )
 
       if (fila.error) {
+        await apuntarFalloDeFoto(foto)
         fallos++
         continue
       }

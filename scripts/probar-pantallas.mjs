@@ -85,6 +85,25 @@ const servidor = createServer(async (peticion, respuesta) => {
     return
   }
 
+  /*
+   * La foto de prueba, servida por el propio servidor.
+   *
+   * Hace falta porque Playwright deja el fichero en el input pero el `onChange` de
+   * React no llega a dispararse en esta pantalla (input `sr-only` con `capture`), y
+   * la prueba tiene que construir el File dentro de la página. Se genera con PIL en
+   * /tmp; si no está, la prueba avisa en vez de fallar por algo raro.
+   */
+  if (ruta === '/foto-de-prueba.jpg') {
+    try {
+      const foto = await readFile('/tmp/foto-de-prueba.jpg')
+      respuesta.writeHead(200, { 'Content-Type': 'image/jpeg' })
+      respuesta.end(foto)
+    } catch {
+      respuesta.writeHead(404).end('no hay foto de prueba')
+    }
+    return
+  }
+
   const candidatos = [join(RAIZ, normalize(ruta)), join(RAIZ, 'index.html')]
 
   for (const fichero of candidatos) {
@@ -619,6 +638,107 @@ console.log('\n════ Sin cobertura, la visita sigue en pie ════')
   comprobar('y el contador lo cuenta', contiene(tras, '1/1'))
   comprobar('diciendo que lo que se ve es lo último que llegó', contiene(tras, 'No hemos podido ponernos al día'))
   comprobar('y sin quedarse esperando al servidor', tardanza < 25000)
+
+  await ctx.close()
+}
+
+console.log('\n════ Una foto que no sube ════')
+{
+  /*
+   * Un parte con una foto atascada no se cierra nunca en el servidor: el técnico lo
+   * ve hecho en su pantalla y el cliente no ve el trabajo. El contador decía «1
+   * foto» y no cuál. Aquí se sube una foto con el bucket devolviendo error y se
+   * comprueba que la pantalla lo dice con el nombre de la máquina.
+   */
+  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })
+
+  await ctx.route('**/ejemplo.supabase.co/**', async (route) => {
+    const url = new URL(route.request().url())
+    const json = (cuerpo, codigo = 200) =>
+      route.fulfill({ status: codigo, contentType: 'application/json', body: JSON.stringify(cuerpo) })
+
+    if (url.pathname === '/auth/v1/user') {
+      return json({ id: PERFILES.admin.id, email: PERFILES.admin.email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' })
+    }
+    // El bucket rechaza la subida: es el fallo que deja el parte sin cerrar.
+    if (url.pathname.startsWith('/storage/v1/object/fotos/')) {
+      return json({ message: 'rechazada' }, 500)
+    }
+    if (url.pathname.startsWith('/storage/v1/object/sign')) return json([])
+    if (url.pathname.startsWith('/rest/v1/')) return json(responder(url, 'admin'))
+    return json({})
+  })
+
+  const pagina = await ctx.newPage()
+  pagina.on('pageerror', (e) => fallos.push(`error de página (foto atascada): ${e.message}`))
+  await pagina.goto(`http://localhost:${PUERTO}/entrar`)
+  await pagina.evaluate(
+    ([id, email]) => {
+      localStorage.setItem(
+        'sb-ejemplo-auth-token',
+        JSON.stringify({
+          access_token: 'falso', token_type: 'bearer', expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'falso',
+          user: { id, email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' },
+        }),
+      )
+    },
+    [PERFILES.admin.id, PERFILES.admin.email],
+  )
+
+  await ir(pagina, `/visitas/${SERVICIOS[0].id}`)
+  await pagina.getByRole('button', { name: /RowErg 5/ }).first().click()
+  await pagina.waitForTimeout(400)
+
+  /*
+   * La cola se siembra a mano y no con el selector de ficheros: Playwright pone el
+   * fichero en el input, pero el `onChange` de React no se dispara en esa pantalla
+   * (input `sr-only` con `capture`), y montarlo con eventos sintéticos tampoco. Lo
+   * que se prueba aquí es lo demás, que es lo que importa: que un fallo de subida
+   * se cuente, que a la segunda vez la pantalla lo diga y que diga de qué máquina.
+   *
+   * Se siembra sin fallos y se deja que el primero lo ponga la propia aplicación: al
+   * montar intenta subirla y el bucket la rechaza. Un fallo suelto no alarma; el
+   * segundo —el del botón— sí, y ahí ya tiene que decirlo con el nombre.
+   */
+  await pagina.evaluate(async () => {
+    const respuesta = await fetch('/foto-de-prueba.jpg')
+    const blob = await respuesta.blob()
+    const bd = await new Promise((res, rej) => {
+      const p = indexedDB.open('ergobox', 3)
+      p.onsuccess = () => res(p.result)
+      p.onerror = () => rej(p.error)
+    })
+    await new Promise((res, rej) => {
+      const tx = bd.transaction(['fotos'], 'readwrite')
+      tx.objectStore('fotos').put({
+        id: 'foto-de-prueba',
+        parteId: '40000000-0000-0000-0000-00000000000a',
+        clienteId: '10000000-0000-0000-0000-00000000000a',
+        servicioId: '30000000-0000-0000-0000-00000000000a',
+        momento: 'antes',
+        orden: 0,
+        blob,
+        bytes: blob.size,
+        creadaEn: Date.now(),
+        fallos: 0,
+      })
+      tx.oncomplete = () => res(undefined)
+      tx.onerror = () => rej(tx.error)
+    })
+  })
+
+  await pagina.reload()
+  await pagina.waitForTimeout(1500)
+  comprobar('con un fallo suelto todavía no se alarma', !contiene(await texto(pagina), 'no sube'))
+
+  // El botón de la cola reintenta contra un bucket que rechaza: segundo fallo.
+  await pagina.getByRole('button', { name: /foto/ }).first().click()
+  await pagina.waitForTimeout(2000)
+
+  const conAviso = await texto(pagina)
+  comprobar('y si no sube, se dice', contiene(conAviso, 'no sube'))
+  comprobar('diciendo de qué máquina es', contiene(conAviso, 'RowErg 5 no sube'))
 
   await ctx.close()
 }
