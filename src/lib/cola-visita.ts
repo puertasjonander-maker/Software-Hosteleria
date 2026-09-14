@@ -1,5 +1,7 @@
 import type { Semaforo } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
+// Solo el tipo: se borra al compilar, así que no hay ciclo entre la cola y los datos.
+import type { Visita } from '@/datos/visitas'
 
 /**
  * Cola de trabajo de campo (EBX-205).
@@ -22,14 +24,15 @@ import { supabase } from '@/lib/supabase'
 
 const BD = 'ergobox'
 /*
- * Versión 2: se añadió el índice `maquinaId` para las fotos de inventario. Subir
- * la versión es obligatorio para crear un índice nuevo, y el paso de 1 a 2 no
- * toca ni borra nada de lo que ya hubiera en la cola: un móvil con fotos a medio
- * subir las conserva y las sube igual.
+ * Versión 3: se añadió el almacén `visitas`, el retrato de la visita que se está
+ * trabajando. Subir la versión es obligatorio para crear un almacén nuevo, y el
+ * paso de 2 a 3 no toca ni borra nada: un móvil con fotos a medio subir las
+ * conserva y las sube igual.
  */
-const VERSION = 2
+const VERSION = 3
 const PARTES = 'partes'
 const FOTOS = 'fotos'
+const VISITAS = 'visitas'
 
 export type ParteEncolado = {
   /** El id real de la fila en Postgres. La visita se planifica con cobertura. */
@@ -105,6 +108,9 @@ function abrir(): Promise<IDBDatabase> {
 
       if (!almacen.indexNames.contains('parteId')) almacen.createIndex('parteId', 'parteId')
       if (!almacen.indexNames.contains('maquinaId')) almacen.createIndex('maquinaId', 'maquinaId')
+
+      // El retrato de la visita. Uno por visita, así que la clave es su id.
+      if (!bd.objectStoreNames.contains(VISITAS)) bd.createObjectStore(VISITAS, { keyPath: 'visitaId' })
     }
     peticion.onsuccess = () => resolver(peticion.result)
     peticion.onerror = () => rechazar(peticion.error)
@@ -158,6 +164,55 @@ export async function encolarFoto(foto: Omit<FotoEncolada, 'creadaEn'>): Promise
   await conTransaccion([FOTOS], 'readwrite', (tx) => {
     tx.objectStore(FOTOS).put({ ...foto, creadaEn: Date.now() })
   })
+}
+
+/**
+ * El retrato de la visita que se está trabajando.
+ *
+ * Existe porque la pantalla de trabajo se construía entera desde el servidor y el
+ * service worker no cachea datos —a propósito—. En un box, iOS recarga la pestaña
+ * al volver de la cámara o cuando necesita memoria, y con la recarga la pantalla
+ * pasaba a ser un error: no se veía qué máquinas quedaban y los partes cerrados
+ * sin cobertura volvían a aparecer como pendientes, así que el técnico los
+ * repetía. Su cola estaba intacta, pero él no podía saberlo.
+ *
+ * Lo que se guarda es el retrato de la última lectura buena. No es la verdad
+ * ahora mismo y por eso la pantalla lo dice: con el retrato, el técnico sigue
+ * trabajando y lo que registre se encola igual.
+ */
+export async function guardarVisitaLocal(visita: Visita): Promise<void> {
+  await conTransaccion([VISITAS], 'readwrite', (tx) => {
+    tx.objectStore(VISITAS).put({ visitaId: visita.id, visita, guardadaEn: Date.now() })
+  })
+}
+
+export async function leerVisitaLocal(visitaId: string): Promise<Visita | null> {
+  try {
+    const fila = await conTransaccion([VISITAS], 'readonly', (tx) =>
+      pedir(tx.objectStore(VISITAS).get(visitaId)),
+    )
+    return (fila as { visita: Visita } | undefined)?.visita ?? null
+  } catch {
+    // Sin IndexedDB (modo privado de algunos navegadores) no hay retrato que dar.
+    return null
+  }
+}
+
+/**
+ * Los partes que están en la cola ahora mismo.
+ *
+ * Sirve para pintar como hechos los que se cerraron sin cobertura: al recargar, el
+ * servidor todavía no los tiene y sin esto volvían a aparecer pendientes. La cola
+ * local es la fuente: un parte en cola con `hecho` es un parte cerrado.
+ */
+export async function partesEnCola(): Promise<ParteEncolado[]> {
+  try {
+    return await conTransaccion([PARTES], 'readonly', (tx) =>
+      pedir(tx.objectStore(PARTES).getAll()),
+    )
+  } catch {
+    return []
+  }
 }
 
 export async function fotosDe(parteId: string): Promise<FotoEncolada[]> {

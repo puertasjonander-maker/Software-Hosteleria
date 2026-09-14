@@ -4,8 +4,9 @@ import { toast } from 'sonner'
 import { ETIQUETA_ESTADO_SERVICIO, ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
 import { fecha as formatearFecha, plural } from '@/lib/format'
 import { tamano } from '@/lib/foto'
-import { contarPendientes, sincronizar, type Pendientes } from '@/lib/cola-visita'
+import { contarPendientes, partesEnCola, sincronizar, type Pendientes } from '@/lib/cola-visita'
 import { Button } from '@/components/ui/button'
+import { AvisoDesactualizado } from '@/components/ui/states'
 import { PuntoSemaforo } from '@/components/chip-semaforo'
 import type { ParteTrabajo, Visita } from '@/datos/visitas'
 import { ParteMaquina } from './parte-maquina'
@@ -24,9 +25,12 @@ import { AnadirMaquina } from './anadir-maquina'
  */
 export function Trabajo({
   visita,
+  delRetrato = false,
   onCambio,
 }: {
   visita: Visita
+  /** Si lo que se pinta es el retrato guardado y no la última lectura del servidor. */
+  delRetrato?: boolean
   /** Vuelve a leer la visita del servidor cuando la cola termina de subir. */
   onCambio: () => void
 }) {
@@ -39,8 +43,19 @@ export function Trabajo({
    * Sin esto, cerrar un parte sin cobertura no cambiaría nada en pantalla: la
    * escritura fue a IndexedDB y no hay nada nuevo que pedirle al servidor. El
    * técnico volvería a abrir la misma máquina sin saber que ya la había hecho.
+   *
+   * Y se siembra desde la cola, no solo desde lo que se cierre en esta sesión: al
+   * recargar —que es lo que hace el móvil solo dentro de un box— el estado en
+   * memoria se perdía y los partes cerrados sin subir volvían a aparecer
+   * pendientes, así que el técnico los repetía. La cola es la fuente.
    */
   const [cerradosEnLocal, setCerradosEnLocal] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    void partesEnCola().then((enCola) =>
+      setCerradosEnLocal(new Set(enCola.filter((p) => p.hecho).map((p) => p.parteId))),
+    )
+  }, [servicioId])
 
   const [pendientes, setPendientes] = useState<Pendientes>({ partes: 0, fotos: 0, bytes: 0 })
   const [enLinea, setEnLinea] = useState(true)
@@ -136,6 +151,13 @@ export function Trabajo({
         </p>
         {notas ? <p className="texto-meta">{notas}</p> : null}
       </header>
+
+      {/*
+       * El retrato se dice. Enseñar datos guardados sin avisar sería mentir sobre
+       * el estado del servidor: puede que otra persona haya tocado ese parte, y
+       * lo que se registre aquí se encola igual y se resuelve al subir.
+       */}
+      {delRetrato ? <AvisoDesactualizado onReintentar={onCambio} /> : null}
 
       {/*
        * Avance y cola. Van juntos porque son la misma pregunta: cuánto queda.

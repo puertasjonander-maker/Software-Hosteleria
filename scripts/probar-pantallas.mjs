@@ -547,6 +547,77 @@ console.log('\n════ La hoja del parte, a medio rellenar ════')
   await ctx.close()
 }
 
+console.log('\n════ Sin cobertura, la visita sigue en pie ════')
+{
+  // El caso que más duele: dentro del box no hay red y el móvil recarga la pestaña
+  // solo (al volver de la cámara, al quedarse sin memoria). Antes esa recarga
+  // convertía la pantalla de trabajo en un error y lo cerrado sin subir volvía a
+  // aparecer pendiente. Aquí se cierra una máquina con el servidor caído y se
+  // recarga de verdad.
+  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })
+
+  await ctx.route('**/ejemplo.supabase.co/**', async (route) => {
+    const url = new URL(route.request().url())
+    const json = (cuerpo, codigo = 200) =>
+      route.fulfill({ status: codigo, contentType: 'application/json', body: JSON.stringify(cuerpo) })
+
+    if (url.pathname === '/auth/v1/user') {
+      return json({ id: PERFILES.admin.id, email: PERFILES.admin.email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' })
+    }
+    if (url.pathname.startsWith('/storage/v1/object/sign')) return json([])
+    if (url.pathname.startsWith('/rest/v1/')) return json(responder(url, 'admin'))
+    return json({})
+  })
+
+  const pagina = await ctx.newPage()
+  pagina.on('pageerror', (e) => fallos.push(`error de página (sin cobertura): ${e.message}`))
+  await pagina.goto(`http://localhost:${PUERTO}/entrar`)
+  await pagina.evaluate(
+    ([id, email]) => {
+      localStorage.setItem(
+        'sb-ejemplo-auth-token',
+        JSON.stringify({
+          access_token: 'falso', token_type: 'bearer', expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'falso',
+          user: { id, email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' },
+        }),
+      )
+    },
+    [PERFILES.admin.id, PERFILES.admin.email],
+  )
+
+  await ir(pagina, `/visitas/${SERVICIOS[0].id}`)
+  comprobar('con red, la visita se ve', contiene(await texto(pagina), 'Por hacer'))
+
+  // Y se queda sin cobertura de verdad: es lo que dice el navegador cuando el
+  // móvil entra en una nave metálica, y lo que mira la aplicación para no salir a
+  // pedir nada que no va a llegar.
+  await ctx.setOffline(true)
+
+  // Cerrar una máquina sin cobertura: la escritura va a la cola local.
+  await pagina.getByRole('button', { name: /RowErg 5/ }).first().click()
+  await pagina.waitForTimeout(400)
+  await pagina.getByRole('button', { name: 'Terminada' }).click()
+  await pagina.waitForTimeout(900)
+  comprobar('cerrar una máquina sin cobertura la da por hecha', contiene(await texto(pagina), 'Hechas'))
+
+  // La recarga que hace el móvil solo, con el reloj corriendo: si tarda, es que
+  // está esperando a un servidor que no está.
+  const comienzo = Date.now()
+  await pagina.reload()
+  await pagina.waitForTimeout(2500)
+  const tardanza = Date.now() - comienzo
+  const tras = await texto(pagina)
+
+  comprobar('al recargar sin cobertura la visita sigue en pie', contiene(tras, 'RowErg 5'))
+  comprobar('con lo cerrado en local aún marcado como hecho', contiene(tras, 'Hechas'))
+  comprobar('y el contador lo cuenta', contiene(tras, '1/1'))
+  comprobar('diciendo que lo que se ve es lo último que llegó', contiene(tras, 'No hemos podido ponernos al día'))
+  comprobar('y sin quedarse esperando al servidor', tardanza < 25000)
+
+  await ctx.close()
+}
+
 console.log('\n════ Como cliente ════')
 await comoRol('cliente', async (pagina) => {
   await ir(pagina, '/')
