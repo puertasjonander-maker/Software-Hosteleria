@@ -38,7 +38,14 @@ export async function listarBoxes(): Promise<BoxResumen[]> {
     if (!m.activa) continue
     const actual = porBox.get(m.cliente_id) ?? { estados: [], vencidas: 0 }
     actual.estados.push(m.estado)
-    if (m.proxima_revision && m.proxima_revision <= hoy) actual.vencidas += 1
+    /*
+     * «Vencida» es una sola cosa en toda la aplicación: la revisión pasada de
+     * fecha. Una máquina que toca HOY no está vencida —el parque la cuenta como
+     * próxima y la pantalla dice «toca hoy»—, así que aquí se compara con `<` y no
+     * con `<=`. Antes la lista de boxes y la ficha del box daban números distintos
+     * del mismo parque, a un toque de distancia.
+     */
+    if (m.proxima_revision && m.proxima_revision < hoy) actual.vencidas += 1
     porBox.set(m.cliente_id, actual)
   }
 

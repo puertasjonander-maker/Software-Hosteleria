@@ -358,10 +358,12 @@ await comoRol('admin', async (pagina) => {
   comprobar('con el valor estimado del parque global', contiene(panel, 'Valor estimado del parque'))
   // Lo accionable va primero: el panel se abre para saber qué toca y a quién
   // avisar, no para leer cuánto vale el parque.
-  comprobar(
-    'y las revisiones van antes que el valor del parque',
+  comprobar('y las revisiones van antes que el valor del parque',
     panel.indexOf('Revisiones vencidas y próximas') < panel.indexOf('Valor estimado del parque'),
   )
+  // La agenda cuenta: una visita planificada para la semana que viene es carga de
+  // trabajo y antes no salía en ninguna cifra.
+  comprobar('y cuenta también las visitas que vienen', contiene(panel, 'las de la agenda incluidas'))
   // A quién avisar: el contacto del box tiene que estar donde se ve la vencida,
   // sin abrir la ficha para copiar un teléfono.
   comprobar(
@@ -600,6 +602,9 @@ console.log('\n════ Sin cobertura, la visita sigue en pie ════')
   await pagina.getByRole('button', { name: 'Terminada' }).click()
   await pagina.waitForTimeout(900)
   comprobar('cerrar una máquina sin cobertura la da por hecha', contiene(await texto(pagina), 'Hechas'))
+  // Y se apunta lo que costó: sin esto, el presupuesto de sesenta segundos por
+  // máquina no se puede medir nunca.
+  comprobar('y con lo que costó en minutos', contiene(await texto(pagina), 'min'))
 
   // La recarga que hace el móvil solo, con el reloj corriendo: si tarda, es que
   // está esperando a un servidor que no está.

@@ -42,7 +42,8 @@ export function ParteMaquina({
   servicioId: string
   clienteId: string
   onCerrar: () => void
-  onGuardado: (parteId: string, cerrado: boolean) => void
+  /** El parte que se acaba de guardar, si se cerró, y lo que costó en minutos. */
+  onGuardado: (parteId: string, cerrado: boolean, minutos: number | null) => void
 }) {
   const protocolo = protocoloDe(parte.tipo)
 
@@ -88,6 +89,19 @@ export function ParteMaquina({
 
   const inputAntes = useRef<HTMLInputElement>(null)
   const inputDespues = useRef<HTMLInputElement>(null)
+
+  /*
+   * Cuándo se abrió la hoja. Es un cronómetro invisible: al guardar se apunta lo
+   * que ha costado la máquina.
+   *
+   * Existe porque `minutos` viajaba siempre a null y `minutosObjetivo` del
+   * protocolo no lo leía nadie, así que el presupuesto de sesenta segundos por
+   * máquina —el supuesto que decide el proyecto— no se podía medir nunca. Un
+   * cronómetro no cuesta toques, al contrario que pedir los minutos a mano.
+   *
+   * Mínimo un minuto: redondear a cero diría que la máquina se hizo en un suspiro.
+   */
+  const abiertoEn = useRef(Date.now())
 
   const recargarFotos = useCallback(async () => {
     setLocales(await fotosDe(parte.id))
@@ -178,6 +192,7 @@ export function ParteMaquina({
     setGuardando(true)
     try {
       const pasosMarcados = protocolo.pasos.filter((p) => marcados.has(p))
+      const minutos = Math.max(1, Math.round((Date.now() - abiertoEn.current) / 60000))
       await guardarParteLocal({
         parteId: parte.id,
         servicioId,
@@ -195,11 +210,11 @@ export function ParteMaquina({
         estadoDespues,
         damper: damper === '' ? null : Number(damper),
         dragFactor: dragFactor === '' ? null : Number(dragFactor),
-        minutos: null,
+        minutos,
         cadenciaSugeridaMeses: cadencia,
         hecho: cerrar,
       })
-      onGuardado(parte.id, cerrar)
+      onGuardado(parte.id, cerrar, cerrar ? minutos : null)
       onCerrar()
     } catch {
       toast.error('No hemos podido guardar el parte')

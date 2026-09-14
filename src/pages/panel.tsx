@@ -244,7 +244,10 @@ export default function Panel() {
 
               <section className="grid gap-3 sm:grid-cols-3">
                 <Cifra valor={datos.visitasHechas} etiqueta={`visitas terminadas en ${dias} días`} />
-                <Cifra valor={datos.visitasAbiertas} etiqueta="visitas abiertas en ese periodo" />
+                <Cifra
+                  valor={datos.visitasAbiertas}
+                  etiqueta="visitas por hacer, las de la agenda incluidas"
+                />
                 <Cifra
                   valor={datos.porBox.filter((b) => b.resumen.total > 0).length}
                   etiqueta="boxes con parque"

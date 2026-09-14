@@ -49,11 +49,11 @@ export function Trabajo({
    * memoria se perdía y los partes cerrados sin subir volvían a aparecer
    * pendientes, así que el técnico los repetía. La cola es la fuente.
    */
-  const [cerradosEnLocal, setCerradosEnLocal] = useState<Set<string>>(new Set())
+  const [enLocal, setEnLocal] = useState<Map<string, number | null>>(new Map())
 
   useEffect(() => {
     void partesEnCola().then((enCola) =>
-      setCerradosEnLocal(new Set(enCola.filter((p) => p.hecho).map((p) => p.parteId))),
+      setEnLocal(new Map(enCola.filter((p) => p.hecho).map((p) => [p.parteId, p.minutos]))),
     )
   }, [servicioId])
 
@@ -127,15 +127,20 @@ export function Trabajo({
   }, [refrescarPendientes, vaciarCola])
 
   const conEstadoLocal = useMemo(
-    () => partes.map((p) => ({ ...p, hecho: p.hecho || cerradosEnLocal.has(p.id) })),
-    [partes, cerradosEnLocal],
+    () =>
+      partes.map((p) => {
+        const minutosLocal = enLocal.get(p.id)
+        const hecho = p.hecho || enLocal.has(p.id)
+        return { ...p, hecho, minutos: p.minutos ?? minutosLocal ?? null }
+      }),
+    [partes, enLocal],
   )
 
   const pendientesDeHacer = conEstadoLocal.filter((p) => !p.hecho)
   const hechas = conEstadoLocal.filter((p) => p.hecho)
 
-  function alGuardar(parteId: string, cerrado: boolean) {
-    if (cerrado) setCerradosEnLocal((previo) => new Set(previo).add(parteId))
+  function alGuardar(parteId: string, cerrado: boolean, minutos: number | null) {
+    if (cerrado) setEnLocal((previo) => new Map(previo).set(parteId, minutos))
     void refrescarPendientes()
     void vaciarCola(true)
   }
@@ -286,6 +291,18 @@ function FilaParte({ parte, onAbrir }: { parte: ParteTrabajo; onAbrir: () => voi
               .join(' · ')}
           </p>
         </div>
+
+        {/*
+         * Lo que costó. El cronómetro se apunta solo al guardar, así que aquí no
+         * hay nada que rellenar: es la única forma de saber si una visita cabe en
+         * el presupuesto que el proyecto se ha puesto (sesenta segundos por
+         * máquina) sin cronometrar a mano.
+         */}
+        {parte.hecho && parte.minutos ? (
+          <span className="shrink-0 texto-micro tabular-nums text-muted-foreground">
+            {parte.minutos} min
+          </span>
+        ) : null}
 
         {/*
          * El chevron no es adorno: la fila entera es el botón para empezar a

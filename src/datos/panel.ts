@@ -67,8 +67,13 @@ export async function cargarPanel(dias: number): Promise<DatosPanel> {
     supabase
       .from('servicios')
       .select('id, cliente_id, fecha, estado')
-      .gte('fecha', desde)
-      .lte('fecha', hasta),
+      /*
+       * Sin tope por arriba: una visita planificada para la semana que viene no
+       * aparecía en ninguna cifra del panel, así que Jon no veía su carga
+       * planificada. Lo que se acota es el pasado (el periodo elegido); lo que
+       * viene, viene.
+       */
+      .gte('fecha', desde),
   ])
 
   const filasCliente = oReventar(clientes)
