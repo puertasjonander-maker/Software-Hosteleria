@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tokens de Ergobox.
+ *
+ * Paleta corta a propósito: neutros cálidos + tres colores con significado
+ * (primario para acción, `ok` para dato real, `warn` para dato estimado o corte
+ * próximo, destructivo para vencido o incidencia). Si un color no significa
+ * nada, no está.
+ */
+
+@layer base {
+  :root {
+    --background: 40 30% 98%;
+    --foreground: 25 20% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 25 20% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 25 20% 12%;
+
+    --primary: 25 45% 22%;
+    --primary-foreground: 40 30% 98%;
+
+    --secondary: 35 25% 93%;
+    --secondary-foreground: 25 30% 20%;
+
+    --muted: 35 20% 94%;
+    --muted-foreground: 25 10% 42%;
+
+    --accent: 35 30% 91%;
+    --accent-foreground: 25 30% 20%;
+
+    --destructive: 0 68% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warn: 32 85% 36%;
+    --warn-foreground: 0 0% 100%;
+
+    --ok: 152 45% 30%;
+    --ok-foreground: 0 0% 100%;
+
+    --border: 30 15% 87%;
+    --input: 30 15% 84%;
+    --ring: 25 45% 32%;
+
+    --radius: 0.6rem;
+
+    /*
+     * Colores de gráfico. Van aparte de los tokens de interfaz a propósito: un
+     * color de marca sirve para un botón, pero una serie de datos tiene que
+     * superar comprobaciones que un botón no tiene (banda de luminosidad,
+     * croma mínimo, separación bajo daltonismo y contraste contra la superficie
+     * del gráfico). Estos valores están validados para las dos superficies de
+     * la aplicación, así que no se cambian a ojo.
+     */
+    --chart-1: #2a78d6;
+    --chart-2: #eb6834;
+    --chart-surface: #fbf8f3;
+    --chart-grid: 30 15% 87%;
+  }
+
+  /*
+   * El equipo no tiene un selector de tema: la app sigue lo que diga el
+   * sistema. Sin esta media query, un móvil en modo oscuro vería la interfaz
+   * clara a las siete de la mañana en una barra a media luz.
+   */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --background: 25 15% 9%;
+      --foreground: 40 20% 94%;
+      --card: 25 14% 12%;
+      --card-foreground: 40 20% 94%;
+      --popover: 25 14% 12%;
+      --popover-foreground: 40 20% 94%;
+      --primary: 35 45% 72%;
+      --primary-foreground: 25 30% 12%;
+      --secondary: 25 12% 18%;
+      --secondary-foreground: 40 20% 94%;
+      --muted: 25 12% 18%;
+      --muted-foreground: 35 12% 65%;
+      --accent: 25 12% 22%;
+      --accent-foreground: 40 20% 94%;
+      --destructive: 0 62% 52%;
+      --destructive-foreground: 0 0% 100%;
+      --warn: 38 80% 60%;
+      --warn-foreground: 25 30% 12%;
+      --ok: 152 40% 55%;
+      --ok-foreground: 25 30% 12%;
+      --border: 25 12% 24%;
+      --input: 25 12% 26%;
+      --ring: 35 45% 60%;
+      --chart-1: #3987e5;
+      --chart-2: #d95926;
+      --chart-surface: #1a1512;
+      --chart-grid: 25 12% 24%;
+    }
+  }
+
+  .dark {
+    --background: 25 15% 9%;
+    --foreground: 40 20% 94%;
+
+    --card: 25 14% 12%;
+    --card-foreground: 40 20% 94%;
+
+    --popover: 25 14% 12%;
+    --popover-foreground: 40 20% 94%;
+
+    --primary: 35 45% 72%;
+    --primary-foreground: 25 30% 12%;
+
+    --secondary: 25 12% 18%;
+    --secondary-foreground: 40 20% 94%;
+
+    --muted: 25 12% 18%;
+    --muted-foreground: 35 12% 65%;
+
+    --accent: 25 12% 22%;
+    --accent-foreground: 40 20% 94%;
+
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warn: 38 80% 60%;
+    --warn-foreground: 25 30% 12%;
+
+    --ok: 152 40% 55%;
+    --ok-foreground: 25 30% 12%;
+
+    --border: 25 12% 24%;
+    --input: 25 12% 26%;
+    --ring: 35 45% 60%;
+
+    /* Los mismos matices, re-escalonados para el fondo oscuro. No es un
+       inverso automático: se eligieron y validaron contra esta superficie. */
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-surface: #1a1512;
+    --chart-grid: 25 12% 24%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    /* Sin ajuste automático de tamaño al girar el móvil. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    /* La app se usa con prisa: un rebote elástico al final de la lista hace
+       pensar que hay más contenido del que hay. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Respeta el notch y la barra de gestos cuando está instalada como PWA. */
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Nadie quiere seleccionar texto al pulsar rápido un stepper. */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/*
+ * Los siete escalones de la escala como clases, y no sueltos en cada pantalla.
+ * Cuando estaban sueltos, la misma cabecera de sección salía `text-xs` en una
+ * pantalla y `text-sm` en otra: dos tamaños para el mismo trabajo.
+ */
+@layer components {
+  .titulo-pantalla {
+    @apply text-pantalla font-bold;
+  }
+
+  .titulo-seccion {
+    @apply text-seccion font-bold uppercase text-muted-foreground;
+  }
+
+  .titulo-tarjeta {
+    @apply text-tarjeta font-semibold;
+  }
+
+  /* Importes y cantidades. Tabular siempre: una columna de precios que baila
+     al cambiar de dígito no se puede comparar de un vistazo. */
+  .cifra-dato {
+    @apply text-dato font-semibold tabular-nums;
+  }
+
+  .texto-meta {
+    @apply text-meta text-muted-foreground;
+  }
+
+  .texto-micro {
+    @apply text-micro font-medium;
+  }
+}
+
+@layer utilities {
+  /* Cabecera de sección pegajosa en listas largas de catálogo. */
+  .sticky-cat {
+    position: sticky;
+    top: var(--sticky-offset, 0px);
+    z-index: 10;
+  }
+}
+
+@keyframes fundido-reducido {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /*
+   * Reducir no es apagar. Lo que aparece sigue apareciendo con un fundido
+   * corto: quitar el desplazamiento está bien, cortar en seco convierte cada
+   * navegación en un parpadeo. Gana por especificidad sobre el `*` de arriba.
+   */
+  .animate-entrada-pagina,
+  .animate-entrada-fila {
+    animation: fundido-reducido 120ms linear backwards !important;
+  }
+}

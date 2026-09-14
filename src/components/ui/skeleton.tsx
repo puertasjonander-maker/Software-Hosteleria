@@ -5,8 +5,8 @@ function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
 }
 
 /**
- * Esqueleto de lista de productos. Se usa en `/pedir`: mientras carga se ve la
- * forma de la lista, no un hueco blanco (regla 4 del BUILD_SPEC).
+ * Esqueleto de lista. Mientras carga se ve la forma de la lista, no un hueco
+ * blanco (regla 4 del BUILD_SPEC).
  */
 function SkeletonLista({ filas = 6 }: { filas?: number }) {
   return (

@@ -1,17 +1,18 @@
 {
-  "name": "mise",
+  "name": "ergobox",
   "version": "1.0.0",
   "private": true,
-  "description": "Mise — sistema de aprovisionamiento para hostelería (pedidos, recepción, escandallo y panel)",
+  "type": "module",
+  "description": "Ergobox — mantenimiento de parques de máquinas de gimnasio (inventario, visitas, partes con fotos e historial)",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate",
-    "db:seed": "tsx scripts/seed.ts",
-    "db:push": "prisma db push"
+    "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
+    "probar:parque": "tsx scripts/probar-parque.ts",
+    "probar:pantallas": "node scripts/probar-pantallas.mjs",
+    "probar:sql": "psql -v ON_ERROR_STOP=1 -f scripts/probar-historico.sql && psql -v ON_ERROR_STOP=1 -f scripts/probar-avisos.sql && psql -v ON_ERROR_STOP=1 -f scripts/probar-aislamiento.sql"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.1",
@@ -27,37 +28,34 @@
     "@radix-ui/react-switch": "^1.1.1",
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.4",
-    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "date-fns": "^4.1.0",
     "lucide-react": "^0.454.0",
-    "next": "^14.2.35",
     "papaparse": "^5.4.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.13.3",
+    "react-router-dom": "6.28.0",
     "sonner": "^1.7.0",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
-    "web-push": "^3.6.7",
-    "xlsx": "^0.18.5",
-    "zod": "^3.23.8"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
     "@types/papaparse": "^5.3.15",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@types/web-push": "^3.6.4",
+    "@typescript-eslint/eslint-plugin": "7.18.0",
+    "@typescript-eslint/parser": "7.18.0",
+    "@vitejs/plugin-react": "4.3.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.35",
+    "eslint-plugin-react-hooks": "4.6.2",
     "postcss": "^8.4.49",
-    "prisma": "^5.22.0",
     "tailwindcss": "^3.4.14",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vite": "5.4.11"
   }
 }

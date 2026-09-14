@@ -42,7 +42,7 @@ export function euros(valor: number | null | undefined): string {
   return EUR.format(valor)
 }
 
-/** Para precios unitarios, donde la tercera decimal sí cambia el escandallo. */
+/** Para importes donde la tercera decimal todavía importa. */
 export function eurosPrecisos(valor: number | null | undefined): string {
   if (valor === null || valor === undefined || Number.isNaN(valor)) return '—'
   return EUR_PRECISO.format(valor)

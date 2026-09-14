@@ -1,19 +1,18 @@
-'use client'
-
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { Link, useLocation } from 'react-router-dom'
 import {
   BarChart3,
+  Bell,
+  Building2,
   ChevronLeft,
-  ClipboardList,
+  Dumbbell,
   LogOut,
-  PlusCircle,
   Settings,
-  UtensilsCrossed,
+  Wrench,
 } from 'lucide-react'
 import type { RolUsuario } from '@/lib/database.types'
 import { ETIQUETA_ROL } from '@/lib/roles'
+import { salir } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
 import { Indicador, useIndicador } from '@/components/ui/indicador'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/menu'
@@ -32,26 +31,13 @@ type Destino = {
  * "sin permiso" es hacer perder un toque a alguien con prisa.
  */
 const DESTINOS: Destino[] = [
-  {
-    href: '/pedir',
-    etiqueta: 'Pedir',
-    icono: PlusCircle,
-    roles: ['barista', 'encargado', 'operador'],
-  },
-  {
-    href: '/pedidos',
-    etiqueta: 'Pedidos',
-    icono: ClipboardList,
-    roles: ['barista', 'encargado', 'operador'],
-  },
-  {
-    href: '/escandallo',
-    etiqueta: 'Escandallo',
-    icono: UtensilsCrossed,
-    roles: ['encargado', 'operador'],
-  },
-  { href: '/panel', etiqueta: 'Panel', icono: BarChart3, roles: ['operador'] },
-  { href: '/admin', etiqueta: 'Admin', icono: Settings, roles: ['operador'] },
+  { href: '/visitas', etiqueta: 'Visitas', icono: Wrench, roles: ['admin', 'tecnico'] },
+  { href: '/boxes', etiqueta: 'Boxes', icono: Building2, roles: ['admin', 'tecnico'] },
+  { href: '/panel', etiqueta: 'Panel', icono: BarChart3, roles: ['admin'] },
+  { href: '/admin', etiqueta: 'Admin', icono: Settings, roles: ['admin'] },
+  // El cliente ve una sola pestaña. No es una limitación: es todo lo que hay
+  // para él, y una barra con un único destino se lee como "estás en tu sitio".
+  { href: '/mi-box', etiqueta: 'Mi box', icono: Dumbbell, roles: ['cliente'] },
 ]
 
 /**
@@ -63,22 +49,31 @@ const DESTINOS: Destino[] = [
  * De lo más específico a lo más general: la primera que casa, gana.
  */
 const TITULOS: Array<[RegExp, string]> = [
-  [/^\/pedir/, 'Pedir'],
-  [/^\/pedidos\/[^/]+\/recepcion/, 'Recepción'],
-  [/^\/pedidos\/[^/]+/, 'Pedido'],
-  [/^\/pedidos/, 'Pedidos'],
-  [/^\/escandallo\/importar/, 'Importar escandallo'],
-  [/^\/escandallo\/mapeo/, 'Mapeo'],
-  [/^\/escandallo\/simulador/, 'Simulador'],
-  [/^\/escandallo\/[^/]+/, 'Elaboración'],
-  [/^\/escandallo/, 'Escandallo'],
+  [/^\/visitas\/[^/]+/, 'Visita'],
+  [/^\/visitas/, 'Visitas'],
+  [/^\/boxes\/[^/]+\/maquinas\/[^/]+/, 'Ficha de máquina'],
+  [/^\/boxes\/[^/]+\/importar/, 'Importar parque'],
+  [/^\/boxes\/[^/]+/, 'Box'],
+  [/^\/boxes/, 'Boxes'],
+  [/^\/mi-box\/maquinas\/[^/]+/, 'Ficha de máquina'],
+  [/^\/mi-box/, 'Mi box'],
   [/^\/panel/, 'Panel'],
   [/^\/admin/, 'Administración'],
+  [/^\/ajustes/, 'Ajustes'],
   [/^\/sin-permiso/, 'Sin permiso'],
 ]
 
 function tituloDe(pathname: string): string {
-  return TITULOS.find(([patron]) => patron.test(pathname))?.[1] ?? 'Mise'
+  return TITULOS.find(([patron]) => patron.test(pathname))?.[1] ?? 'Ergobox'
+}
+
+/** Tramos que solo agrupan y no tienen pantalla: se saltan al volver atrás. */
+const TRAMOS_SIN_PANTALLA = new Set(['maquinas', 'maquina'])
+
+function padreDe(pathname: string): string {
+  const segmentos = pathname.split('/').slice(0, -1)
+  if (TRAMOS_SIN_PANTALLA.has(segmentos[segmentos.length - 1] ?? '')) segmentos.pop()
+  return segmentos.join('/') || '/'
 }
 
 /** Iniciales para el avatar. Dos como mucho: a 30 px no cabe más. */
@@ -94,22 +89,25 @@ function iniciales(nombre: string): string {
 export function Navegacion({
   rol,
   nombre,
-  local,
+  box,
 }: {
   rol: RolUsuario
   nombre: string
-  local: string | null
+  /** Nombre del box, solo para un cliente. Un interno no está atado a ninguno. */
+  box: string | null
 }) {
-  const pathname = usePathname()
+  const { pathname } = useLocation()
   const visibles = DESTINOS.filter((d) => d.roles.includes(rol))
 
   const esActivo = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
   const activo = visibles.find((d) => esActivo(d.href)) ?? null
 
-  // Una raíz no lleva atrás; una pantalla de dentro, sí. El padre es siempre el
-  // segmento de arriba: /pedidos/abc/recepcion → /pedidos/abc.
+  // Una raíz no lleva atrás; una pantalla de dentro, sí. El padre es el segmento
+  // de arriba, salvo cuando ese segmento es un tramo de colección que no tiene
+  // pantalla propia: /boxes/abc/maquinas/xyz vuelve a /boxes/abc, y no a
+  // /boxes/abc/maquinas, que no existe.
   const esRaiz = visibles.some((d) => d.href === pathname)
-  const volverA = esRaiz ? null : pathname.split('/').slice(0, -1).join('/') || '/'
+  const volverA = esRaiz ? null : padreDe(pathname)
 
   /*
    * La cabecera va plana mientras no haya nada por encima. El borde y la sombra
@@ -141,7 +139,7 @@ export function Navegacion({
             {/* Móvil: volver + título de pantalla. */}
             {volverA ? (
               <Link
-                href={volverA}
+                to={volverA}
                 aria-label="Volver"
                 className="-ml-2 flex h-11 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-rapido ease-estandar hover:bg-accent hover:text-accent-foreground md:hidden"
               >
@@ -150,7 +148,7 @@ export function Navegacion({
             ) : null}
 
             <Link
-              href="/"
+              to="/"
               className={cn(
                 'shrink-0 items-center gap-2 font-semibold',
                 // Con botón de volver, la marca estorba: ya hay una jerarquía.
@@ -158,9 +156,9 @@ export function Navegacion({
               )}
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm text-primary-foreground">
-                M
+                E
               </span>
-              <span className="hidden lg:inline">Mise</span>
+              <span className="hidden lg:inline">Ergobox</span>
             </Link>
 
             <h2 className="truncate text-tarjeta font-semibold md:hidden">{tituloDe(pathname)}</h2>
@@ -174,7 +172,7 @@ export function Navegacion({
               {visibles.map((d) => (
                 <Link
                   key={d.href}
-                  href={d.href}
+                  to={d.href}
                   data-indicador={d.href}
                   className={cn(
                     'relative rounded-md px-3 py-2 text-cuerpo font-medium',
@@ -190,7 +188,7 @@ export function Navegacion({
             </nav>
           </div>
 
-          {/* Hueco para los controles de la pantalla (el selector de local). */}
+          {/* Hueco para los controles propios de cada pantalla. */}
           <div id={ID_RANURA_CABECERA} className="flex min-w-0 shrink items-center justify-end" />
 
           <Menu>
@@ -206,21 +204,30 @@ export function Navegacion({
                 <p className="truncate text-cuerpo font-medium leading-tight">{nombre}</p>
                 <p className="truncate text-meta leading-tight text-muted-foreground">
                   {ETIQUETA_ROL[rol]}
-                  {local ? ` · ${local}` : ''}
+                  {box ? ` · ${box}` : ''}
                 </p>
               </MenuLabel>
 
               <MenuSeparator />
 
-              {/* El formulario envuelve al item: el `asChild` deja que el botón
-                  sea el item, así que un toque cierra el menú y envía a la vez. */}
-              <form action="/auth/signout" method="post">
+              {/* Los ajustes van en el menú y no en la barra: se entra una vez,
+                  al configurar el móvil, no cada día. */}
+              {rol !== 'cliente' ? (
                 <MenuItem asChild>
-                  <button type="submit" className="w-full">
-                    <LogOut /> Salir
-                  </button>
+                  <Link to="/ajustes" className="w-full">
+                    <Bell /> Avisos
+                  </Link>
                 </MenuItem>
-              </form>
+              ) : null}
+
+              {/* Sin navegación después de salir: el proveedor de sesión se
+                  entera por `onAuthStateChange` y el guarda de ruta manda al
+                  login él solo. */}
+              <MenuItem asChild>
+                <button type="button" className="w-full" onClick={() => void salir()}>
+                  <LogOut /> Salir
+                </button>
+              </MenuItem>
             </MenuContent>
           </Menu>
         </div>
@@ -239,7 +246,7 @@ export function Navegacion({
             return (
               <li key={d.href} className="flex-1">
                 <Link
-                  href={d.href}
+                  to={d.href}
                   data-indicador={d.href}
                   aria-current={esta ? 'page' : undefined}
                   className={cn(
