@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import type { Consulta } from '@/lib/consulta'
-import { EstadoError } from '@/components/ui/states'
+import { AvisoDesactualizado, EstadoError } from '@/components/ui/states'
 
 /**
  * Los tres estados de una pantalla que pide datos, en un sitio.
@@ -20,8 +20,31 @@ export function Cargador<T>({
   esqueleto: React.ReactNode
   children: (datos: T) => React.ReactNode
 }) {
+  /*
+   * Un fallo con datos ya en pantalla no se lleva la pantalla por delante.
+   *
+   * Se descubrió en la pantalla que más duele: en una visita sin cobertura real
+   * —nave metálica, portal cautivo—, la recarga que se dispara sola después de
+   * cada parte falla y sustituía las doce máquinas por «No hemos podido cargar
+   * esto». La cola seguía intacta, pero el técnico no podía trabajar: el
+   * principio 5 dice que el sistema nunca bloquea el trabajo, y una lista que ya
+   * estaba en memoria no tiene por qué desaparecer porque no se pudo refrescar.
+   *
+   * Se avisa arriba, en ámbar y sin tapar nada, con la opción de reintentar.
+   */
   if (consulta.error !== null) {
-    return <EstadoError descripcion={consulta.error} onReintentar={consulta.recargar} />
+    if (consulta.datos === null) {
+      return <EstadoError descripcion={consulta.error} onReintentar={consulta.recargar} />
+    }
+
+    return (
+      <>
+        <div className="container max-w-2xl px-4 pt-3">
+          <AvisoDesactualizado onReintentar={consulta.recargar} />
+        </div>
+        {children(consulta.datos)}
+      </>
+    )
   }
 
   // Con datos ya cargados no se vuelve al esqueleto: al recargar tras guardar,

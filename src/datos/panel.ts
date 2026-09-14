@@ -11,16 +11,22 @@ export type BoxEnPanel = {
   id: string
   nombre: string
   poblacion: string | null
-  activo: boolean
   resumen: ResumenParque
   peor: Semaforo | null
   visitas: number
+}
+
+/** A quién avisar cuando toca ir a un box. Es lo que convierte una vencida en una llamada. */
+export type ContactoBox = {
+  nombre: string | null
+  telefono: string | null
 }
 
 export type DatosPanel = {
   maquinas: MaquinaFila[]
   clienteDeMaquina: Map<string, string>
   nombreDeBox: Map<string, string>
+  contactoDeBox: Map<string, ContactoBox>
   resumen: ResumenParque
   porBox: BoxEnPanel[]
   visitasHechas: number
@@ -41,13 +47,22 @@ export function restarDias(fechaISO: string, dias: number): string {
  * hay que ir esta semana, y cuánto se ha trabajado. Las tres se leen del mismo
  * parque, así que se carga una vez y se agrupa aquí en vez de pedir tres
  * consultas agregadas.
+ *
+ * Solo entran los boxes ACTIVOS, y el filtro se aplica al construir `maquinas` y
+ * `porBox`, no al pintar. Es lo que hace que el panel hable de lo que hay: las
+ * máquinas de un box dado de baja nunca avisan (`avisos_pendientes()` exige
+ * `c.activo`), así que listarlas aquí era prometer una revisión que el sistema no
+ * iba a recordar, y encima enterraba lo que sí toca.
  */
 export async function cargarPanel(dias: number): Promise<DatosPanel> {
   const hasta = hoyEnMadrid()
   const desde = restarDias(hasta, dias)
 
   const [clientes, parque, servicios] = await Promise.all([
-    supabase.from('clientes').select('id, nombre, poblacion, activo').order('nombre'),
+    supabase
+      .from('clientes')
+      .select('id, nombre, poblacion, activo, contacto_nombre, contacto_telefono')
+      .order('nombre'),
     supabase.from('parque_estado').select('*'),
     supabase
       .from('servicios')
@@ -60,18 +75,31 @@ export async function cargarPanel(dias: number): Promise<DatosPanel> {
   const filasParque = parque.data ?? []
   const filasServicio = servicios.data ?? []
 
-  const maquinas = filasParque.map(comoMaquinaFila)
+  const activos = filasCliente.filter((c) => c.activo)
+  const idsActivos = new Set(activos.map((c) => c.id))
+
+  // El parque llega sin filtrar por box: el descarte se hace aquí para que no se
+  // cuele ni una máquina de un box de baja en el resumen, en el valor ni en las
+  // revisiones.
+  const maquinas = filasParque
+    .filter((m) => idsActivos.has(m.cliente_id))
+    .map(comoMaquinaFila)
   const clienteDeMaquina = new Map(filasParque.map((m) => [m.id, m.cliente_id]))
   const nombreDeBox = new Map(filasCliente.map((c) => [c.id, c.nombre]))
+  const contactoDeBox = new Map(
+    activos.map((c) => [
+      c.id,
+      { nombre: c.contacto_nombre, telefono: c.contacto_telefono } satisfies ContactoBox,
+    ]),
+  )
 
-  const porBox: BoxEnPanel[] = filasCliente.map((c) => {
+  const porBox: BoxEnPanel[] = activos.map((c) => {
     const suyas = maquinas.filter((m) => clienteDeMaquina.get(m.id) === c.id)
     const activas = suyas.filter((m) => m.activa)
     return {
       id: c.id,
       nombre: c.nombre,
       poblacion: c.poblacion,
-      activo: c.activo,
       resumen: resumirParque(suyas),
       peor: peorSemaforo(activas.map((m) => m.estado)),
       visitas: filasServicio.filter((s) => s.cliente_id === c.id && s.estado === 'hecho').length,
@@ -98,6 +126,7 @@ export async function cargarPanel(dias: number): Promise<DatosPanel> {
     maquinas,
     clienteDeMaquina,
     nombreDeBox,
+    contactoDeBox,
     resumen: resumirParque(maquinas),
     porBox,
     visitasHechas: filasServicio.filter((s) => s.estado === 'hecho').length,

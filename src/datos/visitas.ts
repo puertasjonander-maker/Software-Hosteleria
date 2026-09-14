@@ -297,20 +297,112 @@ export async function guardarNotasVisita(id: string, notas: string | null): Prom
   return resultado(error, 'una visita')
 }
 
+/** Un trabajo tal y como se resume: el texto y cuántas máquinas lo llevan. */
+export type TrabajoDeVisita = { texto: string; veces: number }
+
+export type ResumenUltimaVisita = {
+  id: string
+  fecha: string
+  /** Partes cerrados: las máquinas que de verdad se tocaron. */
+  maquinas: number
+  trabajos: TrabajoDeVisita[]
+  /** Fotos del después, ya firmadas. Pocas y a propósito. */
+  fotos: FotoDeParte[]
+}
+
+/** Tres miniaturas son una prueba; diez son una galería, y eso ya está en la ficha. */
+const FOTOS_RESUMEN = 3
+
 /**
- * La fecha de la última visita terminada que alcanza quien pregunta.
+ * La última visita terminada, contada en un bloque (JTBD-3).
  *
- * Para un cliente, la de su box y solo la de su box: el filtro lo pone la RLS.
+ * Existe porque el histórico por máquina, que el cliente ya tiene, no contesta la
+ * pregunta que hace al entrar: «¿qué me hicisteis el otro día?». Para saborearlo
+ * hay que abrir máquina a máquina, y el trabajo de una tarde queda repartido en
+ * doce fichas.
+ *
+ * Es un resumen, no un historial, y por eso agrupa los trabajos repetidos —en una
+ * visita de doce remos el mismo trabajo aparece doce veces— y no trae más de tres
+ * fotos. Recortar aquí no oculta nada: el detalle completo sigue a un toque, en la
+ * ficha de cada máquina.
+ *
+ * Para un cliente, la visita y sus partes son las de su box y solo las suyas: el
+ * filtro lo pone la RLS.
  */
-export async function ultimaVisitaHecha(): Promise<string | null> {
-  const { data } = await supabase
+export async function resumenUltimaVisita(): Promise<ResumenUltimaVisita | null> {
+  const { data: servicios } = await supabase
     .from('servicios')
-    .select('fecha')
+    .select('id, fecha')
     .eq('estado', 'hecho')
     .order('fecha', { ascending: false })
     .limit(1)
 
-  return data?.[0]?.fecha ?? null
+  const visita = servicios?.[0]
+  if (!visita) return null
+
+  const { data: partes } = await supabase
+    .from('partes')
+    .select('id, trabajo_hecho')
+    .eq('servicio_id', visita.id)
+    .eq('hecho', true)
+
+  const filas = partes ?? []
+
+  /*
+   * Los trabajos se agrupan por texto: el mismo trabajo en las cinco barras es un
+   * trabajo, no cinco líneas. El que más máquinas toca va primero, que es el que
+   * cuenta de qué fue la visita.
+   */
+  const cuenta = new Map<string, number>()
+  for (const p of filas) {
+    const texto = (p.trabajo_hecho ?? '').trim()
+    if (texto === '') continue
+    cuenta.set(texto, (cuenta.get(texto) ?? 0) + 1)
+  }
+
+  const trabajos: TrabajoDeVisita[] = [...cuenta]
+    .map(([texto, veces]) => ({ texto, veces }))
+    .sort((a, b) => b.veces - a.veces || a.texto.localeCompare(b.texto, 'es'))
+
+  const fotos = await fotosDelDespues(filas.map((p) => p.id))
+
+  return { id: visita.id, fecha: visita.fecha, maquinas: filas.length, trabajos, fotos }
+}
+
+/**
+ * Las primeras fotos del después de esos partes, firmadas.
+ *
+ * Se firman con la sesión de quien mira —igual que el histórico— para que decida
+ * la política del bucket y no nosotros. `momento` se filtra también aquí, aunque
+ * el `eq` ya lo hace en la consulta, porque un filtro que solo vive en el servidor
+ * se pierde en cuanto alguien reutiliza la función con otro `select`.
+ */
+async function fotosDelDespues(parteIds: string[]): Promise<FotoDeParte[]> {
+  if (parteIds.length === 0) return []
+
+  const { data: fotos } = await supabase
+    .from('fotos')
+    .select('id, momento, ruta')
+    .in('parte_id', parteIds)
+    .eq('momento', 'despues')
+    .order('orden')
+    .limit(FOTOS_RESUMEN)
+
+  const delDespues = (fotos ?? []).filter((f) => f.momento === 'despues').slice(0, FOTOS_RESUMEN)
+  if (delDespues.length === 0) return []
+
+  const { data: firmadas } = await supabase.storage
+    .from('fotos')
+    .createSignedUrls(
+      delDespues.map((f) => f.ruta),
+      3600,
+    )
+
+  const urlPorRuta = new Map((firmadas ?? []).map((f) => [f.path, f.signedUrl]))
+
+  return delDespues
+    .map((f) => ({ id: f.id, momento: f.momento, url: urlPorRuta.get(f.ruta) ?? '' }))
+    .filter((f) => f.url !== '')
 }
 
 export type FotoDeParte = { id: string; momento: 'antes' | 'despues'; url: string }

@@ -26,10 +26,19 @@ export async function miParque(): Promise<MaquinaFila[]> {
   return filas.map(comoMaquinaFila)
 }
 
-export async function obtenerMaquina(id: string): Promise<MaquinaFila> {
-  return comoMaquinaFila(
-    oReventar(await supabase.from('parque_estado').select('*').eq('id', id).maybeSingle()),
-  )
+/**
+ * Una máquina, con el box al que pertenece.
+ *
+ * El `clienteId` no es cosmético: sin él, `/boxes/<box A>/maquinas/<máquina de
+ * B>` pintaba la ficha de B bajo la cabecera de A y, al guardar, `guardarMaquina`
+ * reescribía el `cliente_id` — la máquina cambiaba de box sin que nadie lo
+ * pidiera. No es una fuga (un interno ve los dos boxes), es el dato mal puesto.
+ */
+export async function obtenerMaquina(id: string, clienteId?: string): Promise<MaquinaFila> {
+  const consulta = supabase.from('parque_estado').select('*').eq('id', id)
+  const porBox = clienteId ? consulta.eq('cliente_id', clienteId) : consulta
+
+  return comoMaquinaFila(oReventar(await porBox.maybeSingle()))
 }
 
 export type DatosMaquina = {

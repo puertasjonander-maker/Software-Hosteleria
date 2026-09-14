@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { canonizarFilas, interpretarParque, leerFecha, peorSemaforo, textoRevision } from '../src/lib/parque'
+import { valorDelParque } from '../src/lib/valor'
+import type { MaquinaFila } from '../src/lib/parque'
 import type { Semaforo } from '../src/lib/database.types'
 
 /*
@@ -179,6 +181,63 @@ comprobar('marzo', leerFecha('3 de marzo de 2026'), '2026-03-03')
 comprobar('March', leerFecha('March 3, 2026'), '2026-03-03')
 comprobar('sin año no vale', leerFecha('3 de marzo'), null)
 comprobar('texto cualquiera', leerFecha('la semana pasada'), null)
+
+// ── Valor estimado del parque (EBX-505) ──────────────────────────────────────
+// El mismo reparto que el CSV de demo: 5 remos, 1 ski, 1 bikeerg y 5 air bikes.
+// 5×1195 + 1×1040 + 1×1400 + 5×900 = 12915.
+
+function maquina(tipo: MaquinaFila['tipo'], activa = true): MaquinaFila {
+  return {
+    id: 'x',
+    nombre: tipo,
+    tipo,
+    marca: null,
+    modelo: null,
+    numSerie: null,
+    ubicacion: null,
+    notas: null,
+    estado: 'sin_revisar',
+    cadenciaMeses: null,
+    ultimaRevision: null,
+    proximaRevision: null,
+    diasHastaRevision: null,
+    serviciosHechos: 0,
+    activa,
+  }
+}
+
+console.log('\n== Valor del parque ==')
+const valorDemo = valorDelParque([
+  maquina('rowerg'),
+  maquina('rowerg'),
+  maquina('rowerg'),
+  maquina('rowerg'),
+  maquina('rowerg'),
+  maquina('skierg'),
+  maquina('bikeerg'),
+  maquina('air_bike'),
+  maquina('air_bike'),
+  maquina('air_bike'),
+  maquina('air_bike'),
+  maquina('air_bike'),
+])
+comprobar('total del parque de demo', valorDemo.total, 12915)
+comprobar('cinco líneas de tipo', valorDemo.lineas.length, 4)
+comprobar('sin máquinas sin referencia', valorDemo.sinReferencia, 0)
+comprobar('la línea de remos suma 5 × 1195', valorDemo.lineas.find((l) => l.tipo === 'rowerg'), {
+  tipo: 'rowerg',
+  cantidad: 5,
+  unitario: 1195,
+  subtotal: 5975,
+})
+
+// Una máquina dada de baja no suma: ya no está en el box.
+const valorConBaja = valorDelParque([maquina('rowerg'), maquina('skierg', false), maquina('otro')])
+comprobar('la baja no cuenta', valorConBaja.total, 1195)
+comprobar('la baja no cuenta en el conteo de líneas', valorConBaja.lineas.length, 1)
+comprobar('«otro» se cuenta como sin referencia', valorConBaja.sinReferencia, 1)
+
+comprobar('parque vacío da cero', valorDelParque([]), { total: 0, lineas: [], sinReferencia: 0 })
 
 console.log(`\n${fallos === 0 ? 'TODO OK' : `${fallos} FALLOS`}`)
 process.exit(fallos === 0 ? 0 : 1)

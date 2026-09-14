@@ -37,6 +37,8 @@ export function FotosMaquina({
 }) {
   const [locales, setLocales] = useState<FotoEncolada[]>([])
   const [subidas, setSubidas] = useState<FotoSubida[]>([])
+  /** Si no se han podido comprobar las que ya están subidas, para no confundirlo con «no hay». */
+  const [sinComprobar, setSinComprobar] = useState(false)
   const [procesando, setProcesando] = useState(false)
   const entrada = useRef<HTMLInputElement>(null)
 
@@ -46,11 +48,13 @@ export function FotosMaquina({
 
   const recargarSubidas = useCallback(async () => {
     // Sin red la llamada falla y se queda con las locales, que es justo lo que
-    // hay que enseñar en ese caso.
+    // hay que enseñar en ese caso — pero diciendo que no se han podido comprobar.
     try {
       setSubidas(await urlsFotosDeMaquina(maquinaId))
+      setSinComprobar(false)
     } catch {
       setSubidas([])
+      setSinComprobar(true)
     }
   }, [maquinaId])
 
@@ -58,6 +62,31 @@ export function FotosMaquina({
     void recargarLocales()
     void recargarSubidas()
   }, [recargarLocales, recargarSubidas])
+
+  /** Borrar, con deshacer. Misma razón que en el parte: el roce se da con guantes. */
+  async function borrarFoto(id: string) {
+    const foto = locales.find((f) => f.id === id)
+    await borrarFotoLocal(id)
+    await recargarLocales()
+    if (!foto) return
+
+    toast('Foto borrada', {
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          void encolarFoto({
+            id: foto.id,
+            maquinaId: foto.maquinaId,
+            clienteId: foto.clienteId,
+            momento: foto.momento,
+            orden: foto.orden,
+            blob: foto.blob,
+            bytes: foto.bytes,
+          }).then(recargarLocales)
+        },
+      },
+    })
+  }
 
   async function anadir(ficheros: FileList | null) {
     if (!ficheros || ficheros.length === 0) return
@@ -102,13 +131,11 @@ export function FotosMaquina({
         momento="antes"
         locales={locales}
         subidas={subidas}
+        sinComprobar={sinComprobar}
         procesando={procesando}
         inputRef={entrada}
         onElegir={(f) => void anadir(f)}
-        onBorrar={async (id) => {
-          await borrarFotoLocal(id)
-          await recargarLocales()
-        }}
+        onBorrar={borrarFoto}
       />
     </section>
   )

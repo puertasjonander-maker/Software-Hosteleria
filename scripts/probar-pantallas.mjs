@@ -174,9 +174,9 @@ function responder(url, rol) {
     case 'maquinas':
       return MAQUINAS.filter((m) => esDe('cliente_id', m.cliente_id) && esDe('id', m.id))
     case 'servicios':
-      return SERVICIOS.filter((s) => esDe('estado', s.estado))
+      return SERVICIOS.filter((s) => esDe('id', s.id) && esDe('estado', s.estado))
     case 'partes':
-      return PARTES.filter((p) => esDe('servicio_id', p.servicio_id))
+      return PARTES.filter((p) => esDe('id', p.id) && esDe('servicio_id', p.servicio_id))
     case 'eventos_maquina':
       return EVENTOS.filter((e) => esDe('maquina_id', MAQ))
     case 'fotos':
@@ -288,6 +288,21 @@ await comoRol('admin', async (pagina) => {
   comprobar('y su parque ordenado por urgencia', box.indexOf('RowErg 5') < box.indexOf('Echo bike 1'))
   comprobar('y la máquina fuera del parque va al final', box.indexOf('SkiErg 1') > box.indexOf('Echo bike 1'))
   comprobar('con el aviso de fuera del parque visible', box.includes('Fuera del parque'))
+  await pagina.screenshot({ path: `${SP}/spa-box.png`, fullPage: true })
+  // EBX-505: el valor estimado, con el desglose. Solo las activas suman: el
+  // SkiErg está de baja, así que 1 remo (1.195 €) + 1 air bike (900 €) = 2.095 €.
+  //
+  // Y sin punto de millares: Intl es-ES no agrupa los números de cuatro cifras,
+  // que es como se escriben en español (2095,00 €, no 2.095,00 €). Escribir la
+  // aserción con el separador la hace fallar por una regla del idioma, no por un
+  // fallo de la pantalla.
+  comprobar('y el valor estimado del parque', contiene(box, 'Valor estimado del parque'))
+  if (process.env.VOLCAR) {
+    const i = box.indexOf('Valor estimado')
+    console.log('···· DUMP ····\n' + box.slice(Math.max(0, i - 200), i + 700).replace(/[\u00a0\u202f]/g, '<NBS>'))
+  }
+  comprobar('con el total de las activas', box.includes('2095,00'))
+  comprobar('y el desglose por tipo', contiene(box, 'Remo') && contiene(box, '×1 · 1195,00'))
 
   await ir(pagina, `/boxes/${BOX_A}/maquinas/${MAQ}`)
   const maquina = await texto(pagina)
@@ -304,6 +319,19 @@ await comoRol('admin', async (pagina) => {
   const panel = await texto(pagina)
   comprobar('el panel cuenta las visitas', panel.includes('visitas terminadas'))
   comprobar('y lista los boxes', panel.includes('IronBuster'))
+  comprobar('con el valor estimado del parque global', contiene(panel, 'Valor estimado del parque'))
+  // Lo accionable va primero: el panel se abre para saber qué toca y a quién
+  // avisar, no para leer cuánto vale el parque.
+  comprobar(
+    'y las revisiones van antes que el valor del parque',
+    panel.indexOf('Revisiones vencidas y próximas') < panel.indexOf('Valor estimado del parque'),
+  )
+  // A quién avisar: el contacto del box tiene que estar donde se ve la vencida,
+  // sin abrir la ficha para copiar un teléfono.
+  comprobar(
+    'con el teléfono del contacto a un toque',
+    (await pagina.getByRole('link', { name: /^Llamar a/ }).count()) >= 1,
+  )
   await pagina.screenshot({ path: `${SP}/spa-panel.png`, fullPage: true })
 
   await ir(pagina, '/admin')
@@ -335,6 +363,145 @@ await comoRol('admin', async (pagina) => {
   comprobar('una dirección inventada da la pantalla de no encontrada', (await texto(pagina)).includes('Aquí no hay nada'))
 })
 
+console.log('\n════ Un fallo de red a mitad de faena ════')
+{
+  /*
+   * Lo que se prueba aquí es la regla que se rompió con el build en verde: un
+   * fallo de red NO puede llevarse por delante una pantalla que ya tiene datos.
+   *
+   * El caso real: se anota algo en la ficha de una máquina, la escritura va bien,
+   * y la relectura que se dispara sola después falla (nave metálica, portal
+   * cautivo, móvil que cambia de red). Antes, la ficha entera desaparecía y
+   * aparecía «No hemos podido cargar esto».
+   */
+  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })
+  const estado = { fallanLasLecturas: false }
+
+  await ctx.route('**/ejemplo.supabase.co/**', async (route) => {
+    const url = new URL(route.request().url())
+    const metodo = route.request().method()
+    const json = (cuerpo, codigo = 200) =>
+      route.fulfill({ status: codigo, contentType: 'application/json', body: JSON.stringify(cuerpo) })
+
+    if (url.pathname === '/auth/v1/user') {
+      return json({ id: PERFILES.admin.id, email: PERFILES.admin.email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' })
+    }
+
+    // Las escrituras siguen funcionando. Lo que se cae es la lectura.
+    if (metodo !== 'GET') return json([], 201)
+    if (estado.fallanLasLecturas) return json({ message: 'la red se ha ido' }, 500)
+
+    if (url.pathname.startsWith('/rest/v1/')) return json(responder(url, 'admin'))
+    return json({})
+  })
+
+  const pagina = await ctx.newPage()
+  pagina.on('pageerror', (e) => fallos.push(`error de página (red): ${e.message}`))
+
+  await pagina.goto(`http://localhost:${PUERTO}/entrar`)
+  await pagina.evaluate(
+    ([id, email]) => {
+      localStorage.setItem(
+        'sb-ejemplo-auth-token',
+        JSON.stringify({
+          access_token: 'falso', token_type: 'bearer', expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'falso',
+          user: { id, email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' },
+        }),
+      )
+    },
+    [PERFILES.admin.id, PERFILES.admin.email],
+  )
+
+  await ir(pagina, `/boxes/${BOX_A}/maquinas/${MAQ}`)
+  const antes = await texto(pagina)
+  comprobar('la ficha se carga con su historial', antes.includes('Cadena engrasada'))
+
+  // Se anota algo: la escritura pasa, y la relectura que viene detrás no.
+  estado.fallanLasLecturas = true
+  await pagina.getByRole('button', { name: 'Anotar' }).click()
+  await pagina.fill('#texto', 'Llegó con óxido de fábrica en el raíl')
+  await pagina.getByRole('button', { name: 'Anotar' }).last().click()
+  await pagina.waitForTimeout(800)
+
+  const despues = await texto(pagina)
+  comprobar(
+    'un fallo al releer no se lleva la ficha por delante',
+    !despues.includes('No hemos podido cargar esto') && despues.includes('Cadena engrasada'),
+  )
+  comprobar(
+    'y se avisa de que no se ha podido poner al día',
+    contiene(despues, 'No hemos podido ponernos al día'),
+  )
+
+  await ctx.close()
+}
+
+console.log('\n════ La hoja del parte, a medio rellenar ════')
+{
+  /*
+   * Con guantes y el móvil en una mano, un roce fuera de la hoja la cierra. Antes
+   * eso descartaba en silencio todo lo marcado; las fotos se salvaban (van a la
+   * cola al elegirlas), las casillas y el texto no.
+   */
+  const ctx = await navegador.newContext({ viewport: { width: 390, height: 844 } })
+  await ctx.route('**/ejemplo.supabase.co/**', async (route) => {
+    const url = new URL(route.request().url())
+    const json = (cuerpo, codigo = 200) =>
+      route.fulfill({ status: codigo, contentType: 'application/json', body: JSON.stringify(cuerpo) })
+    if (url.pathname === '/auth/v1/user') {
+      return json({ id: PERFILES.admin.id, email: PERFILES.admin.email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' })
+    }
+    if (url.pathname.startsWith('/storage/v1/object/sign')) return json([])
+    if (url.pathname.startsWith('/rest/v1/')) return json(responder(url, 'admin'))
+    return json({})
+  })
+
+  const pagina = await ctx.newPage()
+  pagina.on('pageerror', (e) => fallos.push(`error de página (hoja): ${e.message}`))
+
+  await pagina.goto(`http://localhost:${PUERTO}/entrar`)
+  await pagina.evaluate(
+    ([id, email]) => {
+      localStorage.setItem(
+        'sb-ejemplo-auth-token',
+        JSON.stringify({
+          access_token: 'falso', token_type: 'bearer', expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'falso',
+          user: { id, email, aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '' },
+        }),
+      )
+    },
+    [PERFILES.admin.id, PERFILES.admin.email],
+  )
+
+  await ir(pagina, `/visitas/${SERVICIOS[0].id}`)
+  const visita = await texto(pagina)
+  comprobar('la visita lista lo que queda por hacer', contiene(visita, 'Por hacer'))
+  comprobar('y ofrece añadir una máquina que aparece sobre la marcha', contiene(visita, 'Añadir máquina'))
+  await pagina.screenshot({ path: `${SP}/spa-visita.png`, fullPage: true })
+
+  // Abrir el parte de la primera máquina y marcar un paso del protocolo.
+  await pagina.getByRole('button', { name: /RowErg 5/ }).first().click()
+  await pagina.waitForTimeout(400)
+  comprobar('el parte trae el protocolo precargado', contiene(await texto(pagina), 'Engrasar cadena'))
+  await pagina.screenshot({ path: `${SP}/spa-parte.png` })
+
+  await pagina.getByText('Engrasar cadena').click()
+  await pagina.keyboard.press('Escape')
+  await pagina.waitForTimeout(400)
+  comprobar(
+    'con cambios sin guardar, Escape no cierra la hoja',
+    contiene(await texto(pagina), 'Guardar y seguir'),
+  )
+  comprobar(
+    'y avisa de que hay cambios sin guardar',
+    contiene(await texto(pagina), 'Tienes cambios sin guardar'),
+  )
+
+  await ctx.close()
+}
+
 console.log('\n════ Como cliente ════')
 await comoRol('cliente', async (pagina) => {
   await ir(pagina, '/')
@@ -343,6 +510,10 @@ await comoRol('cliente', async (pagina) => {
   const miBox = await texto(pagina)
   comprobar('ve el nombre de su box', miBox.includes('CrossFit IronBuster'))
   comprobar('y su parque', miBox.includes('RowErg 5'))
+  comprobar('y el valor estimado de su parque', contiene(miBox, 'Valor estimado del parque'))
+  // JTBD-3: «¿qué me hicisteis el otro día?» tiene que responderse al entrar, sin
+  // abrir máquina a máquina.
+  comprobar('y qué se hizo en la última visita', contiene(miBox, 'Última visita'))
   await pagina.screenshot({ path: `${SP}/spa-mi-box.png`, fullPage: true })
 
   await ir(pagina, `/mi-box/maquinas/${MAQ}`)

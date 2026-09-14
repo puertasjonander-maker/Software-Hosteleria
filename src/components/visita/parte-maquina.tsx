@@ -73,6 +73,16 @@ export function ParteMaquina({
 
   const [locales, setLocales] = useState<FotoEncolada[]>([])
   const [subidas, setSubidas] = useState<FotoDeParte[]>([])
+  /*
+   * Las ya subidas que no se han podido ni comprobar.
+   *
+   * Sin red, pedir las URLs firmadas falla y la galería se quedaba vacía, que se
+   * lee exactamente igual que «esta máquina no tiene fotos». Reabrir una máquina
+   * ya hecha sin cobertura —lo normal al repasar el trabajo— enseñaba «Hacer
+   * foto» y el técnico volvía a hacer las que ya existían. Son dos estados
+   * distintos y ahora se distinguen.
+   */
+  const [sinComprobar, setSinComprobar] = useState(false)
   const [procesando, setProcesando] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
@@ -86,11 +96,53 @@ export function ParteMaquina({
   useEffect(() => {
     void recargarFotos()
     // Las ya subidas se piden firmadas. Si no hay red, la llamada falla y se
-    // queda con las locales, que es exactamente lo que hay que enseñar.
+    // queda con las locales, que es exactamente lo que hay que enseñar — pero
+    // diciendo que no se han podido comprobar.
     urlsDeFotos(parte.id)
-      .then(setSubidas)
-      .catch(() => setSubidas([]))
+      .then((fotos) => {
+        setSubidas(fotos)
+        setSinComprobar(false)
+      })
+      .catch(() => {
+        setSubidas([])
+        setSinComprobar(true)
+      })
   }, [parte.id, recargarFotos])
+
+  /**
+   * Borrar una foto, con cinco segundos para volver atrás.
+   *
+   * Deshacer y no preguntar: el botón está pegado a la miniatura y al de hacer
+   * otra foto, así que el roce se da con guantes y sin mirar. Un diálogo de
+   * confirmación cuesta un toque más cada vez; el «deshacer» solo cuesta ese
+   * toque cuando de verdad se ha borrado algo sin querer. La foto sigue en
+   * memoria, así que recuperarla es volver a encolarla con el mismo id (que es
+   * el nombre del fichero en el bucket: reintentar no duplica nada).
+   */
+  async function borrarFoto(id: string) {
+    const foto = locales.find((f) => f.id === id)
+    await borrarFotoLocal(id)
+    await recargarFotos()
+    if (!foto) return
+
+    toast('Foto borrada', {
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          void encolarFoto({
+            id: foto.id,
+            parteId: foto.parteId,
+            clienteId: foto.clienteId,
+            servicioId: foto.servicioId,
+            momento: foto.momento,
+            orden: foto.orden,
+            blob: foto.blob,
+            bytes: foto.bytes,
+          }).then(recargarFotos)
+        },
+      },
+    })
+  }
 
   async function anadirFotos(momento: MomentoFoto, ficheros: FileList | null) {
     if (!ficheros || ficheros.length === 0) return
@@ -132,7 +184,15 @@ export function ParteMaquina({
         trabajoHecho: componerTrabajoHecho(pasosMarcados, extra),
         piezas: piezas.trim() || null,
         estadoAntes,
-        estadoDespues: cerrar ? estadoDespues : null,
+        /*
+         * «Cómo queda» se guarda siempre, también en el guardado a medias.
+         *
+         * Antes iba a null si no se cerraba el parte, así que el semáforo que el
+         * técnico acababa de elegir —y que es lo que el cliente ve en su box—
+         * se descartaba sin decir nada al pulsar «Guardar y seguir». Si se ha
+         * revisado la máquina, hay un «cómo queda», se cierre el parte o no.
+         */
+        estadoDespues,
         damper: damper === '' ? null : Number(damper),
         dragFactor: dragFactor === '' ? null : Number(dragFactor),
         minutos: null,
@@ -148,9 +208,43 @@ export function ParteMaquina({
     }
   }
 
+  /*
+   * ¿Se ha tocado algo que no se haya guardado?
+   *
+   * La hoja se cierra con un toque fuera y con Escape, y eso desmonta el
+   * componente con todo lo marcado dentro: con guantes y el móvil en una mano, el
+   * roce se da. Las fotos no corren peligro (van a la cola al elegirlas), pero
+   * las casillas y el texto sí. Por eso, cuando hay cambios sin guardar, el toque
+   * fuera y Escape no cierran: avisan. La X sigue cerrando, que esa sí es a
+   * propósito.
+   */
+  const firma = [
+    estadoAntes,
+    estadoDespues,
+    [...marcados].sort().join('|'),
+    extra,
+    piezas,
+    damper,
+    dragFactor,
+    cadencia,
+  ].join('~')
+  const firmaInicial = useRef(firma)
+  const sinGuardar = firma !== firmaInicial.current
+
+  function bloquearCierre(evento: { preventDefault: () => void }) {
+    evento.preventDefault()
+    toast('Tienes cambios sin guardar', {
+      description: 'Pulsa «Guardar y seguir» o «Terminada», o cierra con la X para descartarlos.',
+    })
+  }
+
   return (
     <Dialog open onOpenChange={(v) => (v ? null : onCerrar())}>
-      <DialogContent className="max-h-[92dvh] max-w-lg overflow-y-auto">
+      <DialogContent
+        className="max-h-[92dvh] max-w-lg overflow-y-auto"
+        onPointerDownOutside={sinGuardar ? bloquearCierre : undefined}
+        onEscapeKeyDown={sinGuardar ? bloquearCierre : undefined}
+      >
         <DialogHeader>
           <DialogTitle>{parte.nombre}</DialogTitle>
           <p className="texto-meta">
@@ -168,13 +262,11 @@ export function ParteMaquina({
             momento="antes"
             locales={locales}
             subidas={subidas}
+            sinComprobar={sinComprobar}
             procesando={procesando}
             inputRef={inputAntes}
             onElegir={(f) => void anadirFotos('antes', f)}
-            onBorrar={async (id) => {
-              await borrarFotoLocal(id)
-              await recargarFotos()
-            }}
+            onBorrar={borrarFoto}
           />
 
           <div className="space-y-2">
@@ -219,13 +311,11 @@ export function ParteMaquina({
             momento="despues"
             locales={locales}
             subidas={subidas}
+            sinComprobar={sinComprobar}
             procesando={procesando}
             inputRef={inputDespues}
             onElegir={(f) => void anadirFotos('despues', f)}
-            onBorrar={async (id) => {
-              await borrarFotoLocal(id)
-              await recargarFotos()
-            }}
+            onBorrar={borrarFoto}
           />
 
           <div className="space-y-1.5">

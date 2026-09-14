@@ -37,7 +37,17 @@ export function ListaVisitas({
 
   // Lo abierto arriba y lo terminado abajo. Una visita cerrada es histórico; lo
   // que se busca al abrir esta pantalla es el trabajo que queda.
-  const abiertas = visitas.filter((v) => v.estado !== 'hecho')
+  //
+  // «Por hacer» va de la fecha más antigua a la más nueva, al revés que el resto
+  // de la aplicación. Una visita planificada se queda ahí si el día se torció, y
+  // es justo esa —la que se quedó a medias— la que no puede enterrarse debajo de
+  // las de dentro de tres semanas. Lo de arriba tiene que ser lo que de verdad
+  // está sin hacer.
+  const abiertas = visitas
+    .filter((v) => v.estado !== 'hecho')
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.clienteNombre.localeCompare(b.clienteNombre, 'es'))
+  // Lo terminado se deja como llega (lo más reciente arriba): ahí sí se busca el
+  // día que se fue, no el que falta.
   const cerradas = visitas.filter((v) => v.estado === 'hecho')
 
   return (

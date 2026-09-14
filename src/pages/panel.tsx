@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { CalendarClock, CalendarX2 } from 'lucide-react'
+import { CalendarClock, CalendarX2, Phone } from 'lucide-react'
 import { useConsulta } from '@/lib/consulta'
 import { cargarPanel } from '@/datos/panel'
 import { ordenarPorUrgencia, textoRevision } from '@/lib/parque'
@@ -10,6 +10,8 @@ import { EstadoVacio } from '@/components/ui/states'
 import { ChipSemaforo, PuntoSemaforo } from '@/components/chip-semaforo'
 import { Cargador, useTitulo } from '@/components/cargador'
 import { ResumenParque } from '@/components/resumen-parque'
+import { ValorParque } from '@/components/valor-parque'
+import { valorDelParque } from '@/lib/valor'
 
 /** Los tres periodos que se miran de verdad: el mes, el trimestre y el año. */
 const PERIODOS = [
@@ -26,6 +28,11 @@ const DIAS_POR_DEFECTO = 90
  * El periodo va en la dirección y no en un estado interno: así un panel filtrado
  * se puede guardar en favoritos o mandar por WhatsApp, y volver atrás deshace el
  * cambio de periodo en vez de salirse de la pantalla.
+ *
+ * Y el orden de los bloques es el de las preguntas que se hacen al abrirlo: qué
+ * está mal, qué toca ahora —con a quién hay que llamar— y, al final, cuánto vale
+ * el parque y cuánto se ha trabajado. El valor y los contadores son el contexto,
+ * no la razón de entrar: si van arriba, lo accionable queda debajo del pliegue.
  */
 export default function Panel() {
   useTitulo('Panel')
@@ -66,11 +73,6 @@ export default function Panel() {
         esqueleto={
           <div className="space-y-5">
             <Skeleton className="h-14 w-full" />
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
             <SkeletonLista filas={5} />
           </div>
         }
@@ -85,6 +87,12 @@ export default function Panel() {
             )
           }
 
+          /*
+           * `maquinas` ya viene solo con parque de boxes activos, así que las
+           * vencidas de un box de baja no pueden aparecer aquí. Se exige además
+           * `m.activa` —una máquina que salió del box no pide revisión— y se deja
+           * fuera lo que no tiene cadencia contratada.
+           */
           const pendientes = ordenarPorUrgencia(
             datos.maquinas.filter(
               (m) => m.activa && m.diasHastaRevision !== null && m.diasHastaRevision <= 30,
@@ -94,15 +102,6 @@ export default function Panel() {
           return (
             <>
               <ResumenParque resumen={datos.resumen} />
-
-              <section className="grid gap-3 sm:grid-cols-3">
-                <Cifra valor={datos.visitasHechas} etiqueta={`visitas terminadas en ${dias} días`} />
-                <Cifra valor={datos.visitasAbiertas} etiqueta="visitas abiertas en ese periodo" />
-                <Cifra
-                  valor={datos.porBox.filter((b) => b.resumen.total > 0).length}
-                  etiqueta="boxes con parque"
-                />
-              </section>
 
               <section className="space-y-3">
                 <h2 className="titulo-seccion">Revisiones vencidas y próximas</h2>
@@ -117,13 +116,23 @@ export default function Panel() {
                     {pendientes.slice(0, 20).map((m) => {
                       const revision = textoRevision(m)
                       const boxId = datos.clienteDeMaquina.get(m.id)
+                      const box = boxId ? datos.nombreDeBox.get(boxId) ?? 'Box' : 'Box'
+                      const contacto = boxId ? datos.contactoDeBox.get(boxId) : undefined
                       const vencida = (m.diasHastaRevision ?? 0) < 0
 
                       return (
-                        <li key={m.id}>
+                        <li
+                          key={m.id}
+                          className="flex items-center gap-3 px-3 py-2 transition-colors duration-rapido ease-estandar hover:bg-accent"
+                        >
+                          {/*
+                           * El nombre lleva al detalle y el teléfono va fuera del
+                           * enlace: un ancla dentro de otra anida dos `a` y el
+                           * navegador rompe el segundo.
+                           */}
                           <Link
                             to={`/boxes/${boxId}/maquinas/${m.id}`}
-                            className="flex items-center gap-3 px-3 py-3 transition-colors duration-rapido ease-estandar hover:bg-accent"
+                            className="flex min-w-0 flex-1 items-center gap-3 py-1"
                           >
                             {vencida ? (
                               <CalendarX2 className="h-4 w-4 shrink-0 text-destructive" />
@@ -134,25 +143,45 @@ export default function Panel() {
                             <div className="min-w-0 flex-1">
                               <span className="titulo-tarjeta">{m.nombre}</span>
                               <p className="truncate texto-meta">
-                                {boxId ? datos.nombreDeBox.get(boxId) ?? 'Box' : 'Box'}
-                              </p>
-                            </div>
-
-                            <div className="shrink-0 text-right">
-                              <p
-                                className={
-                                  revision?.avisa
-                                    ? 'texto-micro text-destructive'
-                                    : 'texto-micro text-muted-foreground'
-                                }
-                              >
-                                {revision?.texto}
-                              </p>
-                              <p className="texto-micro text-muted-foreground">
-                                {formatearFecha(m.proximaRevision)}
+                                {[box, contacto?.nombre].filter(Boolean).join(' · ')}
                               </p>
                             </div>
                           </Link>
+
+                          <div className="shrink-0 text-right">
+                            <p
+                              className={
+                                revision?.avisa
+                                  ? 'texto-micro text-destructive'
+                                  : 'texto-micro text-muted-foreground'
+                              }
+                            >
+                              {revision?.texto}
+                            </p>
+                            <p className="texto-micro text-muted-foreground">
+                              {formatearFecha(m.proximaRevision)}
+                            </p>
+                          </div>
+
+                          {contacto?.telefono ? (
+                            <a
+                              href={`tel:${contacto.telefono.replace(/\s/g, '')}`}
+                              // En el móvil solo cabe el icono; el nombre del
+                              // contacto ya se lee en la línea de arriba.
+                              aria-label={`Llamar a ${contacto.nombre ?? 'el contacto del box'}: ${contacto.telefono}`}
+                              title={
+                                contacto.nombre
+                                  ? `${contacto.nombre} · ${contacto.telefono}`
+                                  : contacto.telefono
+                              }
+                              className="inline-flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-md border px-2 texto-micro text-muted-foreground transition-colors duration-rapido ease-estandar hover:bg-background hover:text-foreground"
+                            >
+                              <Phone className="h-3.5 w-3.5 shrink-0" />
+                              <span className="hidden tabular-nums sm:inline">
+                                {contacto.telefono}
+                              </span>
+                            </a>
+                          ) : null}
                         </li>
                       )
                     })}
@@ -183,11 +212,7 @@ export default function Panel() {
                         )}
 
                         <div className="min-w-0 flex-1">
-                          <span
-                            className={b.activo ? 'titulo-tarjeta' : 'titulo-tarjeta opacity-60'}
-                          >
-                            {b.nombre}
-                          </span>
+                          <span className="titulo-tarjeta">{b.nombre}</span>
                           <p className="truncate texto-meta">
                             {[
                               b.poblacion,
@@ -197,7 +222,6 @@ export default function Panel() {
                               b.resumen.vencidas > 0
                                 ? plural(b.resumen.vencidas, 'vencida', 'vencidas')
                                 : null,
-                              !b.activo ? 'inactivo' : null,
                             ]
                               .filter(Boolean)
                               .join(' · ')}
@@ -214,6 +238,17 @@ export default function Panel() {
                     </li>
                   ))}
                 </ul>
+              </section>
+
+              <ValorParque valor={valorDelParque(datos.maquinas)} />
+
+              <section className="grid gap-3 sm:grid-cols-3">
+                <Cifra valor={datos.visitasHechas} etiqueta={`visitas terminadas en ${dias} días`} />
+                <Cifra valor={datos.visitasAbiertas} etiqueta="visitas abiertas en ese periodo" />
+                <Cifra
+                  valor={datos.porBox.filter((b) => b.resumen.total > 0).length}
+                  etiqueta="boxes con parque"
+                />
               </section>
             </>
           )

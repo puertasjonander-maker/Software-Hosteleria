@@ -23,6 +23,7 @@ export function GaleriaFotos({
   momento,
   locales,
   subidas,
+  sinComprobar = false,
   procesando,
   inputRef,
   onElegir,
@@ -32,6 +33,12 @@ export function GaleriaFotos({
   momento: MomentoFoto
   locales: FotoEncolada[]
   subidas: FotoSubida[]
+  /**
+   * Las ya subidas no se han podido comprobar (sin red, sesión caducada). Vacío
+   * y «no lo sabemos» se leían igual: el técnico volvía a hacer fotos que ya
+   * existían.
+   */
+  sinComprobar?: boolean
   procesando: boolean
   inputRef: React.RefObject<HTMLInputElement>
   onElegir: (ficheros: FileList | null) => void
@@ -70,6 +77,13 @@ export function GaleriaFotos({
         ) : null}
       </div>
 
+      {sinComprobar ? (
+        <p className="texto-micro text-warn">
+          Las fotos ya subidas no se han podido comprobar ahora mismo. Si faltan, aparecerán al
+          recuperar la cobertura.
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         {suyas.map((f) => (
           <img key={f.id} src={f.url} alt="" className="h-20 w-20 rounded-md border object-cover" />
@@ -82,13 +96,21 @@ export function GaleriaFotos({
               alt=""
               className="h-20 w-20 rounded-md border border-dashed object-cover"
             />
+            {/*
+             * El área que se toca es de 44 px aunque el círculo que se ve siga
+             * siendo de 24: el borrado está pegado a la miniatura y al botón de
+             * hacer otra foto, y con guantes el roce se da. Borrar tiene
+             * «deshacer» al lado por el mismo motivo.
+             */}
             <button
               type="button"
               aria-label="Borrar foto"
               onClick={() => void onBorrar(f.id)}
-              className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground"
+              className="absolute -right-3 -top-3 flex h-11 w-11 items-start justify-start p-2"
             >
-              <Trash2 className="h-3 w-3" />
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground">
+                <Trash2 className="h-3 w-3" />
+              </span>
             </button>
           </div>
         ))}

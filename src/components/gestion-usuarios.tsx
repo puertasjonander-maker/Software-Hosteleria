@@ -12,6 +12,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -274,11 +275,39 @@ function FilaUsuario({
   onCambio: () => void
 }) {
   const [ocupado, iniciar] = useOcupado()
+  /*
+   * Ninguna de las dos acciones se puede deshacer, así que ninguna se dispara al
+   * primer toque: se pide confirmación y se dice el alcance dentro de ella. El rol
+   * se explica aquí y no solo en el alta porque cambiar a «Técnico» abre TODOS los
+   * boxes, y eso no se deduce del desplegable.
+   */
+  const [confirmacion, setConfirmacion] = useState<
+    { tipo: 'rol'; rol: RolUsuario } | { tipo: 'contrasena' } | null
+  >(null)
+
+  const nombre = usuario.nombre || usuario.email || 'este usuario'
 
   function correr(accion: () => Promise<{ ok: true } | { ok: false; mensaje: string }>) {
     iniciar(async () => {
       const r = await accion()
       if (r.ok) onCambio()
+      else toast.error(r.mensaje)
+    })
+  }
+
+  function confirmar() {
+    const pendiente = confirmacion
+    setConfirmacion(null)
+    if (!pendiente) return
+
+    if (pendiente.tipo === 'rol') {
+      correr(() => cambiarRol(usuario.id, pendiente.rol, miId))
+      return
+    }
+
+    iniciar(async () => {
+      const r = await restablecerContrasena(usuario.id)
+      if (r.ok) onCredencial(r.credencial)
       else toast.error(r.mensaje)
     })
   }
@@ -304,9 +333,11 @@ function FilaUsuario({
       <Select
         aria-label={`Rol de ${usuario.nombre || usuario.email}`}
         className="h-11 w-auto min-w-[9rem] sm:h-9"
+        // El valor lo manda el usuario, no el desplegable: si se cancela la
+        // confirmación el selector vuelve solo al rol que tiene de verdad.
         value={usuario.rol}
         disabled={ocupado || usuario.esTu}
-        onChange={(e) => correr(() => cambiarRol(usuario.id, e.target.value as RolUsuario, miId))}
+        onChange={(e) => setConfirmacion({ tipo: 'rol', rol: e.target.value as RolUsuario })}
       >
         {ROLES.map((r) => (
           <option key={r} value={r}>
@@ -342,13 +373,7 @@ function FilaUsuario({
           variant="ghost"
           disabled={ocupado}
           title="Generar una contraseña nueva"
-          onClick={() =>
-            iniciar(async () => {
-              const r = await restablecerContrasena(usuario.id)
-              if (r.ok) onCredencial(r.credencial)
-              else toast.error(r.mensaje)
-            })
-          }
+          onClick={() => setConfirmacion({ tipo: 'contrasena' })}
         >
           <KeyRound />
           <span className="sr-only">Nueva contraseña</span>
@@ -363,8 +388,60 @@ function FilaUsuario({
           {usuario.activo ? 'Desactivar' : 'Activar'}
         </Button>
       </div>
+
+      <Dialog open={confirmacion !== null} onOpenChange={(v) => (v ? null : setConfirmacion(null))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmacion?.tipo === 'contrasena'
+                ? `¿Nueva contraseña para ${nombre}?`
+                : `¿Cambiar el rol de ${nombre}?`}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmacion?.tipo === 'contrasena'
+                ? 'La que tiene ahora deja de funcionar en el momento, y la nueva se enseña una sola vez. No se puede deshacer ni volver a consultar.'
+                : 'El cambio es inmediato y sin vuelta atrás: se aplica a lo que ve en cuanto recargue.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {confirmacion?.tipo === 'rol' ? (
+            <dl className="space-y-3 rounded-lg border bg-muted/40 p-4">
+              <Repaso titulo="Rol" valor={ETIQUETA_ROL[confirmacion.rol]} destacado />
+              <Repaso titulo="Podrá" valor={alcanceDelRol(confirmacion.rol)} />
+            </dl>
+          ) : null}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmacion(null)} disabled={ocupado}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmar} disabled={ocupado}>
+              {ocupado ? <Loader2 className="animate-spin" /> : null}
+              {confirmacion?.tipo === 'contrasena' ? 'Generar contraseña' : 'Cambiar el rol'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </li>
   )
+}
+
+/**
+ * Qué alcanza cada rol, en una frase.
+ *
+ * Es la misma frase que el alta enseña al revisar, y vive aquí porque la
+ * confirmación de un cambio de rol tiene que decir lo mismo: que «Técnico» abre
+ * todos los boxes es lo que más se olvida al cambiar a alguien desde la lista.
+ */
+function alcanceDelRol(rol: RolUsuario): string {
+  switch (rol) {
+    case 'cliente':
+      return 'Ver su box: el parque, el historial y las fotos. No puede cambiar nada.'
+    case 'tecnico':
+      return 'Trabajar en TODOS los boxes: visitas, partes y fotos de cualquier cliente.'
+    case 'admin':
+      return 'Todos los boxes, y además dar de alta boxes y usuarios y gestionar los accesos.'
+  }
 }
 
 /**

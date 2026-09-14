@@ -21,13 +21,21 @@ import { Skeleton, SkeletonLista } from '@/components/ui/skeleton'
 export default function Maquina() {
   const { id = '', maquinaId = '' } = useParams()
 
+  /*
+   * La máquina se pide CON el box de la dirección, que es la comprobación que
+   * este comentario decía que existía y no existía: `obtenerMaquina` no recibía
+   * el cliente, así que un enlace viejo guardado en el móvil abría la ficha de
+   * la máquina de otro box bajo la cabecera equivocada, y al guardar la ficha se
+   * reescribía `cliente_id`. Ahora, si la máquina no es de ese box, no hay fila
+   * y se ve el error con su botón de reintentar, que es honesto.
+   */
   const consulta = useConsulta(
     async () => {
-      const maquina = await obtenerMaquina(maquinaId)
+      const maquina = await obtenerMaquina(maquinaId, id)
       const eventos = await cargarHistorico(maquinaId, { conAutores: true })
       return { maquina, eventos }
     },
-    [maquinaId],
+    [maquinaId, id],
   )
 
   useTitulo(consulta.datos?.maquina.nombre ?? 'Máquina')

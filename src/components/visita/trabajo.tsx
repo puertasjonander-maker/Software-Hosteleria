@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { PuntoSemaforo } from '@/components/chip-semaforo'
 import type { ParteTrabajo, Visita } from '@/datos/visitas'
 import { ParteMaquina } from './parte-maquina'
+import { AnadirMaquina } from './anadir-maquina'
 
 /**
  * Pantalla de trabajo de una visita (EBX-202).
@@ -60,12 +61,26 @@ export function Trabajo({
       setPendientes(r.pendientes)
       setSubiendo(false)
 
-      if (r.subidas > 0) {
-        if (!silencioso) toast.success('Todo subido')
-        onCambio()
-      } else if (r.fallos > 0 && !silencioso) {
-        toast.error('No hemos podido subirlo todo', { description: 'Se reintentará solo.' })
+      /*
+       * «Todo subido» solo si de verdad se subió todo.
+       *
+       * Antes bastaba con que una foto subiera para cantar victoria, aunque
+       * siete hubieran fallado: el técnico leía «Todo subido», el parte se veía
+       * hecho en pantalla y no llegaba nunca al servidor. El cliente no veía el
+       * trabajo y nadie sabía por qué.
+       */
+      if (r.fallos > 0) {
+        if (!silencioso) {
+          toast.error(
+            r.subidas > 0 ? 'Se ha subido una parte, pero no todo' : 'No hemos podido subirlo todo',
+            { description: 'Se reintentará solo. Si sigue igual, avisa.' },
+          )
+        }
+      } else if (r.subidas > 0 && !silencioso) {
+        toast.success('Todo subido')
       }
+
+      if (r.subidas > 0) onCambio()
     },
     [refrescarPendientes, onCambio],
   )
@@ -179,6 +194,23 @@ export function Trabajo({
           </ul>
         </section>
       ) : null}
+
+      {/*
+       * La máquina que aparece sobre la marcha. Va suelto y no dentro de «Por
+       * hacer» a propósito: no es una fila más de la lista, es la puerta a una
+       * que todavía no está.
+       */}
+      <div className="flex justify-end">
+        <AnadirMaquina
+          servicioId={servicioId}
+          clienteId={clienteId}
+          yaEnLaVisita={new Set(partes.map((p) => p.maquinaId))}
+          onAnadida={() => {
+            void refrescarPendientes()
+            onCambio()
+          }}
+        />
+      </div>
 
       {hechas.length > 0 ? (
         <section className="space-y-2">

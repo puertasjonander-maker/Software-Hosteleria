@@ -3,9 +3,9 @@ import { MapPin } from 'lucide-react'
 import { useConsulta } from '@/lib/consulta'
 import { useSesionActiva } from '@/lib/sesion'
 import { miParque } from '@/datos/parque'
-import { ultimaVisitaHecha } from '@/datos/visitas'
+import { resumenUltimaVisita } from '@/datos/visitas'
 import { peorSemaforo, resumirParque } from '@/lib/parque'
-import { fecha as formatearFecha } from '@/lib/format'
+import { fecha as formatearFecha, plural } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonLista } from '@/components/ui/skeleton'
 import { EstadoVacio } from '@/components/ui/states'
@@ -13,6 +13,11 @@ import { ChipSemaforo } from '@/components/chip-semaforo'
 import { Cargador, useTitulo } from '@/components/cargador'
 import { ListaParque } from '@/components/lista-parque'
 import { ResumenParque } from '@/components/resumen-parque'
+import { ValorParque } from '@/components/valor-parque'
+import { valorDelParque } from '@/lib/valor'
+
+/** Cuántos trabajos se enseñan antes de resumir el resto en «y N más». */
+const TRABAJOS_VISIBLES = 4
 
 /**
  * La vista del cliente (EBX-402).
@@ -33,7 +38,7 @@ export default function MiBox() {
   const consulta = useConsulta(
     async () => {
       if (!esCliente || !tieneBox) return { maquinas: [], ultima: null }
-      const [maquinas, ultima] = await Promise.all([miParque(), ultimaVisitaHecha()])
+      const [maquinas, ultima] = await Promise.all([miParque(), resumenUltimaVisita()])
       return { maquinas, ultima }
     },
     [esCliente, tieneBox],
@@ -63,6 +68,9 @@ export default function MiBox() {
    * Un cliente sin box asignado no ve nada, y aquí lo decimos con palabras en vez
    * de con una lista vacía. Es el estado en el que nace un usuario recién
    * invitado: existe, entra, y todavía no está atado a ningún box.
+   *
+   * La acción es de verdad —escribirnos— y no un adorno: es el único camino que
+   * tiene desde aquí para desbloquearse, y sin ella la pantalla era un callejón.
    */
   if (!tieneBox) {
     return (
@@ -70,6 +78,13 @@ export default function MiBox() {
         <EstadoVacio
           titulo="Tu usuario todavía no está asociado a ningún box"
           descripcion="Escríbenos y lo dejamos listo en un minuto. Hasta entonces no hay nada que enseñarte aquí."
+          accion={
+            <Button asChild variant="outline">
+              <a href="mailto:hola@ergobox.es?subject=Asociar%20mi%20usuario%20a%20mi%20box">
+                Escribir a hola@ergobox.es
+              </a>
+            </Button>
+          }
         />
       </div>
     )
@@ -85,7 +100,7 @@ export default function MiBox() {
           <div className="space-y-4">
             <Skeleton className="h-8 w-56" />
             <Skeleton className="h-4 w-72" />
-            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-24 w-full" />
             <SkeletonLista filas={6} />
           </div>
         }
@@ -109,9 +124,15 @@ export default function MiBox() {
                       {[box?.direccion, box?.poblacion].filter(Boolean).join(', ')}
                     </span>
                   ) : null}
-                  {ultima ? <span>Última visita: {formatearFecha(ultima)}</span> : null}
                 </div>
               </header>
+
+              {/*
+               * El trabajo de la última vez, contado de una vez (JTBD-3). Antes solo
+               * había una fecha en la cabecera, y para saber qué se hizo había que
+               * abrir máquina a máquina.
+               */}
+              {ultima ? <UltimaVisita ultima={ultima} /> : null}
 
               {maquinas.length === 0 ? (
                 <EstadoVacio
@@ -121,6 +142,7 @@ export default function MiBox() {
               ) : (
                 <>
                   <ResumenParque resumen={resumen} />
+                  <ValorParque valor={valorDelParque(maquinas)} />
 
                   <section className="space-y-3">
                     <h2 className="titulo-seccion">Tus máquinas</h2>
@@ -137,5 +159,91 @@ export default function MiBox() {
         }}
       </Cargador>
     </div>
+  )
+}
+
+/**
+ * La última visita, en un bloque.
+ *
+ * Es un resumen: la fecha, cuántas máquinas se tocaron, qué se hizo —agrupado, sin
+ * repetir el mismo trabajo doce veces— y un par de fotos del después. El detalle
+ * completo, máquina a máquina, sigue estando a un toque, así que aquí no se
+ * duplica el histórico: se enseña lo que se pregunta al entrar.
+ */
+function UltimaVisita({
+  ultima,
+}: {
+  ultima: {
+    fecha: string
+    maquinas: number
+    trabajos: { texto: string; veces: number }[]
+    fotos: { id: string; url: string }[]
+  }
+}) {
+  const visibles = ultima.trabajos.slice(0, TRABAJOS_VISIBLES)
+  const restantes = ultima.trabajos.length - visibles.length
+
+  return (
+    <section className="space-y-3">
+      <h2 className="titulo-seccion">Última visita</h2>
+
+      <div className="rounded-lg border bg-card px-3 py-3">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="titulo-tarjeta">{formatearFecha(ultima.fecha)}</span>
+          <span className="texto-meta text-muted-foreground">
+            {plural(ultima.maquinas, 'máquina tocada', 'máquinas tocadas')}
+          </span>
+        </div>
+
+        {visibles.length > 0 ? (
+          <ul className="mt-2 space-y-0.5">
+            {visibles.map((t) => (
+              <li key={t.texto} className="line-clamp-2 texto-meta">
+                {t.texto}
+                {/* Una máquina sola no lleva «×1»: el número solo dice algo cuando repite. */}
+                {t.veces > 1 ? (
+                  <span className="text-muted-foreground"> ×{t.veces}</span>
+                ) : null}
+              </li>
+            ))}
+            {restantes > 0 ? (
+              <li className="texto-micro text-muted-foreground">
+                Y {restantes} más, en la ficha de cada máquina.
+              </li>
+            ) : null}
+          </ul>
+        ) : (
+          <p className="mt-2 texto-meta text-muted-foreground">
+            En esa visita no quedó ningún parte cerrado con trabajo apuntado.
+          </p>
+        )}
+
+        {ultima.fotos.length > 0 ? (
+          <div className="mt-3 space-y-1">
+            <p className="texto-micro font-semibold uppercase tracking-wide text-muted-foreground">
+              Después
+            </p>
+            <div className="flex gap-2">
+              {ultima.fotos.map((f) => (
+                <a
+                  key={f.id}
+                  href={f.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 overflow-hidden rounded-md border transition-opacity duration-rapido ease-estandar hover:opacity-90"
+                >
+                  <img
+                    src={f.url}
+                    alt="Foto de después de la última visita"
+                    loading="lazy"
+                    className="h-20 w-20 object-cover"
+                  />
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
   )
 }

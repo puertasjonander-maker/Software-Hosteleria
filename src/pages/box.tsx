@@ -15,6 +15,8 @@ import { FichaBox } from '@/components/ficha-box'
 import { FormularioMaquina } from '@/components/formulario-maquina'
 import { ListaParque } from '@/components/lista-parque'
 import { ResumenParque } from '@/components/resumen-parque'
+import { ValorParque } from '@/components/valor-parque'
+import { valorDelParque } from '@/lib/valor'
 
 export default function Box() {
   const { id = '' } = useParams()
@@ -105,6 +107,7 @@ export default function Box() {
               </div>
 
               <ResumenParque resumen={resumen} />
+              <ValorParque valor={valorDelParque(maquinas)} />
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
