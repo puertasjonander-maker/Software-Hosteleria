@@ -5,6 +5,7 @@ import { useConsulta } from '@/lib/consulta'
 import { useSesionActiva } from '@/lib/sesion'
 import { obtenerBox } from '@/datos/boxes'
 import { parqueDeBox } from '@/datos/parque'
+import { proximaVisita } from '@/datos/visitas'
 import { peorSemaforo, resumirParque } from '@/lib/parque'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonLista } from '@/components/ui/skeleton'
@@ -14,6 +15,7 @@ import { Cargador, useTitulo } from '@/components/cargador'
 import { FichaBox } from '@/components/ficha-box'
 import { FormularioMaquina } from '@/components/formulario-maquina'
 import { ListaParque } from '@/components/lista-parque'
+import { ProximaVisita } from '@/components/proxima-visita'
 import { ResumenParque } from '@/components/resumen-parque'
 import { ValorParque } from '@/components/valor-parque'
 import { valorDelParque } from '@/lib/valor'
@@ -25,8 +27,12 @@ export default function Box() {
 
   const consulta = useConsulta(
     async () => {
-      const [box, maquinas] = await Promise.all([obtenerBox(id), parqueDeBox(id)])
-      return { box, maquinas }
+      const [box, maquinas, proxima] = await Promise.all([
+        obtenerBox(id),
+        parqueDeBox(id),
+        proximaVisita(id),
+      ])
+      return { box, maquinas, proxima }
     },
     [id],
   )
@@ -46,7 +52,7 @@ export default function Box() {
           </div>
         }
       >
-        {({ box, maquinas }) => {
+        {({ box, maquinas, proxima }) => {
           const resumen = resumirParque(maquinas)
           const peor = peorSemaforo(maquinas.filter((m) => m.activa).map((m) => m.estado))
 
@@ -76,6 +82,7 @@ export default function Box() {
                         : box.contacto_telefono}
                     </a>
                   ) : null}
+                  <ProximaVisita fecha={proxima} />
                 </div>
 
                 {box.notas ? <p className="texto-meta">{box.notas}</p> : null}

@@ -3,7 +3,7 @@ import { MapPin } from 'lucide-react'
 import { useConsulta } from '@/lib/consulta'
 import { useSesionActiva } from '@/lib/sesion'
 import { miParque } from '@/datos/parque'
-import { resumenUltimaVisita } from '@/datos/visitas'
+import { resumenUltimaVisita, proximaVisita } from '@/datos/visitas'
 import { peorSemaforo, resumirParque } from '@/lib/parque'
 import { fecha as formatearFecha, plural } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { EstadoVacio } from '@/components/ui/states'
 import { ChipSemaforo } from '@/components/chip-semaforo'
 import { Cargador, useTitulo } from '@/components/cargador'
 import { ListaParque } from '@/components/lista-parque'
+import { ProximaVisita } from '@/components/proxima-visita'
 import { ResumenParque } from '@/components/resumen-parque'
 import { ValorParque } from '@/components/valor-parque'
 import { valorDelParque } from '@/lib/valor'
@@ -37,9 +38,13 @@ export default function MiBox() {
 
   const consulta = useConsulta(
     async () => {
-      if (!esCliente || !tieneBox) return { maquinas: [], ultima: null }
-      const [maquinas, ultima] = await Promise.all([miParque(), resumenUltimaVisita()])
-      return { maquinas, ultima }
+      if (!esCliente || !tieneBox) return { maquinas: [], ultima: null, proxima: null }
+      const [maquinas, ultima, proxima] = await Promise.all([
+        miParque(),
+        resumenUltimaVisita(),
+        proximaVisita(),
+      ])
+      return { maquinas, ultima, proxima }
     },
     [esCliente, tieneBox],
   )
@@ -105,7 +110,7 @@ export default function MiBox() {
           </div>
         }
       >
-        {({ maquinas, ultima }) => {
+        {({ maquinas, ultima, proxima }) => {
           const resumen = resumirParque(maquinas)
           const peor = peorSemaforo(maquinas.filter((m) => m.activa).map((m) => m.estado))
 
@@ -124,6 +129,7 @@ export default function MiBox() {
                       {[box?.direccion, box?.poblacion].filter(Boolean).join(', ')}
                     </span>
                   ) : null}
+                  <ProximaVisita fecha={proxima} />
                 </div>
               </header>
 

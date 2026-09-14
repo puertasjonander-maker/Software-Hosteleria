@@ -126,7 +126,9 @@ const PARQUE = [
 const MAQUINAS = PARQUE.map((m) => ({ id: m.id, cliente_id: m.cliente_id, estado: m.estado, activa: m.activa, proxima_revision: m.proxima_revision, nombre: m.nombre, tipo: m.tipo }))
 
 const SERVICIOS = [
-  { id: '30000000-0000-0000-0000-00000000000a', cliente_id: BOX_A, fecha: '2026-09-08', estado: 'planificado', tecnico_id: ADMIN, notas: null, cerrado_at: null, created_by: ADMIN, created_at: '', updated_at: '' },
+  // En el futuro a propósito: es la única planificada, y es la que alimenta la
+  // línea «Próxima visita» de la ficha del box y de la vista del dueño.
+  { id: '30000000-0000-0000-0000-00000000000a', cliente_id: BOX_A, fecha: '2026-09-20', estado: 'planificado', tecnico_id: ADMIN, notas: null, cerrado_at: null, created_by: ADMIN, created_at: '', updated_at: '' },
   { id: '30000000-0000-0000-0000-00000000000b', cliente_id: BOX_A, fecha: '2026-04-20', estado: 'hecho', tecnico_id: ADMIN, notas: null, cerrado_at: '', created_by: ADMIN, created_at: '', updated_at: '' },
 ]
 
@@ -296,6 +298,8 @@ await comoRol('admin', async (pagina) => {
   comprobar('y su parque ordenado por urgencia', box.indexOf('RowErg 5') < box.indexOf('Echo bike 1'))
   comprobar('y la máquina fuera del parque va al final', box.indexOf('SkiErg 1') > box.indexOf('Echo bike 1'))
   comprobar('con el aviso de fuera del parque visible', box.includes('Fuera del parque'))
+  // «¿Y ahora qué?»: la ficha del box dice cuándo viene alguien.
+  comprobar('y cuándo es la próxima visita', contiene(box, 'Próxima visita: 20/09/2026'))
   await pagina.screenshot({ path: `${SP}/spa-box.png`, fullPage: true })
   // EBX-505: el valor estimado, con el desglose. Solo las activas suman: el
   // SkiErg está de baja, así que 1 remo (1.195 €) + 1 air bike (900 €) = 2.095 €.
@@ -525,10 +529,9 @@ await comoRol('cliente', async (pagina) => {
   comprobar('y qué se hizo en la última visita', contiene(miBox, 'Última visita'))
   comprobar('con las máquinas que se tocaron', contiene(miBox, '1 máquina tocada'))
   comprobar('y el trabajo hecho, tal y como se apuntó', contiene(miBox, 'Limpiar y engrasar cadena'))
-  comprobar(
-    'y las fotos del después',
-    (await pagina.getByRole('img', { name: /Foto de después/ }).count()) >= 1,
-  )
+  comprobar('y las fotos del después', (await pagina.getByRole('img', { name: /Foto de después/ }).count()) >= 1)
+  // Y cuándo vuelve a venir alguien, que era la otra mitad de la pregunta.
+  comprobar('y cuándo es la próxima visita', contiene(miBox, 'Próxima visita: 20/09/2026'))
   await pagina.screenshot({ path: `${SP}/spa-mi-box.png`, fullPage: true })
 
   await ir(pagina, `/mi-box/maquinas/${MAQ}`)

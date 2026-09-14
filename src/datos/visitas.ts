@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { oReventar, resultado, traducir, type Resultado } from '@/datos/resultado'
 import { protocoloDe } from '@/lib/protocolos'
+import { hoyEnMadrid } from '@/lib/time'
 import type {
   EstadoServicio,
   ParteRow,
@@ -406,6 +407,30 @@ async function fotosDelDespues(parteIds: string[]): Promise<FotoDeParte[]> {
 }
 
 export type FotoDeParte = { id: string; momento: 'antes' | 'despues'; url: string }
+
+/**
+ * Cuándo es la próxima visita planificada, si hay alguna.
+ *
+ * Faltaba en todas las pantallas: ni la ficha del box ni la vista del dueño decían
+ * si venía alguien. Quien entra en rojo quiere saber dos cosas, y solo se
+ * contestaba una. Para el cliente, además, es la diferencia entre «me lo han
+ * dicho y estoy esperando» y «no sé si esto sigue en marcha».
+ *
+ * Sin `clienteId` decide la RLS: el dueño ve la visita de su box y solo la suya.
+ */
+export async function proximaVisita(clienteId?: string): Promise<string | null> {
+  const base = supabase
+    .from('servicios')
+    .select('fecha')
+    .in('estado', ['planificado', 'en_curso'])
+    .gte('fecha', hoyEnMadrid())
+    .order('fecha', { ascending: true })
+    .limit(1)
+
+  const { data } = await (clienteId ? base.eq('cliente_id', clienteId) : base)
+
+  return data?.[0]?.fecha ?? null
+}
 
 /**
  * Enlaces firmados de las fotos ya subidas de un parte (EBX-204).
