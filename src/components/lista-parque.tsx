@@ -62,7 +62,12 @@ export function ListaParque({
                   ) : null}
                 </div>
                 <p className="mt-0.5 truncate texto-meta">
-                  {[ETIQUETA_TIPO_MAQUINA[m.tipo], m.marca, m.numSerie ? `nº ${m.numSerie}` : null]
+                  {/* El nº de serie va primero a propósito: es el dato que
+                      identifica la máquina —el de la etiqueta— y la línea se
+                      corta con puntos suspensivos cuando no cabe. Con «Remo ·
+                      Concept2 · nº 250…» lo que se perdía era justo lo único que
+                      no se puede deducir del nombre. */}
+                  {[m.numSerie ? `nº ${m.numSerie}` : null, ETIQUETA_TIPO_MAQUINA[m.tipo], m.marca]
                     .filter(Boolean)
                     .join(' · ')}
                 </p>

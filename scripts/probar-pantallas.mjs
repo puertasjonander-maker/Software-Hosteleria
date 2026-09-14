@@ -300,7 +300,31 @@ await comoRol('admin', async (pagina) => {
   comprobar('con el aviso de fuera del parque visible', box.includes('Fuera del parque'))
   // «¿Y ahora qué?»: la ficha del box dice cuándo viene alguien.
   comprobar('y cuándo es la próxima visita', contiene(box, 'Próxima visita: 20/09/2026'))
+  // El nº de serie es el dato que identifica la máquina y la línea se trunca:
+  // tiene que ir el primero, no el último.
+  comprobar(
+    'y el nº de serie va primero, que es lo que se corta',
+    /^nº\s/.test((await pagina.locator('ul li p.texto-meta').first().innerText()).trim()),
+  )
   await pagina.screenshot({ path: `${SP}/spa-box.png`, fullPage: true })
+  /*
+   * La barra de abajo se da por hecha y no siempre lo está: es `fixed`, así que
+   * en una captura de página completa aparece a media imagen. Eso es un artefacto
+   * de la captura, no un fallo de la app, y ya ha hecho perder tiempo dos veces
+   * (una revisión visual lo marcó como «lo peor de la pantalla»). Se mide una vez
+   * y se deja escrito: pegada al borde de abajo y con hueco reservado debajo del
+   * contenido (`pb-24` en el marco).
+   */
+  const barra = await pagina.evaluate(() => {
+    const el = document.querySelector('nav.fixed')
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return { abajo: Math.round(r.bottom), ventana: window.innerHeight }
+  })
+  comprobar(
+    'la barra de abajo está pegada al borde de la ventana',
+    barra !== null && barra.abajo >= barra.ventana - 2,
+  )
   // EBX-505: el valor estimado, con el desglose. Solo las activas suman: el
   // SkiErg está de baja, así que 1 remo (1.195 €) + 1 air bike (900 €) = 2.095 €.
   //
