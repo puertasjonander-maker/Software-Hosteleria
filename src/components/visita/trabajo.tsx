@@ -7,6 +7,7 @@ import { tamano } from '@/lib/foto'
 import { contarPendientes, fotosAtascadas, partesEnCola, sincronizar, type Pendientes } from '@/lib/cola-visita'
 import { Button } from '@/components/ui/button'
 import { AvisoDesactualizado } from '@/components/ui/states'
+import { IconoMaquina } from '@/components/icono-maquina'
 import { PuntoSemaforo } from '@/components/chip-semaforo'
 import type { ParteTrabajo, Visita } from '@/datos/visitas'
 import { ParteMaquina } from './parte-maquina'
@@ -314,8 +315,11 @@ function FilaParte({ parte, onAbrir }: { parte: ParteTrabajo; onAbrir: () => voi
         )}
 
         <div className="min-w-0 flex-1">
-          <span className={parte.hecho ? 'titulo-tarjeta opacity-60' : 'titulo-tarjeta'}>
-            {parte.nombre}
+          <span className="flex items-center gap-2">
+            <IconoMaquina tipo={parte.tipo} className="text-muted-foreground" />
+            <span className={parte.hecho ? 'titulo-tarjeta truncate opacity-60' : 'titulo-tarjeta truncate'}>
+              {parte.nombre}
+            </span>
           </span>
           <p className="mt-0.5 truncate texto-meta">
             {[ETIQUETA_TIPO_MAQUINA[parte.tipo], parte.ubicacion, parte.marca]

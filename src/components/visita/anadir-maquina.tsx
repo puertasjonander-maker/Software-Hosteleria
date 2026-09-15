@@ -6,6 +6,7 @@ import { anadirMaquinaAVisita } from '@/datos/visitas'
 import { ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
 import type { MaquinaFila } from '@/lib/parque'
 import { PuntoSemaforo } from '@/components/chip-semaforo'
+import { IconoMaquina } from '@/components/icono-maquina'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EstadoError, EstadoVacio } from '@/components/ui/states'
@@ -112,7 +113,10 @@ export function AnadirMaquina({
                         <PuntoSemaforo estado={m.estado} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="titulo-tarjeta block truncate">{m.nombre}</span>
+                        <span className="flex items-center gap-2">
+                          <IconoMaquina tipo={m.tipo} className="text-muted-foreground" />
+                          <span className="titulo-tarjeta truncate">{m.nombre}</span>
+                        </span>
                         <span className="mt-0.5 block truncate texto-meta">
                           {[ETIQUETA_TIPO_MAQUINA[m.tipo], m.ubicacion, m.marca]
                             .filter(Boolean)

@@ -4,6 +4,7 @@ import { type MaquinaFila, ordenarPorUrgencia, textoRevision } from '@/lib/parqu
 import { ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
 import { fecha as formatearFecha } from '@/lib/format'
 import { PuntoSemaforo } from '@/components/chip-semaforo'
+import { IconoMaquina } from '@/components/icono-maquina'
 
 /**
  * El parque de un box como lista (EBX-303).
@@ -35,6 +36,11 @@ export function ListaParque({
               className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors duration-rapido ease-estandar hover:bg-accent"
             >
               <PuntoSemaforo estado={m.estado} />
+
+              {/* El icono del tipo, junto al nombre: es lo que hace que una lista
+                  de seis clases distintas se lea de un vistazo sin leer la línea
+                  de detalle. */}
+              <IconoMaquina tipo={m.tipo} className="text-muted-foreground" />
 
               <div className="min-w-0 flex-1">
                 {/* "Fuera del parque" va fuera del texto meta, que se trunca, y en

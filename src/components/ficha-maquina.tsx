@@ -3,6 +3,7 @@ import { textoRevision } from '@/lib/parque'
 import { ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
 import { fecha as formatearFecha, plural } from '@/lib/format'
 import { ChipSemaforo } from '@/components/chip-semaforo'
+import { IconoMaquina } from '@/components/icono-maquina'
 
 /**
  * La cabecera de una ficha de máquina: quién es y cuándo le toca.
@@ -24,6 +25,7 @@ export function CabeceraMaquina({ maquina }: { maquina: MaquinaFila }) {
   return (
     <header className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
+        <IconoMaquina tipo={maquina.tipo} className="size-5 text-muted-foreground" />
         <h1 className="titulo-pantalla">{maquina.nombre}</h1>
         <ChipSemaforo estado={maquina.estado} />
         {!maquina.activa ? (

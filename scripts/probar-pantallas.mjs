@@ -317,6 +317,10 @@ await comoRol('admin', async (pagina) => {
   comprobar('y su parque ordenado por urgencia', box.indexOf('RowErg 5') < box.indexOf('Echo bike 1'))
   comprobar('y la máquina fuera del parque va al final', box.indexOf('SkiErg 1') > box.indexOf('Echo bike 1'))
   comprobar('con el aviso de fuera del parque visible', box.includes('Fuera del parque'))
+  // El icono del tipo: la lista se lee de un vistazo sin leer la línea de detalle.
+  comprobar('y cada máquina con el icono de su tipo',
+    (await pagina.locator('[data-maquina="rowerg"]').count()) > 0,
+  )
   // «¿Y ahora qué?»: la ficha del box dice cuándo viene alguien.
   comprobar('y cuándo es la próxima visita', contiene(box, 'Próxima visita: 20/09/2026'))
   // El nº de serie es el dato que identifica la máquina y la línea se trunca:
@@ -363,6 +367,10 @@ await comoRol('admin', async (pagina) => {
   const maquina = await texto(pagina)
   comprobar('la ficha de máquina pinta el historial', maquina.includes('Cadena engrasada'))
   comprobar('con el alta al final', maquina.includes('Alta en el parque'))
+  // La cabecera lleva el icono del tipo, que es de qué máquina estamos hablando.
+  comprobar('y la cabecera con el icono de su tipo',
+    (await pagina.locator('[data-maquina]').count()) > 0,
+  )
   comprobar('y los botones de editar y anotar', maquina.includes('Editar ficha') && maquina.includes('Anotar'))
   // Fase C: el sitio donde se hacen las fotos de cómo llegó la máquina. Sale
   // siempre para un interno, tenga o no fotos ya hechas, porque es la superficie
