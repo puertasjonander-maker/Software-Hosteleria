@@ -1,0 +1,23 @@
+# Apache (el hosting compartido de Hostinger): lo mismo que _redirects hace en
+# Netlify. Cualquier dirección que no sea un fichero real se sirve con el
+# documento de la aplicación, y el router decide qué pintar.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Un fichero o un directorio que existe se sirve tal cual.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  # El service worker no se cachea: si se queda uno viejo pegado, la aplicación
+  # no se actualiza nunca.
+  <Files "sw.js">
+    Header set Cache-Control "public, max-age=0, must-revalidate"
+    Header set Service-Worker-Allowed "/"
+  </Files>
+</IfModule>

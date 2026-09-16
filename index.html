@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Sin maximum-scale: bloquear el zoom rompe la accesibilidad, y un número
+         de serie medio borrado se lee acercándose. viewport-fit=cover para que
+         el contenido llegue al borde en los móviles con muesca. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="description" content="Parque de máquinas, visitas de mantenimiento y registro fotográfico." />
+    <!-- Un número de serie o un drag factor de 199 no son números de teléfono. -->
+    <meta name="format-detection" content="telephone=no" />
+
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf7f2" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1614" />
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Ergobox" />
+
+    <title>Ergobox</title>
+
+    <!--
+      Red de seguridad de arranque: nunca una pantalla en blanco.
+
+      La aplicación vive en un bundle con huella en el nombre. Si ese fichero no
+      llega —sin cobertura en un box, o una caché del service worker incompleta—,
+      lo que quedaba era el HTML, `#raiz` vacío y nada más: ni error, ni estado, ni
+      pista de qué hacer. Medido el 16-sep-2026: 16 pasadas en blanco de 78.
+
+      Va en línea, antes del módulo, y a propósito: la hoja de estilos y el propio
+      React viajan dentro del fichero que puede no llegar. Sin JavaScript de fuera
+      no hay nada más que se pueda usar aquí.
+    -->
+    <script>
+      ;(function () {
+        var avisado = false
+
+        function avisar() {
+          // Si la aplicación ya arrancó, o ya hay algo pintado, no se toca nada.
+          if (avisado || window.__ergoboxArrancado) return
+          var raiz = document.getElementById('raiz')
+          if (!raiz || raiz.childNodes.length > 0) return
+
+          avisado = true
+          raiz.innerHTML =
+            '<main style="font:16px/1.5 system-ui,-apple-system,\'Segoe UI\',sans-serif;' +
+            'color:#1a1614;background:#faf7f2;min-height:100dvh;display:flex;' +
+            'align-items:center;justify-content:center;padding:2rem;margin:0;text-align:left">' +
+            '<div style="max-width:28rem">' +
+            '<h1 style="font-size:1.25rem;margin:0 0 .75rem">Sin cobertura</h1>' +
+            '<p style="margin:0 0 .75rem">La aplicación todavía no está preparada en este ' +
+            'móvil, y ahora mismo no hay red para traerla.</p>' +
+            '<p style="margin:0;color:#6b625a;font-size:.875rem">Ábrela una vez con cobertura ' +
+            'y a partir de ahí funcionará también dentro del box.</p>' +
+            '</div></main>'
+        }
+
+        /*
+         * Un fichero que no llega dispara un `error` en el propio <script>, y eso no
+         * pasa por `window.onerror`: hay que escucharlo en captura. Es inmediato,
+         * así que no hace esperar a nadie.
+         */
+        window.addEventListener(
+          'error',
+          function (evento) {
+            var destino = evento.target
+            if (destino && destino.tagName === 'SCRIPT') avisar()
+          },
+          true,
+        )
+
+        // Y por si el fallo no deja ni rastro: una red que no falla pero no llega.
+        setTimeout(avisar, 15000)
+
+        /*
+         * El entry puede pedir el aviso en el momento, sin esperar los 15 s.
+         *
+         * Caso real: el entry carga pero el chunk de la aplicación no llega. Antes
+         * eso no se veía —la marca de arranque se ponía en el entry, que sí había
+         * cargado— y quedaba una pantalla en blanco hasta que expiraba el
+         * temporizador, o para siempre. Medido el 16-sep-2026 contra producción:
+         * 17 s de blanco y ni un aviso.
+         */
+        window.__ergoboxAvisoDeArranque = avisar
+      })()
+    </script>
+    <script type="module" crossorigin src="/assets/index-BwmT7Zus.js"></script>
+  </head>
+  <body>
+    <div id="raiz"></div>
+  </body>
+</html>
