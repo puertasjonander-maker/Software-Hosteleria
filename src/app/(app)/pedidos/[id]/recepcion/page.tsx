@@ -8,6 +8,7 @@ import { fecha } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { EstadoError, EstadoVacio } from '@/components/ui/states'
 import { SelectorLocal } from '@/components/selector-local'
+import { RanuraCabecera } from '@/components/ranura-cabecera'
 import { FormularioRecepcion, type LineaRecepcionVista } from './formulario-recepcion'
 
 export const metadata: Metadata = { title: 'Recepción' }
@@ -181,31 +182,44 @@ export default async function PaginaRecepcion({
   const umbral = Number(ajustes.data?.value ?? UMBRAL_POR_DEFECTO) || UMBRAL_POR_DEFECTO
 
   return (
-    <div className="container max-w-3xl space-y-5 py-4">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href={`/pedidos/${pedido.id}`}>
-          <ArrowLeft /> Volver al pedido
-        </Link>
-      </Button>
-
+    <div className="container max-w-3xl space-y-5 py-3 md:py-4">
+      {/* Solo en escritorio: en el móvil, «atrás» ya está en la cabecera. */}
       <header className="space-y-1">
+        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3 hidden md:inline-flex">
+          <Link href={`/pedidos/${pedido.id}`}>
+            <ArrowLeft /> Volver al pedido
+          </Link>
+        </Button>
+
         <h1 className="titulo-pantalla">
           Recibir de {proveedor.data?.name ?? 'proveedor'}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="texto-meta">
           Pedido del {fecha(pedido.order_date)}
           {pedido.expected_delivery
             ? ` · entrega prevista ${fecha(pedido.expected_delivery)}`
             : ''}
         </p>
+        {/* Recibir en el local equivocado descuadra dos locales a la vez: el
+            nombre se dice en claro, no solo en la píldora de la cabecera. */}
+        {!esBarista ? (
+          <p className="text-meta font-medium">
+            Recibes en {localesDisponibles.find((l) => l.id === localId)?.name ?? 'este local'}
+          </p>
+        ) : null}
       </header>
 
+      {/* El local, en la cabecera como en «Pedir»: es un ajuste de toda la
+          pantalla, no una fila más del formulario. */}
       {!esBarista ? (
-        <SelectorLocal
-          locales={localesDisponibles}
-          actual={localId}
-          basePath={`/pedidos/${pedido.id}/recepcion`}
-        />
+        <RanuraCabecera>
+          <SelectorLocal
+            locales={localesDisponibles}
+            actual={localId}
+            basePath={`/pedidos/${pedido.id}/recepcion`}
+            forma="chip"
+          />
+        </RanuraCabecera>
       ) : null}
 
       {items.length === 0 ? (

@@ -57,13 +57,21 @@ export function EnviarPedido({
     }
   }
 
+  /*
+   * El contacto guardado es el del canal habitual del proveedor. Antes se usaba
+   * con cualquier canal: cambiar a «Correo» metía un número de teléfono en el
+   * `mailto:`, y «Teléfono» sin número abría un `tel:` vacío.
+   */
+  const contactoDelCanal = canal === canalPorDefecto ? contacto.trim() : ''
+  const sinDestino = canal === 'telefono' && !contactoDelCanal
+
   function abrirCanal() {
     const destino =
       canal === 'whatsapp'
-        ? enlaceWhatsApp(contacto, mensaje)
+        ? enlaceWhatsApp(contactoDelCanal, mensaje)
         : canal === 'email'
-          ? enlaceCorreo(contacto, `Pedido ${NOMBRE_ORG} · ${proveedorNombre}`, mensaje)
-          : `tel:${contacto.replace(/[^\d+]/g, '')}`
+          ? enlaceCorreo(contactoDelCanal, `Pedido ${NOMBRE_ORG} · ${proveedorNombre}`, mensaje)
+          : `tel:${contactoDelCanal.replace(/[^\d+]/g, '')}`
 
     setAbierto(true)
     window.open(destino, '_blank', 'noopener,noreferrer')
@@ -74,8 +82,8 @@ export function EnviarPedido({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Enviar</CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <CardTitle>Enviar</CardTitle>
+        <p className="texto-meta">
           Revisa el texto antes de mandarlo. Es exactamente lo que verá el proveedor.
         </p>
       </CardHeader>
@@ -102,9 +110,16 @@ export function EnviarPedido({
             </Select>
           </div>
 
-          <Button variant="outline" onClick={abrirCanal} disabled={!hayLineas}>
+          {/* Primero se manda y después se marca: hasta abrir el canal, la
+              acción principal es abrirlo. Antes «Marcar como enviado» era el
+              botón lleno desde el principio e invitaba a saltarse el envío. */}
+          <Button
+            variant={abierto ? 'outline' : 'default'}
+            onClick={abrirCanal}
+            disabled={!hayLineas || sinDestino}
+          >
             <IconoCanal />
-            Abrir en {ETIQUETA_CANAL[canal]}
+            {canal === 'telefono' ? 'Llamar' : `Abrir en ${ETIQUETA_CANAL[canal]}`}
           </Button>
 
           <Button variant="outline" onClick={copiar} disabled={!hayLineas}>
@@ -113,8 +128,22 @@ export function EnviarPedido({
           </Button>
         </div>
 
+        {/* A dónde va a ir: se ve antes de pulsar, no después. */}
+        <p className="-mt-2 texto-meta">
+          {contactoDelCanal
+            ? `Destino: ${contactoDelCanal}`
+            : canal === 'whatsapp'
+              ? 'Sin número guardado para WhatsApp: elegirás el chat al abrirlo.'
+              : canal === 'email'
+                ? 'Sin correo guardado: escribirás la dirección al abrirlo.'
+                : 'Sin teléfono guardado para este proveedor. Cópialo y mándalo por otro canal.'}
+        </p>
+
         {abierto ? (
-          <div className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
+          <div
+            role="status"
+            className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-meta text-warn"
+          >
             Aún no está marcado como enviado. Si el proveedor ya lo tiene, confírmalo abajo;
             si te has arrepentido, no hagas nada: sigue siendo un borrador.
           </div>
@@ -123,6 +152,7 @@ export function EnviarPedido({
         <div className="border-t pt-4">
           <Button
             className="w-full sm:w-auto"
+            variant={abierto ? 'default' : 'outline'}
             disabled={!hayLineas || pendiente}
             onClick={() =>
               iniciar(async () => {
@@ -139,7 +169,7 @@ export function EnviarPedido({
             {pendiente ? <Loader2 className="animate-spin" /> : <Check />}
             Marcar como enviado
           </Button>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 texto-meta">
             A partir de ahí el pedido es inmutable: se guarda copia del texto y las
             solicitudes pasan a &laquo;en pedido&raquo;. Para corregir algo se manda un
             pedido complementario.

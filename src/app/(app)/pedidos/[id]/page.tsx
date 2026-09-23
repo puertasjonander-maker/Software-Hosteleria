@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, PackageOpen } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirSesion } from '@/lib/auth'
 import { esGestor } from '@/lib/roles'
@@ -131,22 +131,15 @@ export default async function PaginaPedido({ params }: { params: { id: string } 
     }))
 
   return (
-    <div className="container max-w-3xl space-y-6 py-4">
-      <div className="flex items-center justify-between gap-3">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/pedidos">
-            <ArrowLeft /> Pedidos
-          </Link>
-        </Button>
-
-        {pedido.status !== 'borrador' ? (
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/pedidos/${pedido.id}/recepcion`}>
-              <PackageOpen /> Recepción
-            </Link>
-          </Button>
-        ) : null}
-      </div>
+    <div className="container max-w-3xl py-3 md:py-4">
+      {/* En el móvil ya hay «atrás» en la cabecera; repetirlo aquí era una fila
+          entera por nada. Y el acceso a la recepción vive en el propio pedido
+          enviado, como acción principal: aquí arriba estaba dos veces. */}
+      <Button asChild variant="ghost" size="sm" className="-ml-2 mb-4 hidden md:inline-flex">
+        <Link href="/pedidos">
+          <ArrowLeft /> Pedidos
+        </Link>
+      </Button>
 
       {pedido.status === 'borrador' ? (
         <DetallePedido

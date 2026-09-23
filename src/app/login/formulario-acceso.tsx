@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,7 @@ export function FormularioAcceso() {
   const [password, setPassword] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [verClave, setVerClave] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -71,21 +72,43 @@ export function FormularioAcceso() {
               autoCorrect="off"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setError(null)
+              }}
               placeholder="nombre@ejemplo.com"
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            {/* Ver la contraseña: se escribe en el móvil, de pie y a veces con
+                las manos mojadas. Un error de tecla invisible es un "no puedo
+                entrar" para el operador. */}
+            <div className="relative">
+              <Input
+                id="password"
+                type={verClave ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setError(null)
+                }}
+                aria-invalid={error ? true : undefined}
+                className="pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setVerClave((v) => !v)}
+                aria-label={verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-pressed={verClave}
+                className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors duration-rapido ease-estandar hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {verClave ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {error ? (

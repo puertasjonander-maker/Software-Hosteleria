@@ -176,9 +176,10 @@ export function Navegacion({
                   key={d.href}
                   href={d.href}
                   data-indicador={d.href}
+                  aria-current={esActivo(d.href) ? 'page' : undefined}
                   className={cn(
                     'relative rounded-md px-3 py-2 text-cuerpo font-medium',
-                    'transition-colors duration-rapido ease-estandar',
+                    'outline-none transition-colors duration-rapido ease-estandar focus-visible:ring-2 focus-visible:ring-ring',
                     esActivo(d.href)
                       ? 'text-secondary-foreground'
                       : 'text-muted-foreground hover:text-accent-foreground',
@@ -244,7 +245,9 @@ export function Navegacion({
                   aria-current={esta ? 'page' : undefined}
                   className={cn(
                     'flex min-h-[56px] flex-col items-center justify-center gap-1 px-1 py-2 text-micro',
-                    'transition-colors duration-rapido ease-estandar',
+                    'outline-none transition-colors duration-rapido ease-estandar',
+                    // Con teclado (o con un lector de pantalla) el foco no se veía.
+                    'focus-visible:bg-accent focus-visible:text-accent-foreground',
                     esta ? 'font-semibold text-primary' : 'font-medium text-muted-foreground',
                   )}
                 >

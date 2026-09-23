@@ -8,6 +8,18 @@ import { fecha } from '@/lib/format'
  */
 const DIAS_PARA_DESACTUALIZADO = 90
 
+/**
+ * Color del margen. Por debajo del 60 % ya pide atención, por debajo del 40 %
+ * es un problema. Estaba solo en la lista: en la ficha de la elaboración el
+ * mismo 35 % salía en negro.
+ */
+export function claseMargen(margen: number | null | undefined): string {
+  if (margen === null || margen === undefined) return ''
+  if (margen < 40) return 'text-destructive'
+  if (margen < 60) return 'text-warn'
+  return ''
+}
+
 export function esCosteDesactualizado(fechaDato: string | null): boolean {
   if (!fechaDato) return false
   const dato = new Date(`${fechaDato}T12:00:00Z`).getTime()

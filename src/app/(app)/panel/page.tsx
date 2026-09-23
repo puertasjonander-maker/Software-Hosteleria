@@ -62,11 +62,11 @@ function TablaDesglose({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">{titulo}</CardTitle>
+        <CardTitle>{titulo}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {filas.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-muted-foreground">Sin datos en el rango.</p>
+          <p className="px-4 pb-4 texto-meta">Sin datos en el rango.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -79,7 +79,23 @@ function TablaDesglose({
             <TableBody>
               {filas.map((f) => (
                 <TableRow key={f.clave}>
-                  <TableCell className="font-medium">{f.etiqueta}</TableCell>
+                  <TableCell className="font-medium">
+                    {f.etiqueta}
+                    {/*
+                     * El peso también como barra: una columna de porcentajes no se
+                     * compara de un vistazo, una columna de longitudes sí. Un solo
+                     * color (una sola serie); la cifra sigue en texto al lado.
+                     */}
+                    <span aria-hidden className="mt-1.5 block h-1 w-full rounded-full bg-muted">
+                      <span
+                        className="block h-full rounded-full"
+                        style={{
+                          width: `${total > 0 ? Math.max(1, (100 * f.importe) / total) : 0}%`,
+                          backgroundColor: 'var(--chart-1)',
+                        }}
+                      />
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{euros(f.importe)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {total > 0 ? porcentaje((100 * f.importe) / total, 0) : '—'}
@@ -185,11 +201,11 @@ export default async function PaginaPanel({
   const datosFlojos = fechasConDatos.size > 0 && dias < DIAS_MINIMOS_TENDENCIA
 
   return (
-    <div className="container max-w-6xl space-y-6 py-4">
+    <div className="container max-w-6xl space-y-6 py-3 md:py-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="hidden md:block">
           <h1 className="titulo-pantalla">Panel</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 texto-meta">
             En qué se está yendo el dinero, con datos de lo que ha entrado por la puerta.
           </p>
         </div>
@@ -228,7 +244,7 @@ export default async function PaginaPanel({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
-                <p className="cifra-dato text-[1.75rem] leading-8">{euros(total)}</p>
+                <p className="cifra-kpi">{euros(total)}</p>
                 <p className="text-xs text-muted-foreground">
                   {plural(filas.length, 'línea recibida', 'líneas recibidas')}
                 </p>
@@ -242,7 +258,7 @@ export default async function PaginaPanel({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1.5">
-                <p className="cifra-dato text-[1.75rem] leading-8">
+                <p className="cifra-kpi">
                   {porcentaje(total > 0 ? (100 * (total - importeEstimado)) / total : 0, 0)}
                 </p>
                 {/* Un panel que mezcla precios reales con estimados sin decirlo
@@ -261,11 +277,16 @@ export default async function PaginaPanel({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1">
-                <p className="cifra-dato text-[1.75rem] leading-8">
+                <p className="cifra-kpi">
                   {filas.filter((f) => f.incidence !== 'ninguna').length}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   líneas con falta, daño, precio distinto o sustitución
+                  {/* Un recuento sin base no dice si 12 es mucho o poco. */}
+                  {` · ${porcentaje(
+                    (100 * filas.filter((f) => f.incidence !== 'ninguna').length) / filas.length,
+                    0,
+                  )} de lo recibido`}
                 </p>
               </CardContent>
             </Card>
@@ -273,7 +294,7 @@ export default async function PaginaPanel({
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Gasto por mes</CardTitle>
+              <CardTitle>Gasto por mes</CardTitle>
             </CardHeader>
             <CardContent>
               <GraficoGasto
@@ -298,15 +319,15 @@ export default async function PaginaPanel({
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Productos con más incidencias</CardTitle>
-              <p className="text-sm text-muted-foreground">
+              <CardTitle>Productos con más incidencias</CardTitle>
+              <p className="texto-meta">
                 Lo que más veces ha llegado mal en el periodo. Sirve para saber con qué
                 proveedor hay que sentarse.
               </p>
             </CardHeader>
             <CardContent className="p-0">
               {topIncidencias.length === 0 ? (
-                <p className="px-4 pb-4 text-sm text-muted-foreground">
+                <p className="px-4 pb-4 texto-meta">
                   Ninguna incidencia registrada en el rango.
                 </p>
               ) : (

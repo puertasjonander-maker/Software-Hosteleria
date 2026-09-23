@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { EstadoError, EstadoVacio } from '@/components/ui/states'
-import { EtiquetaCoste, esCosteDesactualizado } from '@/components/etiqueta-coste'
+import { claseMargen, EtiquetaCoste, esCosteDesactualizado } from '@/components/etiqueta-coste'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Escandallo' }
@@ -67,22 +67,30 @@ export default async function PaginaEscandallo({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1">
+        {/* Un control segmentado: se ve que las tres opciones son excluyentes
+            y cuál está puesta. Antes eran tres botones sueltos de 36 px. */}
+        <nav aria-label="Ordenar elaboraciones" className="flex rounded-lg bg-muted p-1">
           {[
-            ['margen', 'Por margen'],
-            ['coste', 'Por coste'],
-            ['nombre', 'Por nombre'],
+            ['margen', 'Margen'],
+            ['coste', 'Coste'],
+            ['nombre', 'Nombre'],
           ].map(([clave, etiqueta]) => (
-            <Button
+            <Link
               key={clave}
-              asChild
-              size="sm"
-              variant={orden === clave ? 'secondary' : 'ghost'}
+              href={`/escandallo?orden=${clave}`}
+              aria-current={orden === clave ? 'true' : undefined}
+              className={cn(
+                'flex h-10 items-center rounded-md px-3 text-meta font-medium outline-none md:h-8',
+                'transition-colors duration-rapido ease-estandar focus-visible:ring-2 focus-visible:ring-ring',
+                orden === clave
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
-              <Link href={`/escandallo?orden=${clave}`}>{etiqueta}</Link>
-            </Button>
+              {etiqueta}
+            </Link>
           ))}
-        </div>
+        </nav>
 
         {conHueco > 0 ? (
           <Button asChild size="sm" variant="outline">
@@ -93,7 +101,55 @@ export default async function PaginaEscandallo({
         ) : null}
       </div>
 
-      <div className="rounded-lg border">
+      {/*
+       * En el móvil, tarjetas: siete columnas en 390 px obligaban a desplazar
+       * la tabla de lado para llegar al margen, que es justo lo que se viene a
+       * mirar. Nombre y margen arriba; coste, PVP y procedencia debajo.
+       */}
+      <ul className="space-y-1.5 md:hidden">
+        {lista.map((r) => (
+          <li key={r.recipe_id}>
+            <Link
+              href={`/escandallo/${r.recipe_id}`}
+              className="block rounded-lg border p-3 outline-none transition-colors duration-rapido ease-estandar hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-cuerpo font-semibold leading-5">{r.name}</p>
+                  <p className="texto-meta">
+                    {r.yield_qty} {r.yield_unit}
+                    {r.has_gaps ? ` · ${r.mapped_lines}/${r.total_lines} mapeados` : ''}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className={cn('cifra-dato', !r.has_gaps && claseMargen(r.margin_pct))}>
+                    {r.has_gaps ? '—' : porcentaje(r.margin_pct)}
+                  </p>
+                  <p className="text-micro text-muted-foreground">margen</p>
+                </div>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-meta">
+                <span className="tabular-nums">
+                  <span className="text-muted-foreground">Coste </span>
+                  {r.has_gaps ? '—' : eurosPrecisos(r.cost_per_yield)}
+                </span>
+                <span className="tabular-nums">
+                  <span className="text-muted-foreground">PVP </span>
+                  {euros(r.current_price)}
+                </span>
+                <EtiquetaCoste
+                  tipo={r.cost_kind}
+                  desactualizado={esCosteDesactualizado(r.oldest_price_date)}
+                  fechaDato={r.oldest_price_date}
+                />
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden rounded-lg border md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -147,8 +203,7 @@ export default async function PaginaEscandallo({
                   <TableCell
                     className={cn(
                       'text-right font-medium tabular-nums',
-                      r.margin_pct !== null && r.margin_pct < 60 && 'text-warn',
-                      r.margin_pct !== null && r.margin_pct < 40 && 'text-destructive',
+                      !r.has_gaps && claseMargen(r.margin_pct),
                     )}
                   >
                     {r.has_gaps ? '—' : porcentaje(r.margin_pct)}
@@ -180,7 +235,7 @@ export default async function PaginaEscandallo({
         </Table>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="texto-meta">
         El margen se calcula sobre el PVP con IVA que hay fijado en cada elaboración. El
         coste solo se calcula cuando todos los ingredientes están mapeados; hasta
         entonces la fila muestra un hueco y no una estimación.

@@ -182,6 +182,94 @@ export function ListaPedir({
     [mias],
   )
 
+  // Cuántos productos llevo en cada categoría: la píldora lo dice sin bajar.
+  const pedidasPorCategoria = useMemo(() => {
+    const mapa = new Map<string, number>()
+    for (const item of items) {
+      if ((mias[item.id] ?? 0) > 0) mapa.set(item.categoria, (mapa.get(item.categoria) ?? 0) + 1)
+    }
+    return mapa
+  }, [items, mias])
+
+  /*
+   * Salto por categoría. La franja fija de arriba cambia de alto (corte que
+   * aprieta, aviso sin red), así que el hueco se mide en el momento del toque
+   * y no se deja escrito en un `scroll-margin`.
+   */
+  const bloqueFijo = useRef<HTMLDivElement | null>(null)
+  const filaChips = useRef<HTMLDivElement | null>(null)
+  const secciones = useRef(new Map<string, HTMLElement>())
+  const [categoriaVisible, setCategoriaVisible] = useState<string | null>(null)
+
+  const bordeInferiorFijo = useCallback(() => {
+    const bloque = bloqueFijo.current
+    if (!bloque) return 0
+    return (parseFloat(getComputedStyle(bloque).top) || 0) + bloque.offsetHeight
+  }, [])
+
+  const irACategoria = useCallback(
+    (categoria: string) => {
+      const seccion = secciones.current.get(categoria)
+      if (!seccion) return
+      const reducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      window.scrollTo({
+        top: seccion.getBoundingClientRect().top + window.scrollY - bordeInferiorFijo() - 4,
+        behavior: reducido ? 'auto' : 'smooth',
+      })
+      setCategoriaVisible(categoria)
+    },
+    [bordeInferiorFijo],
+  )
+
+  // La categoría que está debajo de la franja fija se enciende al bajar.
+  useEffect(() => {
+    let fotograma = 0
+    const medir = () => {
+      fotograma = 0
+      const linea = bordeInferiorFijo() + 8
+      // La que más abajo empiece sin pasar la línea. Por posición y no por orden
+      // del mapa: el mapa se rehace al filtrar y no garantiza el orden de la lista.
+      // Sin ninguna por encima de la línea (arriba del todo), la primera.
+      let visible: string | null = null
+      let mejor = Number.NEGATIVE_INFINITY
+      let primera: string | null = null
+      let primeraTop = Number.POSITIVE_INFINITY
+      for (const [categoria, nodo] of secciones.current) {
+        const top = nodo.getBoundingClientRect().top
+        if (top <= linea && top > mejor) {
+          mejor = top
+          visible = categoria
+        }
+        if (top < primeraTop) {
+          primeraTop = top
+          primera = categoria
+        }
+      }
+      setCategoriaVisible(visible ?? primera)
+    }
+    const alDesplazar = () => {
+      if (!fotograma) fotograma = requestAnimationFrame(medir)
+    }
+    medir()
+    window.addEventListener('scroll', alDesplazar, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', alDesplazar)
+      cancelAnimationFrame(fotograma)
+    }
+  }, [bordeInferiorFijo, filtrados])
+
+  // Y su píldora se trae a la vista dentro de la fila, sin mover la página.
+  useEffect(() => {
+    const fila = filaChips.current
+    if (!fila || !categoriaVisible) return
+    const chip = fila.querySelector<HTMLElement>(`[data-chip="${CSS.escape(categoriaVisible)}"]`)
+    if (!chip) return
+    const fuera =
+      chip.offsetLeft < fila.scrollLeft ||
+      chip.offsetLeft + chip.offsetWidth > fila.scrollLeft + fila.clientWidth
+    if (fuera) fila.scrollTo({ left: chip.offsetLeft - 16, behavior: 'smooth' })
+  }, [categoriaVisible])
+
   const corteMasCercano = useMemo(() => {
     const conPedido = items.filter((i) => (mias[i.id] ?? 0) > 0)
     const candidatos = (conPedido.length > 0 ? conPedido : items)
@@ -211,7 +299,10 @@ export function ListaPedir({
 
   return (
     <div className="space-y-3">
-      <div className="sticky top-14 z-20 -mx-4 border-b bg-background/95 px-4 backdrop-blur">
+      <div
+        ref={bloqueFijo}
+        className="sticky top-14 z-20 -mx-4 border-b bg-background/95 px-4 backdrop-blur"
+      >
         {/*
          * El corte que aprieta es una condición de toda la pantalla, no un
          * filtro más. Antes era una píldora al lado del botón de filtrar, donde
@@ -237,7 +328,7 @@ export function ListaPedir({
           </div>
         ) : null}
 
-        <div className="space-y-2 pb-2.5 pt-2">
+        <div className="space-y-1 pb-1 pt-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -245,6 +336,12 @@ export function ListaPedir({
               inputMode="search"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
+              // «Buscar» en el teclado del móvil cierra el teclado y deja ver
+              // los resultados, que es lo que se espera de ese botón.
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur()
+              }}
+              enterKeyHint="search"
               placeholder="Buscar producto…"
               aria-label="Buscar producto"
               className="pl-9 pr-9"
@@ -261,24 +358,84 @@ export function ListaPedir({
             ) : null}
           </div>
 
-          <div className="flex items-center justify-between gap-2">
-            <Button
+          {/*
+           * Una sola fila que se desplaza de lado: primero el filtro, después
+           * un salto por categoría. Con un catálogo de cien productos, llegar a
+           * "Panadería" era deslizar la lista entera. La fila ocupa lo mismo
+           * que ocupaba el filtro solo; el recuento de productos, que no servía
+           * para decidir nada, deja su sitio.
+           *
+           * Cada botón mide 44 px de alto aunque la píldora que se ve mida 32:
+           * el objetivo es el pulgar, no el dibujo.
+           */}
+          <div
+            ref={filaChips}
+            className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            <button
               type="button"
-              size="sm"
-              variant={soloPedidos ? 'default' : 'outline'}
-              className="rounded-full"
+              aria-pressed={soloPedidos}
               onClick={() => setSoloPedidos((v) => !v)}
+              className="group flex h-11 shrink-0 items-center outline-none"
             >
-              <Check /> Lo que llevo hoy
-              {totalPedidoHoy > 0 ? (
-                <span className="tabular-nums opacity-75">{totalPedidoHoy}</span>
-              ) : null}
-            </Button>
+              <span
+                className={cn(
+                  'flex h-8 items-center gap-1.5 rounded-full border px-3 text-meta font-medium',
+                  'transition-colors duration-rapido ease-estandar group-focus-visible:ring-2 group-focus-visible:ring-ring',
+                  soloPedidos
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-input bg-background text-foreground',
+                )}
+              >
+                <Check className="h-3.5 w-3.5" /> Lo que llevo hoy
+                {totalPedidoHoy > 0 ? (
+                  <span className="tabular-nums opacity-75">{totalPedidoHoy}</span>
+                ) : null}
+              </span>
+            </button>
 
-            <span className="shrink-0 text-micro font-medium text-muted-foreground">
-              {plural(items.length, 'producto', 'productos')}
-            </span>
+            {porCategoria.length > 1 ? (
+              <>
+                <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
+                {porCategoria.map(([categoria]) => {
+                  const activa = categoriaVisible === categoria
+                  const pedidasAqui = pedidasPorCategoria.get(categoria) ?? 0
+                  return (
+                    <button
+                      key={categoria}
+                      type="button"
+                      data-chip={categoria}
+                      onClick={() => irACategoria(categoria)}
+                      aria-label={`Ir a ${categoria}`}
+                      className="group flex h-11 shrink-0 items-center outline-none"
+                    >
+                      <span
+                        className={cn(
+                          'flex h-8 items-center gap-1.5 rounded-full px-3 text-meta font-medium',
+                          'transition-colors duration-rapido ease-estandar group-focus-visible:ring-2 group-focus-visible:ring-ring',
+                          activa
+                            ? 'bg-secondary text-secondary-foreground'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {categoria}
+                        {pedidasAqui > 0 ? (
+                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] font-semibold tabular-nums text-primary-foreground">
+                            {pedidasAqui}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  )
+                })}
+              </>
+            ) : null}
           </div>
+
+          {/* Para quien no ve la lista encogerse: cuántos resultados quedan. */}
+          <p className="sr-only" aria-live="polite">
+            {busqueda.trim().length >= 2 ? plural(filtrados.length, 'resultado', 'resultados') : ''}
+          </p>
 
           {!enLinea || porSincronizar > 0 ? (
             <AvisoSinConexion pendientes={porSincronizar} />
@@ -306,7 +463,14 @@ export function ListaPedir({
         )
       ) : (
         porCategoria.map(([categoria, productos]) => (
-          <section key={categoria} className="space-y-1.5">
+          <section
+            key={categoria}
+            ref={(nodo) => {
+              if (nodo) secciones.current.set(categoria, nodo)
+              else secciones.current.delete(categoria)
+            }}
+            className="space-y-1.5"
+          >
             <h2 className="titulo-seccion px-1">{categoria}</h2>
 
             <ul className="space-y-1.5">

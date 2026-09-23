@@ -202,6 +202,12 @@
     @apply text-dato font-semibold tabular-nums;
   }
 
+  /* La cifra de una tarjeta de resumen (gasto, margen, recuentos). Estaba
+     escrita a mano en tres sitios y con dos tamaños distintos. */
+  .cifra-kpi {
+    @apply text-[1.75rem] font-semibold leading-8 tabular-nums;
+  }
+
   .texto-meta {
     @apply text-meta text-muted-foreground;
   }
