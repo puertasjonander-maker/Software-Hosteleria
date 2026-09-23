@@ -81,7 +81,7 @@ export default async function PaginaAdmin() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="cifra-dato text-[1.75rem] leading-8">{t.valor}</p>
+                <p className="cifra-kpi">{t.valor}</p>
               </CardContent>
             </Card>
           </Link>

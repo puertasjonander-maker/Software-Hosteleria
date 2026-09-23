@@ -45,7 +45,9 @@ const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity duration-rapido ease-estandar hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+      {/* 44 px de objetivo aunque el aspa mida 20: era la única cruz de la app
+          que había que acertar con la yema. */}
+      <DialogPrimitive.Close className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-md opacity-70 ring-offset-background transition-opacity duration-rapido ease-estandar hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
         <X className="h-5 w-5" />
         <span className="sr-only">Cerrar</span>
       </DialogPrimitive.Close>

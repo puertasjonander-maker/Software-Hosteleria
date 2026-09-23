@@ -5,21 +5,14 @@ import { useTransition } from 'react'
 import { Copy, FilePlus2, Loader2, PackageOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import type { EstadoPedido } from '@/lib/database.types'
-import { ETIQUETA_CANAL, ETIQUETA_ESTADO_PEDIDO } from '@/lib/roles'
+import { ETIQUETA_CANAL } from '@/lib/roles'
 import { cantidad, euros, fecha, fechaHora, plural } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
+import { EtiquetaEstadoPedido } from '@/components/estado-pedido'
 import { crearComplementario } from '../acciones'
 import type { LineaDetalle } from './detalle-pedido'
-
-const ESTILO_ESTADO: Record<EstadoPedido, string> = {
-  borrador: 'bg-muted text-muted-foreground',
-  enviado: 'bg-primary/10 text-primary',
-  recibido_parcial: 'bg-warn/15 text-warn',
-  cerrado: 'bg-ok/15 text-ok',
-}
 
 /**
  * Un pedido ya enviado. Solo lectura por diseño (MISE-003): lo que se muestra
@@ -50,6 +43,7 @@ export function PedidoEnviado({
 }) {
   const [pendiente, iniciar] = useTransition()
 
+  const cerrado = pedido.status === 'cerrado'
   const importe = lineas.reduce(
     (total, l) => total + (l.unitPriceExpected ?? 0) * l.qtyTotal,
     0,
@@ -60,18 +54,11 @@ export function PedidoEnviado({
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="titulo-pantalla">{proveedorNombre}</h1>
-          <span
-            className={cn(
-              'rounded-full px-2.5 py-0.5 text-xs font-medium',
-              ESTILO_ESTADO[pedido.status],
-            )}
-          >
-            {ETIQUETA_ESTADO_PEDIDO[pedido.status]}
-          </span>
+          <EtiquetaEstadoPedido estado={pedido.status} />
           {pedido.supersedesId ? <Badge variant="outline">Complementario</Badge> : null}
         </div>
 
-        <p className="text-sm text-muted-foreground">
+        <p className="texto-meta">
           Enviado por {ETIQUETA_CANAL[pedido.channel as keyof typeof ETIQUETA_CANAL]} el{' '}
           {fechaHora(pedido.sentAt)}
           {enviadoPor ? ` por ${enviadoPor}` : ''}
@@ -80,9 +67,11 @@ export function PedidoEnviado({
       </header>
 
       <div className="flex flex-wrap gap-2">
-        <Button asChild>
+        {/* Cerrado ya no se recepciona: se consulta. El botón principal no
+            puede invitar a hacer algo que ya está hecho. */}
+        <Button asChild variant={cerrado ? 'outline' : 'default'}>
           <Link href={`/pedidos/${pedido.id}/recepcion`}>
-            <PackageOpen /> Recepcionar
+            <PackageOpen /> {cerrado ? 'Ver recepción' : 'Recepcionar'}
           </Link>
         </Button>
 
@@ -110,9 +99,9 @@ export function PedidoEnviado({
       <Card>
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-base">{plural(lineas.length, 'línea', 'líneas')}</CardTitle>
-            <span className="flex items-center gap-2 text-sm">
-              {euros(importe)}
+            <CardTitle>{plural(lineas.length, 'línea', 'líneas')}</CardTitle>
+            <span className="flex items-center gap-2">
+              <span className="cifra-dato">{euros(importe)}</span>
               <Badge variant="estimado">estimado</Badge>
             </span>
           </div>
@@ -126,8 +115,8 @@ export function PedidoEnviado({
                 className="flex items-center gap-3 border-b p-3 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium leading-tight">{linea.productName}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="truncate text-cuerpo font-medium leading-5">{linea.productName}</p>
+                  <p className="texto-meta">
                     {linea.orderUnit}
                     {linea.desglose.length > 0
                       ? ` · ${linea.desglose
@@ -136,7 +125,9 @@ export function PedidoEnviado({
                       : ''}
                   </p>
                 </div>
-                <span className="font-semibold tabular-nums">{cantidad(linea.qtyTotal)}</span>
+                <span className="text-cuerpo font-semibold tabular-nums">
+                  {cantidad(linea.qtyTotal)}
+                </span>
               </li>
             ))}
           </ul>
@@ -147,7 +138,7 @@ export function PedidoEnviado({
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base">Lo que se envió</CardTitle>
+              <CardTitle>Lo que se envió</CardTitle>
               <Button
                 variant="ghost"
                 size="sm"

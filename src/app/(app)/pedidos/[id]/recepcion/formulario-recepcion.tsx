@@ -6,7 +6,7 @@ import { Check, ChevronDown, Loader2, TrendingDown, TrendingUp } from 'lucide-re
 import { toast } from 'sonner'
 import type { ProcedenciaCoste, TipoIncidencia } from '@/lib/database.types'
 import { ETIQUETA_INCIDENCIA } from '@/lib/roles'
-import { cantidad, eurosPrecisos, fecha, porcentaje } from '@/lib/format'
+import { cantidad, eurosPrecisos, fecha, plural, porcentaje } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -103,6 +103,30 @@ export function FormularioRecepcion({
     return mapa
   }, [items, estado])
 
+  /*
+   * Resumen de lo anotado, justo encima de «Confirmar». Con doce líneas
+   * plegadas no había forma de saber, antes de confirmar, si lo que ibas a
+   * guardar era lo que creías haber anotado.
+   */
+  const resumen = useMemo(() => {
+    let faltas = 0
+    let otras = 0
+    let precios = 0
+    for (const item of items) {
+      const linea = estado[item.productId]
+      if (!linea) continue
+      if (aNumero(linea.qty) < item.esperado) faltas += 1
+      else if (linea.incidencia !== 'ninguna') otras += 1
+      if (linea.precio.trim() !== '') precios += 1
+    }
+    const partes = [
+      faltas > 0 && plural(faltas, 'línea con falta', 'líneas con falta'),
+      otras > 0 && plural(otras, 'con incidencia', 'con incidencias'),
+      precios > 0 && plural(precios, 'precio anotado', 'precios anotados'),
+    ].filter(Boolean) as string[]
+    return partes.length > 0 ? partes.join(' · ') : 'Todo como se pidió'
+  }, [items, estado])
+
   const hayDesviaciones = items.some((i) => {
     const d = desviaciones[i.productId]
     return d !== null && Math.abs(d) > umbralDesviacion
@@ -152,7 +176,10 @@ export function FormularioRecepcion({
   return (
     <div className="space-y-4">
       {hayRecepcionAbierta ? (
-        <div className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
+        <div
+          role="status"
+          className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-meta text-warn"
+        >
           Tienes una recepción a medias de este pedido. Se ha cargado tal como la dejaste.
         </div>
       ) : null}
@@ -171,7 +198,7 @@ export function FormularioRecepcion({
       {!detalleVisible ? (
         <Card>
           <CardContent className="space-y-3 pt-6">
-            <p className="text-sm">
+            <p className="text-cuerpo">
               Si ha llegado todo lo que se pidió y sin novedades, con un toque queda
               registrado.
             </p>
@@ -207,7 +234,7 @@ export function FormularioRecepcion({
                 Algo no cuadra
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="texto-meta">
               Anotar el precio del albarán es opcional, pero es lo que hace que el panel y
               el escandallo dejen de trabajar con estimaciones. Está en &laquo;Algo no
               cuadra&raquo;.
@@ -230,8 +257,10 @@ export function FormularioRecepcion({
                 <li key={item.productId} className="p-3">
                   <div className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium leading-tight">{item.productName}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="truncate text-cuerpo font-medium leading-5">
+                        {item.productName}
+                      </p>
+                      <p className="texto-meta">
                         Se pidió {cantidad(item.esperado)} {item.orderUnit}
                         {item.yaRecibido > 0
                           ? ` · ya recibido ${cantidad(item.yaRecibido)}`
@@ -254,19 +283,54 @@ export function FormularioRecepcion({
 
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="icon"
+                      className="shrink-0 sm:h-9 sm:w-9"
                       aria-expanded={linea.abierta}
                       aria-label={`Detalle de ${item.productName}`}
                       onClick={() => actualizar(item.productId, { abierta: !linea.abierta })}
                     >
                       <ChevronDown
-                        className={cn('transition-transform', linea.abierta && 'rotate-180')}
+                        className={cn(
+                          'transition-transform duration-base ease-salida',
+                          linea.abierta && 'rotate-180',
+                        )}
                       />
                     </Button>
                   </div>
 
+                  {/* Plegada, la línea enseña lo que lleva dentro: sin esto, un
+                      precio o un «dañado» anotados desaparecían al cerrarla. */}
+                  {!linea.abierta &&
+                  (linea.precio.trim() !== '' ||
+                    linea.incidencia !== 'ninguna' ||
+                    linea.nota.trim() !== '') ? (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      {linea.precio.trim() !== '' ? (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'tabular-nums',
+                            desviacionAlta && 'border-warn/60 text-warn',
+                          )}
+                        >
+                          {eurosPrecisos(aNumero(linea.precio))} / {item.orderUnit || 'ud'}
+                        </Badge>
+                      ) : null}
+                      {linea.incidencia !== 'ninguna' ? (
+                        <Badge variant="outline" className="border-warn/60 text-warn">
+                          {ETIQUETA_INCIDENCIA[linea.incidencia]}
+                        </Badge>
+                      ) : null}
+                      {linea.nota.trim() !== '' ? (
+                        <Badge variant="outline" className="max-w-[12rem] truncate">
+                          «{linea.nota.trim()}»
+                        </Badge>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {falta && linea.incidencia === 'ninguna' ? (
-                    <p className="mt-1 text-xs text-warn">
+                    <p className="mt-1 text-meta text-warn">
                       Falta género. Se registrará como incidencia &laquo;falta&raquo; salvo que
                       elijas otro motivo.
                     </p>
@@ -293,7 +357,7 @@ export function FormularioRecepcion({
                           }
                         />
                         {item.precioAnterior !== null ? (
-                          <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <p className="flex flex-wrap items-center gap-1.5 texto-meta">
                             Anterior {eurosPrecisos(item.precioAnterior)}
                             <Badge
                               variant={item.precioAnteriorTipo === 'real' ? 'real' : 'estimado'}
@@ -305,7 +369,7 @@ export function FormularioRecepcion({
                               : null}
                           </p>
                         ) : (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="texto-meta">
                             No hay precio anterior de este producto.
                           </p>
                         )}
@@ -314,7 +378,7 @@ export function FormularioRecepcion({
                         {desviacionAlta ? (
                           <p
                             className={cn(
-                              'inline-flex items-center gap-1 text-xs font-medium',
+                              'inline-flex items-center gap-1 text-meta font-medium',
                               (desviacion ?? 0) > 0 ? 'text-destructive' : 'text-ok',
                             )}
                           >
@@ -370,25 +434,30 @@ export function FormularioRecepcion({
           </ul>
 
           {hayDesviaciones ? (
-            <div className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">
+            <div className="rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-meta text-warn">
               Hay precios que se desvían más de un {umbralDesviacion} % del último conocido.
               Queda registrado y aparecerá en el panel; puedes guardar igualmente.
             </div>
           ) : null}
 
-          <div className="safe-bottom sticky bottom-16 flex flex-col gap-2 border-t bg-background/95 py-3 backdrop-blur sm:flex-row md:bottom-0">
-            <Button size="lg" disabled={pendiente} onClick={() => ejecutar(true)}>
-              {pendiente ? <Loader2 className="animate-spin" /> : <Check />}
-              Confirmar recepción
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              disabled={pendiente}
-              onClick={() => ejecutar(false)}
-            >
-              Guardar y seguir luego
-            </Button>
+          <div className="safe-bottom sticky bottom-16 -mx-4 space-y-2 border-t bg-background/95 px-4 py-3 backdrop-blur md:bottom-0 md:mx-0 md:px-0">
+            <p className="texto-meta" aria-live="polite">
+              {resumen}
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button size="lg" disabled={pendiente} onClick={() => ejecutar(true)}>
+                {pendiente ? <Loader2 className="animate-spin" /> : <Check />}
+                Confirmar recepción
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                disabled={pendiente}
+                onClick={() => ejecutar(false)}
+              >
+                Guardar y seguir luego
+              </Button>
+            </div>
           </div>
         </>
       )}

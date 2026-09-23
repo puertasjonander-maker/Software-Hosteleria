@@ -39,7 +39,9 @@ export function useIndicador<T extends HTMLElement>(claveActiva: string | null) 
 
     const base = raiz.getBoundingClientRect()
     const destino = activo.getBoundingClientRect()
-    setCaja({ left: destino.left - base.left, width: destino.width })
+    // `scrollLeft` para las filas que se desplazan de lado: el indicador vive
+    // dentro del contenido que se desplaza, no sobre la parte visible.
+    setCaja({ left: destino.left - base.left + raiz.scrollLeft, width: destino.width })
   }, [claveActiva])
 
   useLayoutEffect(() => {

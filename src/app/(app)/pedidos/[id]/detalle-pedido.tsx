@@ -11,6 +11,16 @@ import { componerMensajePedido } from '@/lib/message'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EstadoVacio } from '@/components/ui/states'
@@ -81,8 +91,8 @@ function FilaLinea({
     <li className="border-b last:border-b-0">
       <div className="flex items-center gap-3 p-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium leading-tight">{linea.productName}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="truncate text-cuerpo font-medium leading-5">{linea.productName}</p>
+          <p className="texto-meta">
             {linea.orderUnit}
             {importe !== null ? ` · ${euros(importe)} estimado` : ' · sin precio conocido'}
           </p>
@@ -94,10 +104,13 @@ function FilaLinea({
               type="button"
               onClick={() => setAbierto((v) => !v)}
               aria-expanded={abierto}
-              className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              className="mt-0.5 inline-flex min-h-8 items-center gap-1 text-left text-meta text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
               <ChevronDown
-                className={cn('h-3.5 w-3.5 transition-transform', abierto && 'rotate-180')}
+                className={cn(
+                  'h-3.5 w-3.5 shrink-0 transition-transform duration-base ease-salida',
+                  abierto && 'rotate-180',
+                )}
               />
               {linea.desglose.length > 0
                 ? linea.desglose.map((d) => `${d.locationName} ${cantidad(d.qty)}`).join(' · ')
@@ -120,9 +133,11 @@ function FilaLinea({
               }}
               className="w-20 text-center tabular-nums"
             />
+            {/* 44 px en el móvil, como todo lo que se pulsa de pie. */}
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="icon"
+              className="shrink-0 text-muted-foreground hover:text-destructive sm:h-9 sm:w-9"
               aria-label={`Quitar ${linea.productName} del pedido`}
               disabled={pendiente}
               onClick={() =>
@@ -147,7 +162,7 @@ function FilaLinea({
       </div>
 
       {abierto ? (
-        <div className="space-y-1 bg-muted/40 px-3 pb-3 pt-1 text-xs">
+        <div className="space-y-1 bg-muted/40 px-3 pb-3 pt-1 text-meta">
           {linea.solicitantes.length === 0 ? (
             <p className="text-muted-foreground">
               Nadie la solicitó: la añadió el encargado al preparar el pedido.
@@ -183,7 +198,7 @@ function AnadirLinea({
   return (
     <div className="flex flex-wrap items-end gap-2 border-t p-3">
       <div className="min-w-[12rem] flex-1 space-y-1">
-        <Label htmlFor="anadir-producto" className="text-xs text-muted-foreground">
+        <Label htmlFor="anadir-producto" className="text-meta text-muted-foreground">
           Añadir algo que nadie ha pedido
         </Label>
         <Select
@@ -305,14 +320,14 @@ export function DetallePedido({
         </div>
 
         {corte.estado === 'vencido' ? (
-          <p className="inline-flex items-center gap-1.5 text-sm font-medium text-destructive">
+          <p className="inline-flex items-center gap-1.5 text-meta font-medium text-destructive">
             <AlertTriangle className="h-4 w-4" />
             El corte de hoy ya pasó. Este pedido puede entrar en la siguiente entrega.
           </p>
         ) : corte.etiqueta ? (
           <p
             className={cn(
-              'inline-flex items-center gap-1.5 text-sm',
+              'inline-flex items-center gap-1.5 text-meta',
               corte.estado === 'proximo' ? 'font-medium text-warn' : 'text-muted-foreground',
             )}
           >
@@ -325,16 +340,14 @@ export function DetallePedido({
       <Card>
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-base">
-              {plural(lineas.length, 'línea', 'líneas')}
-            </CardTitle>
-            <span className="flex items-center gap-2 text-sm">
-              {euros(importeEstimado)}
+            <CardTitle>{plural(lineas.length, 'línea', 'líneas')}</CardTitle>
+            <span className="flex items-center gap-2">
+              <span className="cifra-dato">{euros(importeEstimado)}</span>
               <Badge variant="estimado">estimado</Badge>
             </span>
           </div>
           {hayLineaSinPrecio ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="texto-meta">
               Hay líneas sin precio conocido: el importe estimado se queda corto.
             </p>
           ) : null}
@@ -375,7 +388,7 @@ export function DetallePedido({
               value={entrega}
               onChange={(e) => setEntrega(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="texto-meta">
               Se calcula con la pauta del proveedor. Cámbiala si has acordado otra cosa.
             </p>
           </div>
@@ -390,28 +403,52 @@ export function DetallePedido({
             hayLineas={lineas.length > 0}
           />
 
+          {/*
+           * Descartar con un diálogo de la app y no con `window.confirm`: el
+           * nativo sale con el nombre del dominio encima, no se puede leer con
+           * calma y sus botones no miden 44 px.
+           */}
           <div className="flex justify-end border-t pt-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              disabled={pendienteDescartar}
-              onClick={() => {
-                if (
-                  !window.confirm(
-                    'Se descarta el borrador y sus líneas vuelven a la bandeja de pendientes. ¿Seguimos?',
-                  )
-                ) {
-                  return
-                }
-                iniciarDescartar(async () => {
-                  await descartarBorrador(pedido.id)
-                })
-              }}
-            >
-              {pendienteDescartar ? <Loader2 className="animate-spin" /> : null}
-              Descartar borrador
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  disabled={pendienteDescartar}
+                >
+                  {pendienteDescartar ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                  Descartar borrador
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>¿Descartar este borrador?</DialogTitle>
+                  <DialogDescription>
+                    {lineas.length > 0
+                      ? `${plural(lineas.length, 'línea vuelve', 'líneas vuelven')} a la bandeja de pendientes de ${proveedor.nombre}. No se pierde ninguna solicitud.`
+                      : `El borrador de ${proveedor.nombre} está vacío; no se pierde nada.`}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Seguir con el pedido</Button>
+                  </DialogClose>
+                  <Button
+                    variant="destructive"
+                    disabled={pendienteDescartar}
+                    onClick={() =>
+                      iniciarDescartar(async () => {
+                        await descartarBorrador(pedido.id)
+                      })
+                    }
+                  >
+                    {pendienteDescartar ? <Loader2 className="animate-spin" /> : <Trash2 />}
+                    Descartar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </>
       ) : null}

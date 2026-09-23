@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { EtiquetaCoste, esCosteDesactualizado } from '@/components/etiqueta-coste'
+import { claseMargen, EtiquetaCoste, esCosteDesactualizado } from '@/components/etiqueta-coste'
+import { cn } from '@/lib/utils'
 import { GraficoCoste } from '@/components/graficos/grafico-coste'
 import { EditorPvp } from './editor-pvp'
 
@@ -101,15 +102,15 @@ export default async function PaginaElaboracion({ params }: { params: { id: stri
 
   return (
     <div className="space-y-5">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href="/escandallo">
-          <ArrowLeft /> Elaboraciones
-        </Link>
-      </Button>
-
       <header className="space-y-1">
-        <h2 className="text-xl font-semibold tracking-tight">{receta.name}</h2>
-        <p className="text-sm text-muted-foreground">
+        {/* En el móvil, «atrás» ya está en la cabecera. */}
+        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2 hidden md:inline-flex">
+          <Link href="/escandallo">
+            <ArrowLeft /> Elaboraciones
+          </Link>
+        </Button>
+        <h2 className="titulo-pantalla">{receta.name}</h2>
+        <p className="texto-meta">
           Rinde {cantidad(receta.yield_qty)} {receta.yield_unit} ·{' '}
           {receta.mapped_lines}/{receta.total_lines} ingredientes mapeados
         </p>
@@ -146,7 +147,7 @@ export default async function PaginaElaboracion({ params }: { params: { id: stri
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5">
-            <p className="text-2xl font-semibold tabular-nums">
+            <p className="cifra-kpi">
               {receta.has_gaps ? '—' : eurosPrecisos(receta.cost_per_yield)}
             </p>
             <EtiquetaCoste
@@ -177,7 +178,7 @@ export default async function PaginaElaboracion({ params }: { params: { id: stri
             <CardTitle className="text-sm font-medium text-muted-foreground">Margen</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <p className="text-2xl font-semibold tabular-nums">
+            <p className={cn('cifra-kpi', !receta.has_gaps && claseMargen(receta.margin_pct))}>
               {receta.has_gaps ? '—' : porcentaje(receta.margin_pct)}
             </p>
             <p className="text-xs text-muted-foreground">
