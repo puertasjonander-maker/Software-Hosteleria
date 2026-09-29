@@ -4,7 +4,8 @@ import { CalendarPlus, ChevronRight, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useOcupado } from '@/lib/ocupado'
 import { ETIQUETA_ESTADO_SERVICIO, ETIQUETA_TIPO_MAQUINA, ORDEN_SEMAFORO } from '@/lib/roles'
-import { fecha as formatearFecha, plural } from '@/lib/format'
+import { fechaRelativa, partesFecha, plural } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { hoyEnMadrid } from '@/lib/time'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -82,35 +83,71 @@ export function ListaVisitas({
 }
 
 function Grupo({ titulo, visitas }: { titulo: string; visitas: VisitaFila[] }) {
+  const hoy = hoyEnMadrid()
   return (
     <section className="space-y-2">
-      <h2 className="titulo-seccion">{titulo}</h2>
-      <ul className="space-y-2">
-        {visitas.map((v) => (
-          <li key={v.id}>
-            <Link
-              to={`/visitas/${v.id}`}
-              className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors duration-rapido ease-estandar hover:bg-accent"
-            >
-              <div className="min-w-0 flex-1">
-                <span className="truncate titulo-tarjeta">{v.clienteNombre}</span>
-                <p className="mt-0.5 texto-meta">
-                  {formatearFecha(v.fecha)} · {ETIQUETA_ESTADO_SERVICIO[v.estado]}
-                </p>
-              </div>
+      <h2 className="flex items-center gap-2 titulo-seccion">
+        {titulo}
+        <span className="tabular-nums font-medium normal-case tracking-normal">{visitas.length}</span>
+      </h2>
+      <ul className="space-y-2.5">
+        {visitas.map((v) => {
+          const f = partesFecha(v.fecha)
+          const hecha = v.estado === 'hecho'
+          const hoyMismo = v.fecha === hoy
+          const tarde = !hecha && v.fecha < hoy
+          const avance = v.maquinas > 0 ? Math.min(100, Math.round((v.hechas / v.maquinas) * 100)) : 0
+          return (
+            <li key={v.id}>
+              <Link
+                to={`/visitas/${v.id}`}
+                className="flex items-center gap-3.5 rounded-xl border bg-card p-3.5 shadow-sm transition-colors duration-rapido ease-estandar hover:bg-accent/40 active:bg-accent"
+              >
+                <div
+                  className={cn(
+                    'flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl leading-none',
+                    hoyMismo
+                      ? 'bg-primary text-primary-foreground'
+                      : tarde
+                        ? 'bg-destructive-soft text-destructive-soft-foreground'
+                        : 'bg-secondary text-secondary-foreground',
+                  )}
+                >
+                  <span className="text-micro font-semibold uppercase tracking-wide opacity-80">
+                    {f.dia}
+                  </span>
+                  <span className="mt-0.5 text-dato font-bold tabular-nums">{f.num}</span>
+                  <span className="text-micro font-medium uppercase opacity-80">{f.mes}</span>
+                </div>
 
-              <div className="shrink-0 text-right">
-                <p className="cifra-dato leading-none">
-                  {v.hechas}
-                  <span className="text-meta font-normal text-muted-foreground">/{v.maquinas}</span>
-                </p>
-                <p className="texto-micro text-muted-foreground">máquinas</p>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate titulo-tarjeta">{v.clienteNombre}</span>
+                  </div>
+                  <p className="mt-0.5 texto-meta">
+                    <span className={tarde ? 'font-semibold text-destructive' : undefined}>
+                      {fechaRelativa(v.fecha, hoy)}
+                    </span>{' '}
+                    · {ETIQUETA_ESTADO_SERVICIO[v.estado]}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2.5">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={cn('h-full rounded-full', hecha ? 'bg-ok' : 'bg-primary')}
+                        style={{ width: `${avance}%` }}
+                      />
+                    </div>
+                    <span className="shrink-0 texto-micro tabular-nums text-muted-foreground">
+                      {v.maquinas === 0 ? 'sin máquinas' : `${v.hechas}/${plural(v.maquinas, 'máquina', 'máquinas')}`}
+                    </span>
+                  </div>
+                </div>
 
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </Link>
-          </li>
-        ))}
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )

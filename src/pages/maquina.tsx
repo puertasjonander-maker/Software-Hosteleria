@@ -1,4 +1,6 @@
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
+import { obtenerBox } from '@/datos/boxes'
 import { useConsulta } from '@/lib/consulta'
 import { obtenerMaquina } from '@/datos/parque'
 import { cargarHistorico } from '@/datos/historico'
@@ -33,7 +35,9 @@ export default function Maquina() {
     async () => {
       const maquina = await obtenerMaquina(maquinaId, id)
       const eventos = await cargarHistorico(maquinaId, { conAutores: true })
-      return { maquina, eventos }
+      // Solo para la miga de pan: si falla, la ficha sigue valiendo sin ella.
+      const box = id ? await obtenerBox(id).catch(() => null) : null
+      return { maquina, eventos, box }
     },
     [maquinaId, id],
   )
@@ -54,8 +58,16 @@ export default function Maquina() {
           </div>
         }
       >
-        {({ maquina, eventos }) => (
+        {({ maquina, eventos, box }) => (
           <>
+            {box ? (
+              <nav aria-label="Ruta" className="hidden items-center gap-1 texto-meta md:flex">
+                <Link to="/boxes" className="hover:text-foreground">Boxes</Link>
+                <ChevronRight className="h-3.5 w-3.5" />
+                <Link to={`/boxes/${id}`} className="hover:text-foreground">{box.nombre}</Link>
+              </nav>
+            ) : null}
+
             <CabeceraMaquina maquina={maquina} />
 
             <ControlesMaquina

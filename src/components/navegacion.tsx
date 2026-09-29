@@ -63,7 +63,8 @@ const TITULOS: Array<[RegExp, string]> = [
   [/^\/sin-permiso/, 'Sin permiso'],
 ]
 
-function tituloDe(pathname: string): string {
+function tituloDe(pathname: string, box: string | null): string {
+  if (box && /^\/mi-box\/?$/.test(pathname)) return box
   return TITULOS.find(([patron]) => patron.test(pathname))?.[1] ?? 'Ergobox'
 }
 
@@ -155,19 +156,20 @@ export function Navegacion({
                 volverA ? 'hidden md:flex' : 'flex',
               )}
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm text-primary-foreground">
-                E
-              </span>
-              <span className="hidden lg:inline">Ergobox</span>
+              <img src="/icons/icon.svg" alt="" className="h-8 w-8 rounded-lg" />
+              <span className="hidden text-tarjeta font-bold tracking-tight sm:inline">Ergobox</span>
             </Link>
 
-            <h2 className="truncate text-tarjeta font-semibold md:hidden">{tituloDe(pathname)}</h2>
+            <h2 className="truncate text-tarjeta font-semibold md:hidden">{tituloDe(pathname, box)}</h2>
 
-            <nav ref={escritorio.contenedor} className="relative hidden items-center gap-1 md:flex">
+            <nav
+              ref={escritorio.contenedor}
+              className={cn('relative hidden items-center gap-1', visibles.length > 1 && 'md:flex')}
+            >
               <Indicador
                 caja={escritorio.caja}
                 animable={escritorio.animable}
-                className="inset-y-0 rounded-md bg-secondary"
+                className="inset-y-0 rounded-lg bg-secondary"
               />
               {visibles.map((d) => (
                 <Link
@@ -175,7 +177,7 @@ export function Navegacion({
                   to={d.href}
                   data-indicador={d.href}
                   className={cn(
-                    'relative rounded-md px-3 py-2 text-cuerpo font-medium',
+                    'relative rounded-lg px-3.5 py-2 text-cuerpo font-semibold',
                     'transition-colors duration-rapido ease-estandar',
                     esActivo(d.href)
                       ? 'text-secondary-foreground'
@@ -234,7 +236,12 @@ export function Navegacion({
       </header>
 
       {/* Barra inferior: en el móvil el pulgar llega abajo, no arriba. */}
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur md:hidden">
+      <nav
+        className={cn(
+          'safe-bottom fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur md:hidden',
+          visibles.length < 2 && 'hidden',
+        )}
+      >
         <ul ref={movil.contenedor} className="relative flex items-stretch justify-around">
           <Indicador caja={movil.caja} animable={movil.animable} className="top-0 flex justify-center">
             <span className="h-[2.5px] w-10 rounded-full bg-primary" />

@@ -16,8 +16,9 @@ export function Marco() {
         nombre={sesion.perfil.nombre || sesion.email || 'Sin nombre'}
         box={sesion.cliente?.nombre ?? null}
       />
-      {/* pb-24 deja hueco a la barra inferior del móvil, que va fija. */}
-      <main className="flex-1 pb-24 md:pb-8">
+      {/* pb-24 deja hueco a la barra inferior del móvil, que va fija. El cliente
+          no la tiene (un solo destino), así que no reserva el hueco. */}
+      <main className={sesion.perfil.rol === 'cliente' ? 'flex-1 pb-8' : 'flex-1 pb-24 md:pb-8'}>
         <Outlet />
       </main>
     </div>

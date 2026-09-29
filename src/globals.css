@@ -47,7 +47,17 @@
     --input: 30 15% 84%;
     --ring: 25 45% 32%;
 
-    --radius: 0.6rem;
+    --radius: 0.75rem;
+
+    /* Tintes suaves de estado: fondo claro + texto oscuro del mismo matiz. El
+       color sólido queda para barras y puntos; las etiquetas van en suave para
+       que una lista con seis estados no parezca un semáforo averiado. */
+    --ok-soft: 152 40% 92%;
+    --ok-soft-foreground: 152 55% 21%;
+    --warn-soft: 38 90% 91%;
+    --warn-soft-foreground: 30 80% 26%;
+    --destructive-soft: 0 80% 94%;
+    --destructive-soft-foreground: 0 65% 34%;
 
     /*
      * Colores de gráfico. Van aparte de los tokens de interfaz a propósito: un
@@ -93,6 +103,12 @@
       --border: 25 12% 24%;
       --input: 25 12% 26%;
       --ring: 35 45% 60%;
+      --ok-soft: 152 30% 17%;
+      --ok-soft-foreground: 152 45% 72%;
+      --warn-soft: 36 40% 18%;
+      --warn-soft-foreground: 38 85% 72%;
+      --destructive-soft: 0 35% 19%;
+      --destructive-soft-foreground: 0 85% 80%;
       --chart-1: #3987e5;
       --chart-2: #d95926;
       --chart-surface: #1a1512;
@@ -135,6 +151,13 @@
     --input: 25 12% 26%;
     --ring: 35 45% 60%;
 
+    --ok-soft: 152 30% 17%;
+    --ok-soft-foreground: 152 45% 72%;
+    --warn-soft: 36 40% 18%;
+    --warn-soft-foreground: 38 85% 72%;
+    --destructive-soft: 0 35% 19%;
+    --destructive-soft-foreground: 0 85% 80%;
+
     /* Los mismos matices, re-escalonados para el fondo oscuro. No es un
        inverso automático: se eligieron y validaron contra esta superficie. */
     --chart-1: #3987e5;
@@ -155,7 +178,8 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: 'ss01', 'cv11';
     /* La app se usa con prisa: un rebote elástico al final de la lista hace
        pensar que hay más contenido del que hay. */
     overscroll-behavior-y: none;

@@ -5,6 +5,8 @@ import { Toaster } from 'sonner'
 import { ProveedorSesion } from '@/lib/sesion'
 import { registrarServiceWorker } from '@/lib/service-worker'
 import { Rutas } from '@/rutas'
+import '@fontsource-variable/archivo'
+import '@fontsource/ibm-plex-mono/500.css'
 import '@/globals.css'
 
 const raiz = document.getElementById('raiz')

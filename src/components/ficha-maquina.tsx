@@ -37,7 +37,7 @@ export function CabeceraMaquina({ maquina }: { maquina: MaquinaFila }) {
 
       <p className="texto-meta">{identidad.join(' · ')}</p>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border bg-card px-3 py-2.5 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border bg-card p-4 shadow-sm sm:grid-cols-4">
         <Dato titulo="Última revisión" valor={formatearFecha(maquina.ultimaRevision)} />
         <Dato
           titulo="Próxima"
@@ -74,10 +74,10 @@ function Dato({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="texto-micro uppercase tracking-wide text-muted-foreground">{titulo}</dt>
-      <dd className="truncate text-cuerpo font-semibold">{valor}</dd>
+      <dt className="texto-micro uppercase tracking-wider text-muted-foreground">{titulo}</dt>
+      <dd className="mt-0.5 truncate text-tarjeta font-semibold">{valor}</dd>
       {pie ? (
-        <dd className={avisa ? 'texto-micro text-destructive' : 'texto-micro text-muted-foreground'}>
+        <dd className={avisa ? 'texto-micro font-semibold text-destructive' : 'texto-micro text-muted-foreground'}>
           {pie}
         </dd>
       ) : null}

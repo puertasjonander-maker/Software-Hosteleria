@@ -19,15 +19,17 @@ export default function Entrar() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,hsl(var(--accent))_0%,hsl(var(--background))_60%)] px-4 py-10">
       <div className="w-full max-w-sm space-y-8">
-        <header className="space-y-2 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-primary-foreground">
-            E
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Ergobox</h1>
-          <p className="text-sm text-muted-foreground">
-            Mantenimiento de máquinas. Entra con el correo con el que te dimos de alta.
+        <header className="space-y-3 text-center">
+          <img
+            src="/icons/icon.svg"
+            alt=""
+            className="mx-auto h-16 w-16 rounded-2xl shadow-lg shadow-primary/20"
+          />
+          <h1 className="text-[1.75rem] font-bold leading-none tracking-tight">Ergobox</h1>
+          <p className="mx-auto max-w-[18rem] text-cuerpo text-muted-foreground">
+            Mantenimiento de máquinas para boxes. Entra con el correo con el que te dimos de alta.
           </p>
         </header>
 

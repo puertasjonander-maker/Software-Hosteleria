@@ -1,8 +1,15 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
+import type { Semaforo } from '@/lib/database.types'
 import { type MaquinaFila, ordenarPorUrgencia, textoRevision } from '@/lib/parque'
-import { ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
-import { fecha as formatearFecha } from '@/lib/format'
+import {
+  CLASE_PUNTO_SEMAFORO,
+  ETIQUETA_SEMAFORO_PLURAL,
+  ETIQUETA_TIPO_MAQUINA,
+  ORDEN_SEMAFORO,
+} from '@/lib/roles'
+import { fechaCorta } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { PuntoSemaforo } from '@/components/chip-semaforo'
 import { IconoMaquina } from '@/components/icono-maquina'
 
@@ -13,6 +20,10 @@ import { IconoMaquina } from '@/components/icono-maquina'
  * a dónde lleva cada fila, porque cada rol tiene su ruta hacia la ficha. Tenerla
  * dos veces acabaría con dos criterios de orden distintos y el cliente viendo su
  * parque ordenado alfabéticamente mientras nosotros lo vemos por urgencia.
+ *
+ * Va agrupada por estado, de lo peor a lo mejor: lo que hay que arreglar queda
+ * arriba con su cabecera, y lo que está bien no compite con ello. Con menos de
+ * seis máquinas no se agrupa; una cabecera por cada dos filas sería ruido.
  */
 export function ListaParque({
   maquinas,
@@ -23,17 +34,57 @@ export function ListaParque({
   base: string
 }) {
   const ordenadas = ordenarPorUrgencia(maquinas)
+  const activas = ordenadas.filter((m) => m.activa)
+  const fuera = ordenadas.filter((m) => !m.activa)
+
+  const grupos = (Object.keys(ORDEN_SEMAFORO) as Semaforo[])
+    .sort((a, b) => ORDEN_SEMAFORO[a] - ORDEN_SEMAFORO[b])
+    .map((estado) => ({ estado, filas: activas.filter((m) => m.estado === estado) }))
+    .filter((g) => g.filas.length > 0)
+
+  if (activas.length < 6) {
+    return (
+      <div className="space-y-5">
+        <Filas filas={ordenadas} base={base} />
+      </div>
+    )
+  }
 
   return (
-    <ul className="divide-y rounded-lg border bg-card">
-      {ordenadas.map((m) => {
+    <div className="space-y-5">
+      {grupos.map((g) => (
+        <section key={g.estado} className="space-y-2">
+          <h3 className="flex items-center gap-2 titulo-seccion">
+            <span className={cn('h-2 w-2 rounded-full', CLASE_PUNTO_SEMAFORO[g.estado])} />
+            {ETIQUETA_SEMAFORO_PLURAL[g.estado]}
+            <span className="tabular-nums font-medium normal-case tracking-normal">
+              {g.filas.length}
+            </span>
+          </h3>
+          <Filas filas={g.filas} base={base} />
+        </section>
+      ))}
+      {fuera.length > 0 ? (
+        <section className="space-y-2">
+          <h3 className="titulo-seccion">Fuera del parque · {fuera.length}</h3>
+          <Filas filas={fuera} base={base} />
+        </section>
+      ) : null}
+    </div>
+  )
+}
+
+function Filas({ filas, base }: { filas: MaquinaFila[]; base: string }) {
+  return (
+    <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
+      {filas.map((m) => {
         const revision = textoRevision(m)
 
         return (
           <li key={m.id}>
             <Link
               to={`${base}/${m.id}`}
-              className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors duration-rapido ease-estandar hover:bg-accent"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-rapido ease-estandar hover:bg-accent/60 active:bg-accent"
             >
               <PuntoSemaforo estado={m.estado} />
 
@@ -43,21 +94,12 @@ export function ListaParque({
               <IconoMaquina tipo={m.tipo} className="text-muted-foreground" />
 
               <div className="min-w-0 flex-1">
-                {/* "Fuera del parque" va fuera del texto meta, que se trunca, y en
-                    su propia fila flex: puesto en línea con el nombre lo partía
-                    por la mitad ("SkiErg" / "1 · Fuera del parque"). Lo que cede
-                    es el nombre, con puntos suspensivos. */}
-                {/* Envuelve en vez de encoger: con el aviso al lado y sin
-                    `flex-wrap`, el nombre cedía todo el espacio y "SkiErg 1" se
-                    quedaba en "Ski…". El `min-w` es lo que fuerza a que baje el
-                    aviso y no el nombre. */}
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span
-                    className={
-                      m.activa
-                        ? 'min-w-[6rem] truncate titulo-tarjeta'
-                        : 'min-w-[6rem] truncate titulo-tarjeta opacity-60'
-                    }
+                    className={cn(
+                      'min-w-[6rem] truncate titulo-tarjeta',
+                      !m.activa && 'opacity-60',
+                    )}
                   >
                     {m.nombre}
                   </span>
@@ -82,11 +124,10 @@ export function ListaParque({
               <div className="shrink-0 text-right">
                 {revision ? (
                   <p
-                    className={
-                      revision.avisa
-                        ? 'texto-micro text-destructive'
-                        : 'texto-micro text-muted-foreground'
-                    }
+                    className={cn(
+                      'text-meta font-semibold',
+                      revision.avisa ? 'text-destructive' : 'text-foreground',
+                    )}
                   >
                     {revision.texto}
                   </p>
@@ -95,7 +136,7 @@ export function ListaParque({
                 )}
                 {m.ultimaRevision ? (
                   <p className="texto-micro text-muted-foreground">
-                    últ. {formatearFecha(m.ultimaRevision)}
+                    últ. {fechaCorta(m.ultimaRevision)}
                   </p>
                 ) : null}
               </div>

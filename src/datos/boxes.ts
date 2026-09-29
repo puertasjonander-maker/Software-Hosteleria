@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { oReventar, resultado, type Resultado } from '@/datos/resultado'
-import { peorSemaforo } from '@/lib/parque'
+import { peorSemaforo, type ResumenParque } from '@/lib/parque'
 import { hoyEnMadrid } from '@/lib/time'
 import type { ClienteRow, Semaforo } from '@/lib/database.types'
 
@@ -15,6 +15,7 @@ export type BoxResumen = {
   maquinas: number
   peor: Semaforo | null
   vencidas: number
+  resumen: ResumenParque
 }
 
 /**
@@ -60,6 +61,17 @@ export async function listarBoxes(): Promise<BoxResumen[]> {
       maquinas: agregado.estados.length,
       peor: peorSemaforo(agregado.estados),
       vencidas: agregado.vencidas,
+      resumen: {
+        total: agregado.estados.length,
+        porEstado: {
+          rojo: agregado.estados.filter((e) => e === 'rojo').length,
+          ambar: agregado.estados.filter((e) => e === 'ambar').length,
+          sin_revisar: agregado.estados.filter((e) => e === 'sin_revisar').length,
+          verde: agregado.estados.filter((e) => e === 'verde').length,
+        },
+        vencidas: agregado.vencidas,
+        proximas: 0,
+      },
     }
   })
 }

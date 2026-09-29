@@ -2,9 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, ChevronRight, CloudOff, RefreshCw, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { ETIQUETA_ESTADO_SERVICIO, ETIQUETA_TIPO_MAQUINA } from '@/lib/roles'
-import { fecha as formatearFecha, plural } from '@/lib/format'
+import { fechaLarga, plural } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { tamano } from '@/lib/foto'
-import { contarPendientes, fotosAtascadas, partesEnCola, sincronizar, type Pendientes } from '@/lib/cola-visita'
+import {
+  contarPendientes,
+  fotosAtascadas,
+  partesEnCola,
+  sincronizar,
+  type Pendientes,
+} from '@/lib/cola-visita'
 import { Button } from '@/components/ui/button'
 import { AvisoDesactualizado } from '@/components/ui/states'
 import { IconoMaquina } from '@/components/icono-maquina'
@@ -168,7 +175,8 @@ export function Trabajo({
       <header className="space-y-1">
         <h1 className="titulo-pantalla">{clienteNombre}</h1>
         <p className="texto-meta">
-          {formatearFecha(fecha)} · {ETIQUETA_ESTADO_SERVICIO[estado]}
+          <span className="inline-block first-letter:uppercase">{fechaLarga(fecha)}</span> ·{' '}
+          {ETIQUETA_ESTADO_SERVICIO[estado]}
         </p>
         {notas ? <p className="texto-meta">{notas}</p> : null}
       </header>
@@ -205,49 +213,63 @@ export function Trabajo({
        * 390 px el contador se quedaba sin sitio y "Quedan 9 máquinas" se partía
        * en tres líneas por detrás de los chips.
        */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-card p-3">
-        <div className="min-w-[9rem] flex-1">
-          {/* Un mínimo de 9rem es lo que ocupa "Quedan 12 máquinas" en una línea. */}
-          <p className="cifra-dato leading-none">
-            {hechas.length}
-            <span className="text-meta font-normal text-muted-foreground">
-              /{conEstadoLocal.length}
-            </span>
-          </p>
-          <p className="mt-0.5 texto-meta">
-            {pendientesDeHacer.length === 0
-              ? 'Visita terminada'
-              : `Quedan ${plural(pendientesDeHacer.length, 'máquina', 'máquinas')}`}
-          </p>
+      <div className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="min-w-[9rem] flex-1">
+            {/* Un mínimo de 9rem es lo que ocupa "Quedan 12 máquinas" en una línea. */}
+            <p className="text-pantalla font-bold tabular-nums leading-none">
+              {hechas.length}
+              <span className="text-tarjeta font-medium text-muted-foreground">
+                /{conEstadoLocal.length}
+              </span>
+            </p>
+            <p className="mt-1 texto-meta">
+              {pendientesDeHacer.length === 0
+                ? 'Visita terminada'
+                : `Quedan ${plural(pendientesDeHacer.length, 'máquina', 'máquinas')}`}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {!enLinea ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-micro font-medium text-muted-foreground">
+                <CloudOff className="h-3.5 w-3.5" /> Sin cobertura
+              </span>
+            ) : null}
+
+            {hayCola ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={subiendo || !enLinea}
+                onClick={() => void vaciarCola(false)}
+              >
+                {subiendo ? <RefreshCw className="animate-spin" /> : <Upload />}
+                {pendientes.fotos > 0
+                  ? `${plural(pendientes.fotos, 'foto', 'fotos')} · ${tamano(pendientes.bytes)}`
+                  : plural(pendientes.partes, 'parte', 'partes')}
+              </Button>
+            ) : null}
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {!enLinea ? (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-micro font-medium text-muted-foreground">
-              <CloudOff className="h-3.5 w-3.5" /> Sin cobertura
-            </span>
-          ) : null}
-
-          {hayCola ? (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={subiendo || !enLinea}
-              onClick={() => void vaciarCola(false)}
-            >
-              {subiendo ? <RefreshCw className="animate-spin" /> : <Upload />}
-              {pendientes.fotos > 0
-                ? `${plural(pendientes.fotos, 'foto', 'fotos')} · ${tamano(pendientes.bytes)}`
-                : plural(pendientes.partes, 'parte', 'partes')}
-            </Button>
-          ) : null}
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn(
+              'h-full rounded-full transition-[width] duration-amplio ease-salida',
+              pendientesDeHacer.length === 0 ? 'bg-ok' : 'bg-primary',
+            )}
+            style={{
+              width: `${conEstadoLocal.length ? Math.round((hechas.length / conEstadoLocal.length) * 100) : 0}%`,
+            }}
+          />
         </div>
       </div>
 
       {pendientesDeHacer.length > 0 ? (
         <section className="space-y-2">
           <h2 className="titulo-seccion">Por hacer</h2>
-          <ul className="divide-y rounded-lg border bg-card">
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
             {pendientesDeHacer.map((p) => (
               <FilaParte key={p.id} parte={p} onAbrir={() => setAbierto(p)} />
             ))}
@@ -275,7 +297,7 @@ export function Trabajo({
       {hechas.length > 0 ? (
         <section className="space-y-2">
           <h2 className="titulo-seccion">Hechas</h2>
-          <ul className="divide-y rounded-lg border bg-card">
+          <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
             {hechas.map((p) => (
               <FilaParte key={p.id} parte={p} onAbrir={() => setAbierto(p)} />
             ))}
@@ -317,7 +339,11 @@ function FilaParte({ parte, onAbrir }: { parte: ParteTrabajo; onAbrir: () => voi
         <div className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <IconoMaquina tipo={parte.tipo} className="text-muted-foreground" />
-            <span className={parte.hecho ? 'titulo-tarjeta truncate opacity-60' : 'titulo-tarjeta truncate'}>
+            <span
+              className={
+                parte.hecho ? 'titulo-tarjeta truncate opacity-60' : 'titulo-tarjeta truncate'
+              }
+            >
               {parte.nombre}
             </span>
           </span>
@@ -348,9 +374,7 @@ function FilaParte({ parte, onAbrir }: { parte: ParteTrabajo; onAbrir: () => voi
          * parque ya lo llevaba: dos listas de máquinas con la misma forma tienen
          * que comportarse igual.
          */}
-        {parte.hecho ? null : (
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        )}
+        {parte.hecho ? null : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
       </button>
     </li>
   )

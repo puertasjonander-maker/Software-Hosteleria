@@ -3,13 +3,13 @@ import { CalendarClock, CalendarX2, Phone } from 'lucide-react'
 import { useConsulta } from '@/lib/consulta'
 import { cargarPanel } from '@/datos/panel'
 import { ordenarPorUrgencia, textoRevision } from '@/lib/parque'
-import { fecha as formatearFecha, plural } from '@/lib/format'
+import { fechaCorta, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Skeleton, SkeletonLista } from '@/components/ui/skeleton'
 import { EstadoVacio } from '@/components/ui/states'
-import { ChipSemaforo, PuntoSemaforo } from '@/components/chip-semaforo'
+import { ChipSemaforo } from '@/components/chip-semaforo'
 import { Cargador, useTitulo } from '@/components/cargador'
-import { ResumenParque } from '@/components/resumen-parque'
+import { BarraSalud, ResumenParque } from '@/components/resumen-parque'
 import { ValorParque } from '@/components/valor-parque'
 import { valorDelParque } from '@/lib/valor'
 
@@ -104,7 +104,7 @@ export default function Panel() {
               <ResumenParque resumen={datos.resumen} />
 
               <section className="space-y-3">
-                <h2 className="titulo-seccion">Revisiones vencidas y próximas</h2>
+                <h2 className="titulo-seccion">Qué toca revisar</h2>
 
                 {pendientes.length === 0 ? (
                   <EstadoVacio
@@ -112,11 +112,11 @@ export default function Panel() {
                     descripcion="Todo el parque con cadencia contratada está dentro de plazo."
                   />
                 ) : (
-                  <ul className="divide-y rounded-lg border bg-card">
+                  <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
                     {pendientes.slice(0, 20).map((m) => {
                       const revision = textoRevision(m)
                       const boxId = datos.clienteDeMaquina.get(m.id)
-                      const box = boxId ? datos.nombreDeBox.get(boxId) ?? 'Box' : 'Box'
+                      const box = boxId ? (datos.nombreDeBox.get(boxId) ?? 'Box') : 'Box'
                       const contacto = boxId ? datos.contactoDeBox.get(boxId) : undefined
                       const vencida = (m.diasHastaRevision ?? 0) < 0
 
@@ -159,7 +159,7 @@ export default function Panel() {
                               {revision?.texto}
                             </p>
                             <p className="texto-micro text-muted-foreground">
-                              {formatearFecha(m.proximaRevision)}
+                              {fechaCorta(m.proximaRevision)}
                             </p>
                           </div>
 
@@ -198,22 +198,17 @@ export default function Panel() {
               <section className="space-y-3">
                 <h2 className="titulo-seccion">Parque por box</h2>
 
-                <ul className="divide-y rounded-lg border bg-card">
+                <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
                   {datos.porBox.map((b) => (
                     <li key={b.id}>
                       <Link
                         to={`/boxes/${b.id}`}
-                        className="flex items-center gap-3 px-3 py-3 transition-colors duration-rapido ease-estandar hover:bg-accent"
+                        className="flex items-center gap-3 px-4 py-3 transition-colors duration-rapido ease-estandar hover:bg-accent/60"
                       >
-                        {b.peor ? (
-                          <PuntoSemaforo estado={b.peor} />
-                        ) : (
-                          <span className="h-2.5 w-2.5 shrink-0" />
-                        )}
-
                         <div className="min-w-0 flex-1">
                           <span className="titulo-tarjeta">{b.nombre}</span>
-                          <p className="truncate texto-meta">
+                          <BarraSalud resumen={b.resumen} className="mt-2 h-1.5 max-w-[14rem]" />
+                          <p className="mt-1.5 truncate texto-meta">
                             {[
                               b.poblacion,
                               b.resumen.total > 0
@@ -242,12 +237,9 @@ export default function Panel() {
 
               <ValorParque valor={valorDelParque(datos.maquinas)} />
 
-              <section className="grid gap-3 sm:grid-cols-3">
-                <Cifra valor={datos.visitasHechas} etiqueta={`visitas terminadas en ${dias} días`} />
-                <Cifra
-                  valor={datos.visitasAbiertas}
-                  etiqueta="visitas por hacer, las de la agenda incluidas"
-                />
+              <section className="grid grid-cols-3 divide-x overflow-hidden rounded-xl border bg-card shadow-sm">
+                <Cifra valor={datos.visitasHechas} etiqueta="visitas terminadas" />
+                <Cifra valor={datos.visitasAbiertas} etiqueta="visitas por hacer" />
                 <Cifra
                   valor={datos.porBox.filter((b) => b.resumen.total > 0).length}
                   etiqueta="boxes con parque"
@@ -263,9 +255,9 @@ export default function Panel() {
 
 function Cifra({ valor, etiqueta }: { valor: number; etiqueta: string }) {
   return (
-    <div className="rounded-lg border bg-card px-3 py-2.5">
-      <p className="text-2xl font-semibold tabular-nums">{valor}</p>
-      <p className="texto-meta">{etiqueta}</p>
+    <div className="px-3 py-3 sm:px-5 sm:py-4">
+      <p className="text-pantalla font-bold tabular-nums leading-none">{valor}</p>
+      <p className="mt-1.5 texto-meta">{etiqueta}</p>
     </div>
   )
 }

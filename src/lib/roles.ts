@@ -54,6 +54,22 @@ export const ETIQUETA_SEMAFORO: Record<Semaforo, string> = {
   sin_revisar: 'Sin revisar',
 }
 
+/** Para contar: «3 correctas», «1 para arreglar». */
+export const ETIQUETA_SEMAFORO_PLURAL: Record<Semaforo, string> = {
+  verde: 'Correctas',
+  ambar: 'A vigilar',
+  rojo: 'Para arreglar',
+  sin_revisar: 'Sin revisar',
+}
+
+/** Etiqueta en suave: fondo tintado y texto oscuro del mismo matiz. */
+export const CLASE_SEMAFORO_SUAVE: Record<Semaforo, string> = {
+  verde: 'bg-ok-soft text-ok-soft-foreground',
+  ambar: 'bg-warn-soft text-warn-soft-foreground',
+  rojo: 'bg-destructive-soft text-destructive-soft-foreground',
+  sin_revisar: 'bg-muted text-muted-foreground',
+}
+
 /**
  * Clases del semáforo. Verde, ámbar y rojo son los tokens semánticos de la
  * interfaz, no colores sueltos; `sin_revisar` es deliberadamente neutro para que

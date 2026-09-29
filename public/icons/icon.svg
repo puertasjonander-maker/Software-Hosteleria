@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mise">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ergobox">
   <rect width="512" height="512" rx="113" fill="#251c16"/>
   <path
-    d="M126 313 V199 L256 297 L386 199 V313"
+    d="M340 150 H186 V362 H340 M186 256 H322"
     fill="none"
     stroke="#e8d8c3"
-    stroke-width="49"
+    stroke-width="52"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
