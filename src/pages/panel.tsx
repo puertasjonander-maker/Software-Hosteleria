@@ -239,7 +239,7 @@ export default function Panel() {
 
               <section className="grid grid-cols-3 divide-x overflow-hidden rounded-xl border bg-card shadow-sm">
                 <Cifra valor={datos.visitasHechas} etiqueta="visitas terminadas" />
-                <Cifra valor={datos.visitasAbiertas} etiqueta="visitas por hacer" />
+                <Cifra valor={datos.visitasAbiertas} etiqueta="visitas por hacer, las de la agenda incluidas" />
                 <Cifra
                   valor={datos.porBox.filter((b) => b.resumen.total > 0).length}
                   etiqueta="boxes con parque"

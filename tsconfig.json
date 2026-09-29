@@ -23,5 +23,5 @@
     }
   },
   "include": ["src", "scripts", "vite.config.ts"],
-  "exclude": ["node_modules", "dist", "supabase/functions"]
+  "exclude": ["node_modules", "dist", "supabase/functions", "scripts/vista-iconos.ts"]
 }
