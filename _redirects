@@ -1,0 +1,4 @@
+# Netlify: cualquier dirección se sirve con el documento de la aplicación, que es
+# quien decide qué pintar. Sin esto, entrar directamente en /boxes/algo daría 404
+# porque en el servidor no existe ese fichero.
+/*  /index.html  200
