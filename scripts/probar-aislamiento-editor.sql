@@ -14,7 +14,7 @@
 --
 -- CÓMO SE LEE EL RESULTADO — importante, porque no es lo que parece:
 --
---   · Sale en rojo `TODO EN ORDEN — 57 comprobaciones superadas`  → ha ido bien.
+--   · Sale en rojo `TODO EN ORDEN — 61 comprobaciones superadas`  → ha ido bien.
 --   · Sale en rojo cualquier cosa que empiece por `FALLO ·`       → ha ido mal.
 --
 -- El "error" final es a propósito. Un bloque `do` es una sola sentencia, así que
@@ -279,8 +279,40 @@ begin
 
   perform set_config('role', 'none', true);
 
-  -- Si se llega hasta aquí, las 57 han pasado. Se revienta a propósito: ver la
+  -- ── 7. Accesos: quién ha entrado, y que «desactivar» desactive ────────────
+  perform set_config('role', 'none', true);
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000aaaa', true);
+  set local role authenticated;
+
+  perform prueba.afirmar('el admin ve el estado de acceso de los cinco',
+    (select count(*) from estado_accesos()
+      where perfil_id in ('00000000-0000-0000-0000-00000000aaaa', TEC, A_USR, B_USR, NADIE)), 5);
+
+  perform set_config('role', 'none', true);
+  perform set_config('request.jwt.claim.sub', TEC::text, true);
+  set local role authenticated;
+  perform prueba.afirmar('el técnico no ve ningún estado de acceso',
+    (select count(*) from estado_accesos()), 0);
+
+  perform set_config('role', 'none', true);
+  perform set_config('request.jwt.claim.sub', A_USR::text, true);
+  set local role authenticated;
+  perform prueba.afirmar('un cliente tampoco',
+    (select count(*) from estado_accesos()), 0);
+
+  -- Se desactiva a un cliente (lo haría el admin) y se comprueba que no puede
+  -- volver a encenderse él solo: era posible hasta esta migración.
+  perform set_config('role', 'none', true);
+  update perfiles set activo = false where id = B_USR;
+  perform set_config('request.jwt.claim.sub', B_USR::text, true);
+  set local role authenticated;
+  perform prueba.debe_rechazar('un usuario desactivado no se reactiva solo',
+    format($f$update perfiles set activo = true where id = %L$f$, B_USR));
+
+  perform set_config('role', 'none', true);
+
+  -- Si se llega hasta aquí, las 61 han pasado. Se revienta a propósito: ver la
   -- cabecera del fichero.
-  raise exception 'TODO EN ORDEN — 57 comprobaciones superadas, siembra deshecha';
+  raise exception 'TODO EN ORDEN — 61 comprobaciones superadas, siembra deshecha';
 end
 $prueba$;

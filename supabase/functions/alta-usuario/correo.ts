@@ -25,6 +25,8 @@ export type DatosAcceso = {
   /** El box del que es dueño, o null si es alguien del equipo de Ergobox. */
   box: string | null
   url: string
+  /** Alta nueva o contraseña regenerada: cambia el titular y el primer párrafo. */
+  motivo?: 'alta' | 'restablecida'
 }
 
 const TINTA = '#1a1614'
@@ -42,6 +44,7 @@ function escapar(texto: string): string {
 }
 
 export function asuntoAcceso(datos: DatosAcceso): string {
+  if (datos.motivo === 'restablecida') return 'Tu nuevo acceso a Ergobox'
   return datos.box
     ? `Tu acceso al mantenimiento de ${datos.box}`
     : 'Tu acceso a Ergobox'
@@ -49,7 +52,9 @@ export function asuntoAcceso(datos: DatosAcceso): string {
 
 export function textoAcceso(d: DatosAcceso): string {
   const saludo = d.nombre ? `Hola ${d.nombre},` : 'Hola,'
-  const que = d.box
+  const que = d.motivo === 'restablecida'
+    ? 'Te hemos generado una contraseña nueva. La anterior ya no funciona.'
+    : d.box
     ? `Ya puedes consultar el estado de las máquinas de ${d.box}: en qué estado está cada una, qué se le ha hecho y cuándo le toca la próxima revisión.`
     : 'Ya tienes acceso a Ergobox para el trabajo de campo: visitas, partes y fotos.'
 
@@ -62,7 +67,7 @@ export function textoAcceso(d: DatosAcceso): string {
     `Usuario: ${d.email}`,
     `Contraseña: ${d.contrasena}`,
     '',
-    'Esta contraseña es temporal. Cámbiala cuando entres.',
+    'Es una contraseña temporal: al entrar te pedirá elegir la tuya.',
     '',
     'Cualquier cosa, responde a este correo.',
     'Ergobox · hola@ergobox.es',
@@ -76,7 +81,9 @@ export function htmlAcceso(d: DatosAcceso): string {
   const box = d.box ? escapar(d.box) : null
   const saludo = nombre ? `Hola ${nombre},` : 'Hola,'
 
-  const que = box
+  const que = d.motivo === 'restablecida'
+    ? 'Te hemos generado una contraseña nueva. <strong>La anterior ya no funciona.</strong>'
+    : box
     ? `Ya puedes ver el estado del parque de <strong>${box}</strong>: cómo está cada máquina, qué se le ha hecho y cuándo le toca la próxima revisión.`
     : 'Ya tienes acceso a Ergobox para el trabajo de campo: visitas, partes y fotos de antes y después.'
 
@@ -118,7 +125,11 @@ export function htmlAcceso(d: DatosAcceso): string {
           <td style="padding:16px 28px 0 28px;">
             <h1 style="margin:0; font-family:Helvetica,Arial,sans-serif; font-size:23px;
                        line-height:1.25; font-weight:bold; color:${TINTA};">${escapar(
-                         box ? 'Ya puedes ver tus máquinas' : 'Ya tienes acceso',
+                         d.motivo === 'restablecida'
+                           ? 'Tu nueva contraseña'
+                           : box
+                             ? 'Ya puedes ver tus máquinas'
+                             : 'Ya tienes acceso',
                        )}</h1>
           </td>
         </tr>
@@ -174,7 +185,7 @@ export function htmlAcceso(d: DatosAcceso): string {
           <td style="padding:18px 28px 0 28px; font-family:Georgia,'Times New Roman',serif;
                      font-size:14px; line-height:1.6; color:${SUAVE};">
             <p style="margin:0;">
-              La contraseña es temporal. Cámbiala cuando entres, y si no te funciona el
+              Es temporal: al entrar te pedirá elegir la tuya. Si no te funciona el
               botón, copia esta dirección en el navegador:
               <br>
               <span style="font-family:'Courier New',Courier,monospace; font-size:13px;

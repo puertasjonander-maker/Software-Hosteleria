@@ -96,6 +96,17 @@ export function FormularioAcceso() {
             {enviando ? 'Entrando…' : 'Entrar'}
           </Button>
         </form>
+
+        <p className="mt-4 text-center texto-meta">
+          ¿Primera vez o no te acuerdas de la contraseña?{' '}
+          <a
+            href="mailto:hola@ergobox.es?subject=Acceso%20a%20Ergobox"
+            className="font-medium text-foreground underline underline-offset-2"
+          >
+            Escríbenos
+          </a>{' '}
+          y te mandamos una nueva.
+        </p>
       </CardContent>
     </Card>
   )

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import type { RolUsuario } from '@/lib/database.types'
 import { inicioSegunRol } from '@/lib/roles'
 import { useSesion } from '@/lib/sesion'
@@ -16,6 +16,7 @@ import MiBox from '@/pages/mi-box'
 import MiMaquina from '@/pages/mi-maquina'
 import Panel from '@/pages/panel'
 import Administracion from '@/pages/administracion'
+import CambiarContrasena from '@/pages/cambiar-contrasena'
 import Ajustes from '@/pages/ajustes'
 import SinPermiso from '@/pages/sin-permiso'
 import NoEncontrada from '@/pages/no-encontrada'
@@ -35,6 +36,12 @@ export function Rutas() {
       <Route path="/sin-permiso" element={<SinPermiso />} />
 
       <Route path="/" element={<AlInicio />} />
+
+      {/* Fuera del marco a propósito: es una pantalla sola, sin navegación detrás
+          a la que escapar cuando es obligatoria. */}
+      <Route element={<ConSesion />}>
+        <Route path="/cambiar-contrasena" element={<CambiarContrasena />} />
+      </Route>
 
       <Route element={<Protegida roles={['admin', 'tecnico']} />}>
         <Route path="/visitas" element={<Visitas />} />
@@ -70,6 +77,7 @@ function AlInicio() {
   const { sesion, cargando } = useSesion()
   if (cargando) return <Esperando />
   if (!sesion) return <Navigate to="/entrar" replace />
+  if (sesion.perfil.debe_cambiar_contrasena) return <Navigate to="/cambiar-contrasena" replace />
   return <Navigate to={inicioSegunRol(sesion.perfil.rol)} replace />
 }
 
@@ -89,11 +97,24 @@ function Protegida({ roles }: { roles?: RolUsuario[] }) {
     return <Navigate to="/entrar" replace state={{ destino: ubicacion.pathname + ubicacion.search }} />
   }
 
+  // Con la contraseña temporal no se pasa de aquí: primero elige la suya.
+  if (sesion.perfil.debe_cambiar_contrasena) {
+    return <Navigate to="/cambiar-contrasena" replace />
+  }
+
   if (roles && !roles.includes(sesion.perfil.rol)) {
     return <Navigate to="/sin-permiso" replace />
   }
 
   return <Marco />
+}
+
+/** Exige sesión y nada más: ni rol ni marco. */
+function ConSesion() {
+  const { sesion, cargando } = useSesion()
+  if (cargando) return <Esperando />
+  if (!sesion) return <Navigate to="/entrar" replace />
+  return <Outlet />
 }
 
 /**

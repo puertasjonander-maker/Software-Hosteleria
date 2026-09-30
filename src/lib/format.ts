@@ -133,3 +133,18 @@ export function fechaRelativa(valor: string, hoy: string): string {
   if (dias < -1 && dias >= -14) return `hace ${-dias} días`
   return fechaCorta(valor)
 }
+
+/**
+ * «hoy», «ayer», «hace 3 días», «hace 2 semanas», «hace 4 meses». Para saber cuánto
+ * hace de algo que ya pasó, como el último acceso de un usuario.
+ */
+export function haceTiempo(valor: string | Date | null | undefined, ahora = new Date()): string {
+  const d = aDate(valor)
+  if (!d) return '—'
+  const dias = Math.floor((ahora.getTime() - d.getTime()) / 86_400_000)
+  if (dias <= 0) return 'hoy'
+  if (dias === 1) return 'ayer'
+  if (dias < 14) return `hace ${dias} días`
+  if (dias < 60) return `hace ${Math.floor(dias / 7)} semanas`
+  return `hace ${Math.floor(dias / 30)} meses`
+}

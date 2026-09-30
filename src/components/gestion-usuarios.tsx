@@ -1,11 +1,24 @@
-import { useState } from 'react'
-import { Copy, KeyRound, Loader2, Mail, MailX, UserPlus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import {
+  Copy,
+  KeyRound,
+  Loader2,
+  Mail,
+  MailX,
+  MoreHorizontal,
+  Pencil,
+  Power,
+  Search,
+  Send,
+  UserPlus,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useOcupado } from '@/lib/ocupado'
 import type { RolUsuario } from '@/lib/database.types'
 import { ETIQUETA_ROL } from '@/lib/roles'
+import { haceTiempo, plural } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input, Select } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -16,6 +29,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
+} from '@/components/ui/menu'
 import { EstadoVacio } from '@/components/ui/states'
 import {
   activarUsuario,
@@ -31,6 +51,14 @@ export type BoxOpcion = { id: string; nombre: string }
 
 const ROLES = Object.keys(ETIQUETA_ROL) as RolUsuario[]
 
+/**
+ * Usuarios y accesos.
+ *
+ * La pantalla responde a tres preguntas en este orden: ¿quién tiene acceso?,
+ * ¿le ha llegado de verdad? y ¿qué puedo hacer con él? Por eso cada fila lleva su
+ * estado de acceso a la vista («aún no ha entrado» es lo que hay que perseguir) y
+ * las acciones, que antes eran cuatro controles sueltos por fila, viven en un menú.
+ */
 export function GestionUsuarios({
   usuarios,
   boxes,
@@ -44,19 +72,56 @@ export function GestionUsuarios({
   onCambio: () => void
 }) {
   const [credencial, setCredencial] = useState<Credencial | null>(null)
+  const [filtro, setFiltro] = useState('')
+
+  const sinEntrar = usuarios.filter((u) => u.activo && !u.esTu && !u.ultimoAcceso).length
+
+  const visibles = useMemo(() => {
+    const q = filtro.trim().toLowerCase()
+    if (!q) return usuarios
+    return usuarios.filter((u) =>
+      `${u.nombre} ${u.email ?? ''} ${boxes.find((b) => b.id === u.clienteId)?.nombre ?? ''}`
+        .toLowerCase()
+        .includes(q),
+    )
+  }, [usuarios, filtro, boxes])
+
+  const equipo = visibles.filter((u) => u.rol !== 'cliente')
+  const clientes = visibles.filter((u) => u.rol === 'cliente')
 
   return (
-    <div className="space-y-4">
-      <AltaUsuario boxes={boxes} onCredencial={setCredencial} onCambio={onCambio} />
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="titulo-tarjeta">{plural(usuarios.length, 'persona', 'personas')}</p>
+          <p className={cn('texto-meta', sinEntrar > 0 && 'font-medium text-warn')}>
+            {sinEntrar > 0
+              ? `${sinEntrar} ${sinEntrar === 1 ? 'todavía no ha entrado' : 'todavía no han entrado'}`
+              : 'Todos han entrado alguna vez'}
+          </p>
+        </div>
+        <DarAcceso boxes={boxes} onCredencial={setCredencial} onCambio={onCambio} />
+      </div>
 
-      <div className="space-y-3">
-        <h2 className="titulo-seccion">Usuarios</h2>
+      {usuarios.length > 8 ? (
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            placeholder="Buscar por nombre, correo o box"
+            className="pl-9"
+            aria-label="Buscar usuario"
+          />
+        </div>
+      ) : null}
 
-        {usuarios.length === 0 ? (
-          <EstadoVacio titulo="Todavía no hay nadie más" />
-        ) : (
-          <ul className="divide-y rounded-lg border bg-card">
-            {usuarios.map((u) => (
+      {usuarios.length === 0 ? (
+        <EstadoVacio titulo="Todavía no hay nadie más" />
+      ) : (
+        <>
+          <Seccion titulo="Equipo de Ergobox" usuarios={equipo}>
+            {(u) => (
               <FilaUsuario
                 key={u.id}
                 usuario={u}
@@ -65,18 +130,119 @@ export function GestionUsuarios({
                 onCredencial={setCredencial}
                 onCambio={onCambio}
               />
-            ))}
-          </ul>
-        )}
-      </div>
+            )}
+          </Seccion>
+
+          <Seccion
+            titulo="Dueños de box"
+            usuarios={clientes}
+            vacio="Todavía no has dado acceso a ningún cliente."
+          >
+            {(u) => (
+              <FilaUsuario
+                key={u.id}
+                usuario={u}
+                boxes={boxes}
+                miId={miId}
+                onCredencial={setCredencial}
+                onCambio={onCambio}
+              />
+            )}
+          </Seccion>
+        </>
+      )}
 
       <DialogoCredencial credencial={credencial} onCerrar={() => setCredencial(null)} />
     </div>
   )
 }
 
+function Seccion({
+  titulo,
+  usuarios,
+  vacio,
+  children,
+}: {
+  titulo: string
+  usuarios: UsuarioFila[]
+  vacio?: string
+  children: (u: UsuarioFila) => React.ReactNode
+}) {
+  if (usuarios.length === 0 && !vacio) return null
+  return (
+    <section className="space-y-2">
+      <h2 className="flex items-center gap-2 titulo-seccion">
+        {titulo}
+        <span className="tabular-nums font-medium normal-case tracking-normal">
+          {usuarios.length}
+        </span>
+      </h2>
+      {usuarios.length === 0 ? (
+        <p className="rounded-xl border border-dashed p-4 texto-meta">{vacio}</p>
+      ) : (
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
+          {usuarios.map(children)}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+// ── Estado de acceso ─────────────────────────────────────────────────────────
+
 /**
- * Alta de alguien nuevo, en dos tiempos (EBX-402).
+ * Cómo está el acceso de alguien, en una etiqueta.
+ *
+ * El orden importa: desactivado y sin box mandan sobre todo lo demás porque son lo
+ * que explica que alguien «entre pero no vea nada», y «aún no ha entrado» es lo
+ * que se quiere perseguir. Un acceso sano no grita: solo dice cuándo fue la última
+ * vez.
+ */
+export function EstadoAcceso({ usuario }: { usuario: UsuarioFila }) {
+  let texto: string
+  let clase: string
+
+  if (!usuario.activo) {
+    texto = 'Desactivado'
+    clase = 'bg-muted text-muted-foreground'
+  } else if (usuario.rol === 'cliente' && !usuario.clienteId) {
+    texto = 'Sin box: no ve nada'
+    clase = 'bg-warn-soft text-warn-soft-foreground'
+  } else if (!usuario.ultimoAcceso && !usuario.esTu) {
+    texto = 'Aún no ha entrado'
+    clase = 'bg-warn-soft text-warn-soft-foreground'
+  } else if (usuario.contrasenaTemporal) {
+    texto = 'Sin elegir contraseña'
+    clase = 'bg-warn-soft text-warn-soft-foreground'
+  } else {
+    // Quien mira la pantalla está dentro por definición, aunque el dato no llegue.
+    texto = `Entró ${haceTiempo(usuario.ultimoAcceso ?? new Date())}`
+    clase = 'bg-ok-soft text-ok-soft-foreground'
+  }
+
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-micro font-semibold',
+        clase,
+      )}
+    >
+      {texto}
+    </span>
+  )
+}
+
+// ── Dar acceso ───────────────────────────────────────────────────────────────
+
+export type PresetAcceso = {
+  rol?: 'cliente' | 'tecnico'
+  clienteId?: string
+  email?: string
+  nombre?: string
+}
+
+/**
+ * Dar acceso a alguien nuevo, en dos tiempos.
  *
  * Se rellena, se revisa y solo entonces se manda. El paso de revisión no es
  * ceremonia: un correo no se puede recuperar, y aquí lo que se manda es una
@@ -84,39 +250,52 @@ export function GestionUsuarios({
  * mandarle las claves de un box a un desconocido.
  *
  * Y el envío es una elección, no lo que pasa por no hacer nada: hay un botón para
- * crear y mandar, y otro para crear sin mandar y dictar la contraseña como hasta
- * ahora.
+ * crear y mandar, y otro para crear sin mandar y dictar la contraseña.
+ *
+ * Se usa desde administración y desde la ficha de un box, con el box (y el
+ * contacto, si lo hay) ya rellenados: dar acceso desde donde se está mirando el
+ * box es un toque, no un viaje a otra pantalla.
  */
-function AltaUsuario({
+export function DarAcceso({
   boxes,
+  inicial,
+  etiqueta = 'Dar acceso',
+  variante = 'default',
   onCredencial,
   onCambio,
 }: {
   boxes: BoxOpcion[]
+  inicial?: PresetAcceso
+  etiqueta?: string
+  variante?: 'default' | 'outline'
   onCredencial: (c: Credencial) => void
   onCambio: () => void
 }) {
-  const [rol, setRol] = useState<'cliente' | 'tecnico'>('cliente')
-  const [email, setEmail] = useState('')
-  const [nombre, setNombre] = useState('')
+  const [abierto, setAbierto] = useState(false)
+  const [revisando, setRevisando] = useState(false)
+  const [rol, setRol] = useState<'cliente' | 'tecnico'>(inicial?.rol ?? 'cliente')
+  const [email, setEmail] = useState(inicial?.email ?? '')
+  const [nombre, setNombre] = useState(inicial?.nombre ?? '')
   // Arranca en el primer box y no en vacío: con `value=""` el navegador enseña
   // la primera opción mientras el estado dice otra cosa, y se acaba dando acceso
   // al box que no era.
-  const [clienteId, setClienteId] = useState(boxes[0]?.id ?? '')
-  const [revisando, setRevisando] = useState(false)
+  const [clienteId, setClienteId] = useState(inicial?.clienteId ?? boxes[0]?.id ?? '')
   const [creando, iniciar] = useOcupado()
 
   const correo = email.trim().toLowerCase()
   const pareceCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)
   const box = boxes.find((b) => b.id === (clienteId || boxes[0]?.id)) ?? null
+  const sinBoxes = boxes.length === 0 && rol === 'cliente'
 
-  if (boxes.length === 0 && rol === 'cliente') {
-    return (
-      <EstadoVacio
-        titulo="Primero da de alta un box"
-        descripcion="Un usuario cliente sin box asignado no ve nada, así que no tiene sentido crearlo antes."
-      />
-    )
+  function abrir() {
+    // Cada vez que se abre vuelve a lo que tocaba: el preset manda sobre lo que
+    // se quedó a medias la vez anterior.
+    setRol(inicial?.rol ?? 'cliente')
+    setEmail(inicial?.email ?? '')
+    setNombre(inicial?.nombre ?? '')
+    setClienteId(inicial?.clienteId ?? boxes[0]?.id ?? '')
+    setRevisando(false)
+    setAbierto(true)
   }
 
   function crear(enviarCorreo: boolean) {
@@ -130,9 +309,7 @@ function AltaUsuario({
       })
 
       if (r.ok) {
-        setEmail('')
-        setNombre('')
-        setRevisando(false)
+        setAbierto(false)
         onCredencial(r.credencial)
         onCambio()
       } else {
@@ -143,99 +320,126 @@ function AltaUsuario({
 
   return (
     <>
-      <Card>
-        <CardContent className="flex flex-wrap items-end gap-3 pt-6">
-          <div className="min-w-[10rem] flex-1 space-y-1.5">
-            <Label htmlFor="alta-rol">Quién es</Label>
-            <Select
-              id="alta-rol"
-              value={rol}
-              onChange={(e) => setRol(e.target.value as 'cliente' | 'tecnico')}
-            >
-              <option value="cliente">Dueño de un box</option>
-              <option value="tecnico">Técnico de Ergobox</option>
-            </Select>
-          </div>
+      <Button variant={variante} onClick={abrir} className="shrink-0">
+        <UserPlus /> {etiqueta}
+      </Button>
 
-          <div className="min-w-[14rem] flex-1 space-y-1.5">
-            <Label htmlFor="email">Correo</Label>
-            <Input
-              id="email"
-              type="email"
-              inputMode="email"
-              autoComplete="off"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="antonio@ironbuster.es"
-            />
-          </div>
+      <Dialog open={abierto} onOpenChange={setAbierto}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+          {revisando ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Repasa antes de mandarlo</DialogTitle>
+                <DialogDescription>
+                  Un correo no se puede recuperar, y este lleva dentro una contraseña temporal.
+                </DialogDescription>
+              </DialogHeader>
 
-          <div className="min-w-[10rem] flex-1 space-y-1.5">
-            <Label htmlFor="nombre">Nombre</Label>
-            <Input
-              id="nombre"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Antonio"
-            />
-          </div>
+              <dl className="space-y-3 rounded-lg border bg-muted/40 p-4">
+                <Repaso titulo="Correo" valor={correo} destacado />
+                <Repaso titulo="Nombre" valor={nombre.trim() || 'Sin nombre'} />
+                <Repaso
+                  titulo="Entra como"
+                  valor={
+                    rol === 'cliente'
+                      ? `Dueño de ${box?.nombre ?? 'un box'}`
+                      : 'Técnico de Ergobox'
+                  }
+                />
+                <Repaso titulo="Podrá" valor={alcanceDelRol(rol)} />
+              </dl>
 
-          {rol === 'cliente' ? (
-            <div className="min-w-[12rem] flex-1 space-y-1.5">
-              <Label htmlFor="box">Box</Label>
-              <Select id="box" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-                {boxes.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.nombre}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
+              <div className="flex flex-col gap-2">
+                <Button onClick={() => crear(true)} disabled={creando}>
+                  {creando ? <Loader2 className="animate-spin" /> : <Mail />}
+                  Crear y mandarle el correo
+                </Button>
+                <Button variant="outline" onClick={() => crear(false)} disabled={creando}>
+                  <MailX />
+                  Crear sin mandar correo
+                </Button>
+                <Button variant="ghost" onClick={() => setRevisando(false)} disabled={creando}>
+                  Volver y corregir
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Dar acceso</DialogTitle>
+                <DialogDescription>
+                  Recibirá un correo con una contraseña temporal y, al entrar, elegirá la suya.
+                </DialogDescription>
+              </DialogHeader>
 
-          <Button onClick={() => setRevisando(true)} disabled={!pareceCorreo}>
-            <UserPlus />
-            Revisar y dar acceso
-          </Button>
-        </CardContent>
-      </Card>
+              {sinBoxes ? (
+                <EstadoVacio
+                  titulo="Primero da de alta un box"
+                  descripcion="Un usuario cliente sin box asignado no ve nada, así que no tiene sentido crearlo antes."
+                />
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="alta-rol">Quién es</Label>
+                    <Select
+                      id="alta-rol"
+                      value={rol}
+                      onChange={(e) => setRol(e.target.value as 'cliente' | 'tecnico')}
+                    >
+                      <option value="cliente">Dueño de un box</option>
+                      <option value="tecnico">Técnico de Ergobox</option>
+                    </Select>
+                  </div>
 
-      <Dialog open={revisando} onOpenChange={(v) => (v ? null : setRevisando(false))}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Repasa antes de mandarlo</DialogTitle>
-            <DialogDescription>
-              Un correo no se puede recuperar, y este lleva dentro una contraseña.
-            </DialogDescription>
-          </DialogHeader>
+                  {rol === 'cliente' ? (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="alta-box">Box</Label>
+                      <Select
+                        id="alta-box"
+                        value={clienteId}
+                        onChange={(e) => setClienteId(e.target.value)}
+                      >
+                        {boxes.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.nombre}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  ) : null}
 
-          <dl className="space-y-3 rounded-lg border bg-muted/40 p-4">
-            <Repaso titulo="Correo" valor={correo} destacado />
-            <Repaso titulo="Nombre" valor={nombre.trim() || 'Sin nombre'} />
-            <Repaso
-              titulo="Entra como"
-              valor={rol === 'cliente' ? `Dueño de ${box?.nombre ?? 'un box'}` : 'Técnico de Ergobox'}
-            />
-            <Repaso
-              titulo="Podrá"
-              valor={
-                rol === 'cliente'
-                  ? 'Ver su parque, su historial y sus fotos. No cambiar nada.'
-                  : 'Trabajar en todos los boxes: visitas, partes y fotos.'
-              }
-            />
-          </dl>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="alta-email">Correo</Label>
+                    <Input
+                      id="alta-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="off"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="antonio@ironbuster.es"
+                    />
+                  </div>
 
-          <div className="flex flex-col gap-2">
-            <Button onClick={() => crear(true)} disabled={creando}>
-              {creando ? <Loader2 className="animate-spin" /> : <Mail />}
-              Crear y mandarle el correo
-            </Button>
-            <Button variant="outline" onClick={() => crear(false)} disabled={creando}>
-              <MailX />
-              Crear sin mandar correo
-            </Button>
-          </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="alta-nombre">Nombre</Label>
+                    <Input
+                      id="alta-nombre"
+                      value={nombre}
+                      onChange={(e) => setNombre(e.target.value)}
+                      placeholder="Antonio"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button onClick={() => setRevisando(true)} disabled={!pareceCorreo || sinBoxes}>
+                  Revisar
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>
@@ -261,6 +465,10 @@ function Repaso({
   )
 }
 
+// ── Una fila ─────────────────────────────────────────────────────────────────
+
+type Dialogo = 'editar' | 'acceso' | 'desactivar' | null
+
 function FilaUsuario({
   usuario,
   boxes,
@@ -274,150 +482,156 @@ function FilaUsuario({
   onCredencial: (c: Credencial) => void
   onCambio: () => void
 }) {
+  const [dialogo, setDialogo] = useState<Dialogo>(null)
   const [ocupado, iniciar] = useOcupado()
-  /*
-   * Ninguna de las dos acciones se puede deshacer, así que ninguna se dispara al
-   * primer toque: se pide confirmación y se dice el alcance dentro de ella. El rol
-   * se explica aquí y no solo en el alta porque cambiar a «Técnico» abre TODOS los
-   * boxes, y eso no se deduce del desplegable.
-   */
-  const [confirmacion, setConfirmacion] = useState<
-    { tipo: 'rol'; rol: RolUsuario } | { tipo: 'contrasena' } | null
-  >(null)
-
   const nombre = usuario.nombre || usuario.email || 'este usuario'
+  const nombreBox = boxes.find((b) => b.id === usuario.clienteId)?.nombre
 
-  function correr(accion: () => Promise<{ ok: true } | { ok: false; mensaje: string }>) {
+  function nuevoAcceso(enviarCorreo: boolean) {
     iniciar(async () => {
-      const r = await accion()
+      const r = await restablecerContrasena(usuario.id, enviarCorreo)
+      setDialogo(null)
+      if (r.ok) {
+        onCredencial(r.credencial)
+        onCambio()
+      } else {
+        toast.error(r.mensaje)
+      }
+    })
+  }
+
+  function alternarActivo() {
+    iniciar(async () => {
+      const r = await activarUsuario(usuario.id, !usuario.activo, miId)
+      setDialogo(null)
       if (r.ok) onCambio()
       else toast.error(r.mensaje)
     })
   }
 
-  function confirmar() {
-    const pendiente = confirmacion
-    setConfirmacion(null)
-    if (!pendiente) return
-
-    if (pendiente.tipo === 'rol') {
-      correr(() => cambiarRol(usuario.id, pendiente.rol, miId))
-      return
-    }
-
-    iniciar(async () => {
-      const r = await restablecerContrasena(usuario.id)
-      if (r.ok) onCredencial(r.credencial)
-      else toast.error(r.mensaje)
-    })
-  }
+  // A quien nunca ha entrado no se le «restablece» nada: se le reenvía el acceso.
+  const reenviar = !usuario.ultimoAcceso
 
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3">
-      <div className="min-w-[10rem] flex-1">
-        {/* `truncate`: un correo largo haciendo de nombre se metía por encima del
-            selector de rol en escritorio. */}
-        <p className={usuario.activo ? 'truncate titulo-tarjeta' : 'truncate titulo-tarjeta opacity-60'}>
-          {usuario.nombre || usuario.email || 'Sin nombre'}
-          {usuario.esTu ? <span className="ml-2 texto-micro text-muted-foreground">(tú)</span> : null}
-        </p>
-        {/* El correo no se repite cuando ya está haciendo de nombre: sin esto, un
-            usuario recién creado sin nombre salía con su dirección dos veces. */}
-        <p className="truncate texto-meta">
-          {[usuario.nombre ? usuario.email : null, !usuario.activo ? 'desactivado' : null]
-            .filter(Boolean)
-            .join(' · ') || ' '}
-        </p>
-      </div>
-
-      <Select
-        aria-label={`Rol de ${usuario.nombre || usuario.email}`}
-        className="h-11 w-auto min-w-[9rem] sm:h-9"
-        // El valor lo manda el usuario, no el desplegable: si se cancela la
-        // confirmación el selector vuelve solo al rol que tiene de verdad.
-        value={usuario.rol}
-        disabled={ocupado || usuario.esTu}
-        onChange={(e) => setConfirmacion({ tipo: 'rol', rol: e.target.value as RolUsuario })}
+    <li className="flex items-center gap-3 px-4 py-3">
+      <span
+        aria-hidden
+        className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-meta font-bold text-secondary-foreground',
+          !usuario.activo && 'opacity-50',
+        )}
       >
-        {ROLES.map((r) => (
-          <option key={r} value={r}>
-            {ETIQUETA_ROL[r]}
-          </option>
-        ))}
-      </Select>
+        {iniciales(nombre)}
+      </span>
 
-      {/* El selector de box solo tiene sentido para un cliente: un interno ve
-          todos y la base de datos no le deja tener uno asignado. */}
-      {usuario.rol === 'cliente' ? (
-        <Select
-          aria-label={`Box de ${usuario.nombre || usuario.email}`}
-          className="h-11 w-auto min-w-[10rem] sm:h-9"
-          value={usuario.clienteId ?? ''}
-          disabled={ocupado}
-          onChange={(e) => correr(() => asignarBox(usuario.id, e.target.value || null))}
-        >
-          <option value="">Sin box (no ve nada)</option>
-          {boxes.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.nombre}
-            </option>
-          ))}
-        </Select>
-      ) : (
-        <span className="texto-meta text-muted-foreground">Ve todos los boxes</span>
-      )}
-
-      <div className="flex items-center gap-1">
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={ocupado}
-          title="Generar una contraseña nueva"
-          onClick={() => setConfirmacion({ tipo: 'contrasena' })}
-        >
-          <KeyRound />
-          <span className="sr-only">Nueva contraseña</span>
-        </Button>
-
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={ocupado || usuario.esTu}
-          onClick={() => correr(() => activarUsuario(usuario.id, !usuario.activo, miId))}
-        >
-          {usuario.activo ? 'Desactivar' : 'Activar'}
-        </Button>
+      <div className="min-w-0 flex-1">
+        <p className={cn('truncate titulo-tarjeta', !usuario.activo && 'opacity-60')}>
+          {usuario.nombre || usuario.email || 'Sin nombre'}
+          {usuario.esTu ? (
+            <span className="ml-2 texto-micro text-muted-foreground">(tú)</span>
+          ) : null}
+        </p>
+        <p className="truncate texto-meta">
+          {[
+            usuario.nombre ? usuario.email : null,
+            usuario.rol === 'cliente' ? nombreBox : ETIQUETA_ROL[usuario.rol],
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+        <div className="mt-1.5 sm:hidden">
+          <EstadoAcceso usuario={usuario} />
+        </div>
       </div>
 
-      <Dialog open={confirmacion !== null} onOpenChange={(v) => (v ? null : setConfirmacion(null))}>
+      <div className="hidden sm:block">
+        <EstadoAcceso usuario={usuario} />
+      </div>
+
+      <Menu>
+        <MenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={ocupado}
+            aria-label={`Acciones de ${nombre}`}
+          >
+            <MoreHorizontal />
+          </Button>
+        </MenuTrigger>
+        <MenuContent align="end">
+          <MenuItem onSelect={() => setDialogo('editar')}>
+            <Pencil /> Rol y box
+          </MenuItem>
+          <MenuItem onSelect={() => setDialogo('acceso')}>
+            {reenviar ? <Send /> : <KeyRound />}
+            {reenviar ? 'Reenviar acceso' : 'Nueva contraseña'}
+          </MenuItem>
+          <MenuSeparator />
+          <MenuItem
+            disabled={usuario.esTu}
+            onSelect={() => (usuario.activo ? setDialogo('desactivar') : alternarActivo())}
+            className={usuario.activo ? 'text-destructive focus:text-destructive' : undefined}
+          >
+            <Power /> {usuario.activo ? 'Quitar acceso' : 'Volver a activar'}
+          </MenuItem>
+        </MenuContent>
+      </Menu>
+
+      <EditarAcceso
+        abierto={dialogo === 'editar'}
+        onCerrar={() => setDialogo(null)}
+        usuario={usuario}
+        boxes={boxes}
+        miId={miId}
+        onCambio={onCambio}
+      />
+
+      <Dialog open={dialogo === 'acceso'} onOpenChange={(v) => (v ? null : setDialogo(null))}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {confirmacion?.tipo === 'contrasena'
-                ? `¿Nueva contraseña para ${nombre}?`
-                : `¿Cambiar el rol de ${nombre}?`}
+              {reenviar ? `¿Reenviar el acceso a ${nombre}?` : `¿Nueva contraseña para ${nombre}?`}
             </DialogTitle>
             <DialogDescription>
-              {confirmacion?.tipo === 'contrasena'
-                ? 'La que tiene ahora deja de funcionar en el momento, y la nueva se enseña una sola vez. No se puede deshacer ni volver a consultar.'
-                : 'El cambio es inmediato y sin vuelta atrás: se aplica a lo que ve en cuanto recargue.'}
+              {reenviar
+                ? 'La contraseña de antes no se guarda en ningún sitio, así que se genera una nueva y la anterior deja de valer.'
+                : 'La que tiene ahora deja de funcionar en el momento. Al entrar tendrá que elegir una propia.'}
             </DialogDescription>
           </DialogHeader>
 
-          {confirmacion?.tipo === 'rol' ? (
-            <dl className="space-y-3 rounded-lg border bg-muted/40 p-4">
-              <Repaso titulo="Rol" valor={ETIQUETA_ROL[confirmacion.rol]} destacado />
-              <Repaso titulo="Podrá" valor={alcanceDelRol(confirmacion.rol)} />
-            </dl>
-          ) : null}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmacion(null)} disabled={ocupado}>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => nuevoAcceso(true)} disabled={ocupado || !usuario.email}>
+              {ocupado ? <Loader2 className="animate-spin" /> : <Mail />}
+              Generar y mandarle el correo
+            </Button>
+            <Button variant="outline" onClick={() => nuevoAcceso(false)} disabled={ocupado}>
+              <MailX />
+              Solo generar, la dicto yo
+            </Button>
+            <Button variant="ghost" onClick={() => setDialogo(null)} disabled={ocupado}>
               Cancelar
             </Button>
-            <Button onClick={confirmar} disabled={ocupado}>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo === 'desactivar'} onOpenChange={(v) => (v ? null : setDialogo(null))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>¿Quitar el acceso a {nombre}?</DialogTitle>
+            <DialogDescription>
+              Deja de ver nada en el momento. No se borra nada: su historial se conserva y
+              puedes volver a activarlo cuando quieras.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogo(null)} disabled={ocupado}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={alternarActivo} disabled={ocupado}>
               {ocupado ? <Loader2 className="animate-spin" /> : null}
-              {confirmacion?.tipo === 'contrasena' ? 'Generar contraseña' : 'Cambiar el rol'}
+              Quitar acceso
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -427,11 +641,139 @@ function FilaUsuario({
 }
 
 /**
+ * Cambiar el rol y el box de alguien, con el alcance dicho antes de guardar.
+ *
+ * Es un diálogo y no dos desplegables sueltos en la fila porque cambiar a «Técnico»
+ * abre TODOS los boxes, y eso no se deduce de una lista de opciones: hay que
+ * leerlo antes de pulsar. Guardar aplica las dos cosas a la vez, así que no hay un
+ * estado intermedio en el que alguien sea técnico con un box asignado.
+ */
+function EditarAcceso({
+  abierto,
+  onCerrar,
+  usuario,
+  boxes,
+  miId,
+  onCambio,
+}: {
+  abierto: boolean
+  onCerrar: () => void
+  usuario: UsuarioFila
+  boxes: BoxOpcion[]
+  miId: string
+  onCambio: () => void
+}) {
+  const [rol, setRol] = useState<RolUsuario>(usuario.rol)
+  const [clienteId, setClienteId] = useState(usuario.clienteId ?? '')
+  const [guardando, iniciar] = useOcupado()
+
+  function guardar() {
+    iniciar(async () => {
+      if (rol !== usuario.rol) {
+        const r = await cambiarRol(usuario.id, rol, miId)
+        if (!r.ok) {
+          toast.error(r.mensaje)
+          return
+        }
+      }
+      if (rol === 'cliente' && clienteId !== (usuario.clienteId ?? '')) {
+        const r = await asignarBox(usuario.id, clienteId || null)
+        if (!r.ok) {
+          toast.error(r.mensaje)
+          return
+        }
+      }
+      toast.success('Acceso actualizado')
+      onCerrar()
+      onCambio()
+    })
+  }
+
+  return (
+    <Dialog
+      open={abierto}
+      onOpenChange={(v) => {
+        if (v) {
+          setRol(usuario.rol)
+          setClienteId(usuario.clienteId ?? '')
+        } else onCerrar()
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Rol y box de {usuario.nombre || usuario.email}</DialogTitle>
+          <DialogDescription>El cambio se aplica en cuanto recargue la aplicación.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="editar-rol">Rol</Label>
+            <Select
+              id="editar-rol"
+              value={rol}
+              disabled={usuario.esTu}
+              onChange={(e) => setRol(e.target.value as RolUsuario)}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ETIQUETA_ROL[r]}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {rol === 'cliente' ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="editar-box">Box</Label>
+              <Select
+                id="editar-box"
+                value={clienteId}
+                onChange={(e) => setClienteId(e.target.value)}
+              >
+                <option value="">Sin box (no ve nada)</option>
+                {boxes.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.nombre}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
+
+          <dl className="rounded-lg border bg-muted/40 p-4">
+            <Repaso titulo="Podrá" valor={alcanceDelRol(rol)} />
+          </dl>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onCerrar} disabled={guardando}>
+            Cancelar
+          </Button>
+          <Button onClick={guardar} disabled={guardando}>
+            {guardando ? <Loader2 className="animate-spin" /> : null}
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean)
+  if (partes.length === 0) return '·'
+  return partes
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+/**
  * Qué alcanza cada rol, en una frase.
  *
- * Es la misma frase que el alta enseña al revisar, y vive aquí porque la
- * confirmación de un cambio de rol tiene que decir lo mismo: que «Técnico» abre
- * todos los boxes es lo que más se olvida al cambiar a alguien desde la lista.
+ * Es la misma frase que el alta enseña al revisar, y vive aquí porque el cambio de
+ * rol tiene que decir lo mismo: que «Técnico» abre todos los boxes es lo que más
+ * se olvida al cambiar a alguien desde la lista.
  */
 function alcanceDelRol(rol: RolUsuario): string {
   switch (rol) {
@@ -444,14 +786,17 @@ function alcanceDelRol(rol: RolUsuario): string {
   }
 }
 
+// ── La contraseña temporal, una sola vez ─────────────────────────────────────
+
 /**
- * La contraseña temporal, una sola vez.
+ * El acceso listo, con el texto ya redactado para pegarlo en WhatsApp.
  *
  * No se guarda en ninguna parte legible: si se cierra esta ventana sin copiarla,
  * hay que generar otra. Es incómodo a propósito — una contraseña que se puede
- * volver a consultar es una contraseña guardada en claro.
+ * volver a consultar es una contraseña guardada en claro. Y por eso mismo la
+ * contraseña es temporal: al entrar, el usuario elige la suya.
  */
-function DialogoCredencial({
+export function DialogoCredencial({
   credencial,
   onCerrar,
 }: {
@@ -462,9 +807,16 @@ function DialogoCredencial({
     if (!credencial) return
     try {
       await navigator.clipboard.writeText(
-        `Acceso a Ergobox\nUsuario: ${credencial.email}\nContraseña: ${credencial.contrasena}`,
+        [
+          'Acceso a Ergobox',
+          `Entra en: ${window.location.origin}`,
+          `Usuario: ${credencial.email}`,
+          `Contraseña temporal: ${credencial.contrasena}`,
+          '',
+          'Al entrar te pedirá elegir tu propia contraseña.',
+        ].join('\n'),
       )
-      toast.success('Copiado')
+      toast.success('Copiado, listo para pegar')
     } catch {
       // Sin permiso de portapapeles (o sin HTTPS) queda a la vista para teclearla.
       toast.error('No hemos podido copiar. Apúntala antes de cerrar.')
@@ -477,21 +829,24 @@ function DialogoCredencial({
         <DialogHeader>
           <DialogTitle>Acceso listo</DialogTitle>
           <DialogDescription>
-            La contraseña no se puede volver a consultar: si se pierde, se genera otra.
+            La contraseña es temporal y no se puede volver a consultar: si se pierde, se genera
+            otra.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
           <p className="texto-micro uppercase tracking-wide text-muted-foreground">Usuario</p>
           <p className="break-all text-cuerpo font-medium">{credencial?.email}</p>
-          <p className="texto-micro uppercase tracking-wide text-muted-foreground">Contraseña</p>
+          <p className="texto-micro uppercase tracking-wide text-muted-foreground">
+            Contraseña temporal
+          </p>
           <p className="break-all font-mono text-cuerpo font-semibold">{credencial?.contrasena}</p>
         </div>
 
         {credencial ? <QuePasoConElCorreo correo={credencial.correo} /> : null}
 
         <Button onClick={copiar}>
-          <Copy /> Copiar acceso
+          <Copy /> Copiar mensaje para WhatsApp
         </Button>
       </DialogContent>
     </Dialog>
@@ -517,7 +872,7 @@ function QuePasoConElCorreo({ correo }: { correo: Credencial['correo'] }) {
 
   if (correo.estado === 'enviado') {
     return (
-      <p className="texto-meta text-ok-foreground">
+      <p className="texto-meta font-medium text-ok">
         Correo enviado. Si no le llega, mira en spam antes de volver a mandarlo.
       </p>
     )

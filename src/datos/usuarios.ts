@@ -20,6 +20,11 @@ export type UsuarioFila = {
   rol: RolUsuario
   clienteId: string | null
   activo: boolean
+  /** Null si no ha llegado a entrar nunca: la pista de que el acceso no le llegó. */
+  ultimoAcceso: string | null
+  invitadoEl: string | null
+  /** Sigue con la contraseña temporal: todavía no ha elegido la suya. */
+  contrasenaTemporal: boolean
   /** El usuario que está mirando la pantalla. No puede degradarse ni apagarse. */
   esTu: boolean
 }
@@ -27,9 +32,17 @@ export type UsuarioFila = {
 const ORDEN_ROL: Record<RolUsuario, number> = { admin: 0, tecnico: 1, cliente: 2 }
 
 export async function listarUsuarios(miId: string): Promise<UsuarioFila[]> {
-  const filas = oReventar(
-    await supabase.from('perfiles').select('id, nombre, email, rol, cliente_id, activo'),
-  )
+  const [perfiles, accesos] = await Promise.all([
+    supabase
+      .from('perfiles')
+      .select('id, nombre, email, rol, cliente_id, activo, debe_cambiar_contrasena'),
+    supabase.rpc('estado_accesos'),
+  ])
+  const filas = oReventar(perfiles)
+
+  // Sin el dato de accesos (función aún no creada, o fallo suelto) la lista sigue
+  // valiendo: solo se queda sin saber quién ha entrado.
+  const porPerfil = new Map((accesos.data ?? []).map((a) => [a.perfil_id, a]))
 
   return filas
     .map((p) => ({
@@ -39,6 +52,9 @@ export async function listarUsuarios(miId: string): Promise<UsuarioFila[]> {
       rol: p.rol,
       clienteId: p.cliente_id,
       activo: p.activo,
+      ultimoAcceso: porPerfil.get(p.id)?.ultimo_acceso ?? null,
+      invitadoEl: porPerfil.get(p.id)?.invitado_el ?? null,
+      contrasenaTemporal: p.debe_cambiar_contrasena,
       esTu: p.id === miId,
     }))
     .sort((a, b) => {
@@ -120,9 +136,43 @@ export function invitarUsuario(invitacion: Invitacion): Promise<ResultadoCredenc
   return llamarFuncion({ accion: 'crear', ...invitacion })
 }
 
-/** Contraseña nueva. Se enseña una sola vez y no se guarda en ninguna parte. */
-export function restablecerContrasena(perfilId: string): Promise<ResultadoCredencial> {
-  return llamarFuncion({ accion: 'restablecer', perfilId })
+/**
+ * Contraseña nueva. Se enseña una sola vez y no se guarda en ninguna parte.
+ *
+ * Con `enviarCorreo` es también «reenviar el acceso»: la contraseña de antes no
+ * existe en ningún sitio que se pueda releer, así que reenviar es generar otra.
+ */
+export function restablecerContrasena(
+  perfilId: string,
+  enviarCorreo = false,
+): Promise<ResultadoCredencial> {
+  return llamarFuncion({ accion: 'restablecer', perfilId, enviarCorreo })
+}
+
+/**
+ * El usuario elige su propia contraseña y deja de ser temporal.
+ *
+ * Primero la contraseña y después la marca: si falla lo primero, sigue obligado a
+ * cambiarla (lo seguro); si falla lo segundo, la contraseña ya es suya y solo le
+ * volverá a salir la pantalla una vez más.
+ */
+export async function elegirContrasena(userId: string, contrasena: string): Promise<Resultado> {
+  const { error } = await supabase.auth.updateUser({ password: contrasena })
+  if (error) {
+    return {
+      ok: false,
+      mensaje: /same|different/i.test(error.message)
+        ? 'Tiene que ser distinta de la que tienes ahora.'
+        : /weak|short|least/i.test(error.message)
+          ? 'Demasiado corta o fácil de adivinar. Prueba con una frase.'
+          : traducir(error.message),
+    }
+  }
+  const { error: errorMarca } = await supabase
+    .from('perfiles')
+    .update({ debe_cambiar_contrasena: false })
+    .eq('id', userId)
+  return resultado(errorMarca, 'tu usuario')
 }
 
 /** Cambia el box que alcanza un usuario. Null lo deja sin ver nada. */

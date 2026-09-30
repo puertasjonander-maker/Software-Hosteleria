@@ -127,8 +127,10 @@ const BOX_A = '10000000-0000-0000-0000-00000000000a'
 const MAQ = '20000000-0000-0000-0000-00000000000a'
 
 const PERFILES = {
-  admin: { id: ADMIN, nombre: 'Jon Puertas', email: 'jon@ergobox.es', rol: 'admin', cliente_id: null, activo: true, created_at: '2026-01-01T00:00:00Z' },
-  cliente: { id: CLIENTE, nombre: 'Antonio Ruiz', email: 'antonio@ironbuster.es', rol: 'cliente', cliente_id: BOX_A, activo: true, created_at: '2026-02-01T00:00:00Z' },
+  admin: { id: ADMIN, nombre: 'Jon Puertas', email: 'jon@ergobox.es', rol: 'admin', cliente_id: null, activo: true, debe_cambiar_contrasena: false, created_at: '2026-01-01T00:00:00Z' },
+  cliente: { id: CLIENTE, nombre: 'Antonio Ruiz', email: 'antonio@ironbuster.es', rol: 'cliente', cliente_id: BOX_A, activo: true, debe_cambiar_contrasena: false, created_at: '2026-02-01T00:00:00Z' },
+  // Recién invitada: todavía con la contraseña temporal que le llegó por correo.
+  nuevo: { id: '00000000-0000-0000-0000-0000000000c2', nombre: 'Lucía Prados', email: 'lucia@marbella.es', rol: 'cliente', cliente_id: BOX_A, activo: true, debe_cambiar_contrasena: true, created_at: '2026-09-29T00:00:00Z' },
 }
 
 const CLIENTES = [
@@ -187,9 +189,16 @@ function responder(url, rol) {
 
   switch (tabla) {
     case 'perfiles': {
-      const todos = rol === 'admin' ? Object.values(PERFILES) : [PERFILES.cliente]
+      const todos = rol === 'admin' ? Object.values(PERFILES) : [PERFILES[rol]]
       return todos.filter((p) => esDe('id', p.id))
     }
+    case 'estado_accesos':
+      // Jon ha entrado esta mañana; Antonio y Lucía nunca.
+      return [
+        { perfil_id: ADMIN, ultimo_acceso: new Date().toISOString(), invitado_el: '2026-01-01T00:00:00Z' },
+        { perfil_id: CLIENTE, ultimo_acceso: null, invitado_el: '2026-02-01T00:00:00Z' },
+        { perfil_id: PERFILES.nuevo.id, ultimo_acceso: null, invitado_el: '2026-09-29T00:00:00Z' },
+      ]
     case 'clientes':
       return (rol === 'admin' ? CLIENTES : CLIENTES.slice(0, 1)).filter((c) => esDe('id', c.id))
     case 'parque_estado': {
@@ -403,10 +412,26 @@ await comoRol('admin', async (pagina) => {
   const admin = await texto(pagina)
   comprobar('administración lista a los usuarios', admin.includes('Jon Puertas') && admin.includes('Antonio Ruiz'))
   comprobar('con el correo que ahora sale del perfil', admin.includes('antonio@ironbuster.es'))
-  // Fase D: el alta ya no es «dar acceso» a secas, sino un paso de revisión, y se
-  // puede dar de alta a un técnico y no solo al dueño de un box.
-  comprobar('el alta pasa por revisión', contiene(admin, 'Revisar y dar acceso'))
-  comprobar('y se puede dar de alta a un técnico', contiene(admin, 'Técnico de Ergobox'))
+  // Accesos: quién entra, si le ha llegado de verdad, y dar acceso desde aquí.
+  comprobar('los usuarios van en dos secciones', contiene(admin, 'Equipo de Ergobox') && contiene(admin, 'Dueños de box'))
+  comprobar('quien nunca ha entrado lo dice', contiene(admin, 'Aún no ha entrado'))
+  comprobar('quien sí, dice cuándo', contiene(admin, 'Entró hoy'))
+  comprobar('y se cuenta a cuántos les falta entrar', contiene(admin, '2 todavía no han entrado'))
+  await pagina.getByRole('button', { name: 'Dar acceso' }).click()
+  await pagina.waitForTimeout(250)
+  const dialogo = await texto(pagina)
+  comprobar('dar acceso ofrece también al técnico', contiene(dialogo, 'Técnico de Ergobox'))
+  await pagina.getByLabel('Correo').fill('nuevo@ironbuster.es')
+  await pagina.getByRole('button', { name: 'Revisar' }).click()
+  await pagina.waitForTimeout(250)
+  const repaso = await texto(pagina)
+  comprobar('y pasa por revisión antes de mandar', contiene(repaso, 'Repasa antes de mandarlo') && contiene(repaso, 'nuevo@ironbuster.es'))
+  comprobar('con envío y sin envío como elecciones distintas', contiene(repaso, 'Crear y mandarle el correo') && contiene(repaso, 'Crear sin mandar correo'))
+  await pagina.keyboard.press('Escape')
+
+  await ir(pagina, `/boxes/${BOX_A}`)
+  const accesos = await texto(pagina)
+  comprobar('la ficha del box enseña quién tiene acceso', contiene(accesos, 'Accesos') && accesos.includes('Antonio Ruiz'))
 
   await ir(pagina, '/visitas')
   const visitas = await texto(pagina)
@@ -426,6 +451,25 @@ await comoRol('admin', async (pagina) => {
 
   await ir(pagina, '/direccion-que-no-existe')
   comprobar('una dirección inventada da la pantalla de no encontrada', (await texto(pagina)).includes('Aquí no hay nada'))
+})
+
+console.log('\n════ Primer acceso con contraseña temporal ════')
+await comoRol('nuevo', async (pagina) => {
+  await ir(pagina, '/mi-box')
+  comprobar('con la contraseña temporal, todo lleva a elegir la propia', pagina.url().endsWith('/cambiar-contrasena'))
+  const t = await texto(pagina)
+  comprobar('la pantalla lo explica', contiene(t, 'Elige tu contraseña') && contiene(t, 'temporal'))
+  comprobar('y no deja escapar: sin botón de cancelar', !contiene(t, 'Cancelar'))
+  await pagina.getByLabel('Contraseña nueva').fill('corta')
+  await pagina.getByLabel('Repítela').fill('corta')
+  await pagina.getByRole('button', { name: 'Guardar y entrar' }).click()
+  await pagina.waitForTimeout(200)
+  comprobar('una contraseña corta se rechaza', contiene(await texto(pagina), 'Mínimo 8 caracteres'))
+  await pagina.getByLabel('Contraseña nueva').fill('una frase larga')
+  await pagina.getByLabel('Repítela').fill('otra distinta')
+  await pagina.getByRole('button', { name: 'Guardar y entrar' }).click()
+  await pagina.waitForTimeout(200)
+  comprobar('y si no coinciden, también', contiene(await texto(pagina), 'no coinciden'))
 })
 
 console.log('\n════ Un fallo de red a mitad de faena ════')
@@ -892,6 +936,7 @@ console.log('\n════ Sin sesión ════')
   await ir(pagina, `/boxes/${BOX_A}`)
   comprobar('una ruta protegida manda al login', pagina.url().includes('/entrar'))
   comprobar('y el formulario está ahí', (await texto(pagina)).includes('Contraseña'))
+  comprobar('que dice cómo pedir una contraseña nueva', (await pagina.locator('a[href^="mailto:hola@ergobox.es"]').count()) > 0)
 
   await ctx.close()
 }

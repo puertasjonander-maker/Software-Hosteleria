@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronLeft,
   Dumbbell,
+  KeyRound,
   LogOut,
   Settings,
   Wrench,
@@ -221,6 +222,12 @@ export function Navegacion({
                   </Link>
                 </MenuItem>
               ) : null}
+
+              <MenuItem asChild>
+                <Link to="/cambiar-contrasena" className="w-full">
+                  <KeyRound /> Cambiar contraseña
+                </Link>
+              </MenuItem>
 
               {/* Sin navegación después de salir: el proveedor de sesión se
                   entera por `onAuthStateChange` y el guarda de ruta manda al

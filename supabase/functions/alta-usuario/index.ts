@@ -206,7 +206,13 @@ Deno.serve(async (peticion) => {
     // `perfiles_cliente_coherente` exige que un interno no esté atado a ningún box.
     const { error: errorPerfil } = await admin
       .from('perfiles')
-      .update({ nombre, rol, cliente_id: clienteId, activo: true })
+      .update({
+        nombre,
+        rol,
+        cliente_id: clienteId,
+        activo: true,
+        debe_cambiar_contrasena: true,
+      })
       .eq('id', data.user.id)
 
     if (errorPerfil) {
@@ -235,6 +241,7 @@ Deno.serve(async (peticion) => {
           contrasena,
           box,
           url: Deno.env.get('URL_APP') ?? 'https://app.ergobox.es',
+          motivo: 'alta',
         })
       : { estado: 'no_pedido' }
 
@@ -244,9 +251,13 @@ Deno.serve(async (peticion) => {
   }
 
   // ── Contraseña nueva para quien perdió la suya ─────────────────────────────
+  // Sirve también para «reenviar el acceso»: a quien nunca llegó a entrar no se le
+  // puede reenviar la contraseña de antes, porque no se guarda en ninguna parte.
+  // Se genera una nueva y se manda, y la anterior deja de valer.
   if (cuerpo.accion === 'restablecer') {
     const perfilId = String(cuerpo.perfilId ?? '')
     if (!perfilId) return responder({ error: 'Falta el usuario.' }, 400)
+    const quiereCorreo = cuerpo.enviarCorreo === true
 
     const { data, error } = await admin.auth.admin.updateUserById(perfilId, {
       password: contrasena,
@@ -256,7 +267,40 @@ Deno.serve(async (peticion) => {
       return responder({ error: error?.message ?? 'No se ha podido cambiar la contraseña.' }, 400)
     }
 
-    return responder({ email: data.user.email ?? '', contrasena })
+    // Vuelve a ser temporal: la aplicación le pedirá elegir una propia al entrar.
+    await admin.from('perfiles').update({ debe_cambiar_contrasena: true }).eq('id', perfilId)
+
+    const email = data.user.email ?? ''
+    let correo: EstadoCorreo = { estado: 'no_pedido' }
+
+    if (quiereCorreo && email) {
+      const { data: fila } = await admin
+        .from('perfiles')
+        .select('nombre, cliente_id')
+        .eq('id', perfilId)
+        .maybeSingle()
+
+      let box: string | null = null
+      if (fila?.cliente_id) {
+        const { data: c } = await admin
+          .from('clientes')
+          .select('nombre')
+          .eq('id', fila.cliente_id)
+          .maybeSingle()
+        box = c?.nombre ?? null
+      }
+
+      correo = await enviarAcceso({
+        nombre: fila?.nombre ?? '',
+        email,
+        contrasena,
+        box,
+        url: Deno.env.get('URL_APP') ?? 'https://app.ergobox.es',
+        motivo: 'restablecida',
+      })
+    }
+
+    return responder({ email, contrasena, correo })
   }
 
   return responder({ error: 'Acción desconocida.' }, 400)

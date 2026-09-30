@@ -69,6 +69,8 @@ export type PerfilRow = {
   /** El box del que es dueño. Solo se rellena con rol `cliente`. */
   cliente_id: string | null
   activo: boolean
+  /** Mientras tenga la contraseña temporal, la app le obliga a elegir una propia. */
+  debe_cambiar_contrasena: boolean
   created_at: string
 }
 
@@ -251,7 +253,12 @@ export type Database = {
     Views: {
       parque_estado: View<ParqueEstadoRow>
     }
-    Functions: Record<string, never>
+    Functions: {
+      estado_accesos: {
+        Args: Record<string, never>
+        Returns: Array<{ perfil_id: string; ultimo_acceso: string | null; invitado_el: string }>
+      }
+    }
     Enums: {
       rol_usuario: RolUsuario
       tipo_maquina: TipoMaquina

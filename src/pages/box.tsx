@@ -5,6 +5,7 @@ import { useConsulta } from '@/lib/consulta'
 import { useSesionActiva } from '@/lib/sesion'
 import { obtenerBox } from '@/datos/boxes'
 import { parqueDeBox } from '@/datos/parque'
+import { listarUsuarios } from '@/datos/usuarios'
 import { proximaVisita } from '@/datos/visitas'
 import { peorSemaforo, resumirParque } from '@/lib/parque'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { Skeleton, SkeletonLista } from '@/components/ui/skeleton'
 import { EstadoVacio } from '@/components/ui/states'
 import { ChipSemaforo } from '@/components/chip-semaforo'
 import { Cargador, useTitulo } from '@/components/cargador'
+import { AccesosBox } from '@/components/accesos-box'
 import { FichaBox } from '@/components/ficha-box'
 import { FormularioMaquina } from '@/components/formulario-maquina'
 import { ListaParque } from '@/components/lista-parque'
@@ -27,12 +29,14 @@ export default function Box() {
 
   const consulta = useConsulta(
     async () => {
-      const [box, maquinas, proxima] = await Promise.all([
+      const [box, maquinas, proxima, usuarios] = await Promise.all([
         obtenerBox(id),
         parqueDeBox(id),
         proximaVisita(id),
+        // Solo el admin gestiona accesos: al técnico no se le pide lo que no ve.
+        sesion.perfil.rol === 'admin' ? listarUsuarios(sesion.userId) : Promise.resolve([]),
       ])
-      return { box, maquinas, proxima }
+      return { box, maquinas, proxima, usuarios: usuarios.filter((u) => u.clienteId === id) }
     },
     [id],
   )
@@ -52,7 +56,7 @@ export default function Box() {
           </div>
         }
       >
-        {({ box, maquinas, proxima }) => {
+        {({ box, maquinas, proxima, usuarios }) => {
           const resumen = resumirParque(maquinas)
           const peor = peorSemaforo(maquinas.filter((m) => m.activa).map((m) => m.estado))
 
@@ -133,6 +137,19 @@ export default function Box() {
                   <ListaParque maquinas={maquinas} base={`/boxes/${id}/maquinas`} />
                 )}
               </div>
+
+              {sesion.perfil.rol === 'admin' ? (
+                <AccesosBox
+                  box={{
+                    id: box.id,
+                    nombre: box.nombre,
+                    contactoEmail: box.contacto_email,
+                    contactoNombre: box.contacto_nombre,
+                  }}
+                  usuarios={usuarios}
+                  onCambio={consulta.recargar}
+                />
+              ) : null}
 
               <FormularioMaquina
                 abierto={creando}
