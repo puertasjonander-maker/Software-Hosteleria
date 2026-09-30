@@ -1,0 +1,5 @@
+{
+  "supabaseUrl": "https://xxxxxxxxxxxx.supabase.co",
+  "supabaseAnonKey": "eyJhbGciOi...",
+  "vapidPublicKey": ""
+}

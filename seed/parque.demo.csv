@@ -1,0 +1,13 @@
+nombre,tipo,marca,modelo,num_serie,ubicacion,estado,cadencia_meses,ultima_revision,notas
+RowErg 1,remo,Concept2,Model D,DEMO-0001,sala principal,verde,2,2026-07-08,
+RowErg 2,remo,Concept2,Model D,DEMO-0002,sala principal,verde,2,2026-07-08,
+RowErg 3,remo,Concept2,Model D,,sala principal,ambar,2,2026-07-08,Cadena seca
+RowErg 4,remo,Concept2,Model D,,sala principal,ambar,2,,Sin nº de serie legible
+RowErg 5,remo,Concept2,Model D,,sala principal,sin revisar,2,,
+SkiErg 1,ski,Concept2,,DEMO-0006,sala principal,verde,2,08/09/2026,Servicio demo hecho en la visita
+BikeErg 1,bike,Concept2,,,sala principal,ambar,3,,Polvo general
+Air bike 1,air bike,Maniak,,,altillo,rojo,3,,Óxido y holgura en brazos
+Echo bike 1,eco bike,Rogue,,,altillo,sin revisar,,,
+Echo bike 2,eco bike,Rogue,,,altillo,sin revisar,,,
+Echo bike 3,eco bike,Rogue,,,altillo,sin revisar,,,
+Echo bike 4,eco bike,Imitación,,,altillo,sin revisar,,,"Raster, cuenta como Eco"

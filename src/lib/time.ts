@@ -1,10 +1,10 @@
 /**
  * Utilidades de fecha ancladas a Europe/Madrid.
  *
- * El servidor corre en UTC y los móviles del equipo pueden estar en cualquier
- * zona, pero "la hora de corte son las 11:00" significa las 11:00 de Málaga.
- * Todo lo que dependa de la hora de corte pasa por aquí, y no por `new Date()`
- * a secas, que en Vercel daría una hora de menos en invierno y dos en verano.
+ * Los móviles del equipo pueden estar en cualquier zona y la base de datos
+ * responde en UTC, pero "le tocaba revisión el martes" significa el martes de
+ * Málaga. Todo lo que dependa de una fecha pasa por aquí y no por `new Date()` a
+ * secas, que en un móvil con la zona cambiada movería una revisión de día.
  */
 
 export const TZ = 'Europe/Madrid'

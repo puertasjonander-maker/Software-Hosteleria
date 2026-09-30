@@ -2,7 +2,7 @@ import type { Config } from 'tailwindcss'
 
 const config: Config = {
   darkMode: ['class'],
-  content: ['./src/**/*.{ts,tsx}'],
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     container: {
       center: true,
@@ -27,6 +27,8 @@ const config: Config = {
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
+          soft: 'hsl(var(--destructive-soft))',
+          'soft-foreground': 'hsl(var(--destructive-soft-foreground))',
         },
         muted: {
           DEFAULT: 'hsl(var(--muted))',
@@ -48,10 +50,14 @@ const config: Config = {
         warn: {
           DEFAULT: 'hsl(var(--warn))',
           foreground: 'hsl(var(--warn-foreground))',
+          soft: 'hsl(var(--warn-soft))',
+          'soft-foreground': 'hsl(var(--warn-soft-foreground))',
         },
         ok: {
           DEFAULT: 'hsl(var(--ok))',
           foreground: 'hsl(var(--ok-foreground))',
+          soft: 'hsl(var(--ok-soft))',
+          'soft-foreground': 'hsl(var(--ok-soft-foreground))',
         },
       },
       borderRadius: {
@@ -60,7 +66,8 @@ const config: Config = {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+        sans: ['"Archivo Variable"', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       /*
        * Escala tipográfica de Mise. Siete escalones con un trabajo cada uno; el

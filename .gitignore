@@ -1,7 +1,5 @@
 node_modules/
-.next/
-out/
-build/
+dist/
 .DS_Store
 *.pem
 
@@ -16,16 +14,14 @@ yarn-error.log*
 .env.local
 .env*.local
 
-# Vercel
-.vercel
-
 # TypeScript
 *.tsbuildinfo
-next-env.d.ts
 
-# Prisma
-prisma/.env
-
-# Datos reales del cliente: el catálogo real NO va al repositorio.
+# Datos reales del cliente: el parque real NO va al repositorio.
 # Solo el seed DEMO (seed/*.demo.csv) está versionado.
 seed/real/
+.capturas/
+
+# La configuración real del despliegue no va al repositorio.
+config.json
+public/config.json

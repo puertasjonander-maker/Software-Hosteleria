@@ -1,23 +1,29 @@
 /* eslint-disable no-undef */
 /**
- * Service worker de Mise.
+ * Service worker de Ergobox.
  *
  * Hace tres cosas y ninguna más:
- *   1. Que la app abra con la red caída, para que `/pedir` no dependa de que
- *      haya cobertura en el sótano del local (CONTEXT.md §10.5).
- *   2. Cachear los estáticos de Next, que no cambian dentro de una versión.
- *   3. Recibir las notificaciones push de corte (MISE-004).
+ *   1. Que la app abra con la red caída, para que la visita no dependa de que
+ *      haya cobertura en el sótano del local.
+ *   2. Cachear los estáticos del build, que no cambian dentro de una versión.
+ *   3. Recibir las notificaciones push de revisión (EBX-501).
  *
- * Lo que NO hace: cachear respuestas de Supabase. Un stock o un precio servidos
- * de caché serían peor que no tener dato — la app diría algo falso con toda
- * confianza.
+ * Lo que NO hace: cachear respuestas de Supabase. Un semáforo servido de caché
+ * sería peor que no tener dato — la app diría algo falso con toda confianza.
+ *
+ * Siendo una aplicación de una sola página, el "shell" es un único documento:
+ * `index.html`. Cualquier ruta se resuelve con él y el router decide qué pintar,
+ * así que basta con tenerlo en caché para que la app entre sin red desde
+ * cualquier dirección.
  */
 
-const VERSION = 'mise-v1'
+const VERSION = 'ergobox-v2'
 const CACHE_SHELL = `${VERSION}-shell`
 const CACHE_ESTATICOS = `${VERSION}-estaticos`
 
-const SHELL = ['/offline', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']
+const DOCUMENTO = '/index.html'
+const CONFIG = '/config.json'
+const SHELL = [DOCUMENTO, CONFIG, '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -35,16 +41,15 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((claves) =>
-        Promise.all(
-          claves.filter((c) => !c.startsWith(VERSION)).map((c) => caches.delete(c)),
-        ),
+        Promise.all(claves.filter((c) => !c.startsWith(VERSION)).map((c) => caches.delete(c))),
       )
       .then(() => self.clients.claim()),
   )
 })
 
-function esEstaticoNext(url) {
-  return url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/')
+/** Los ficheros con huella en el nombre: cambian de nombre al cambiar de versión. */
+function esEstatico(url) {
+  return url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')
 }
 
 self.addEventListener('fetch', (event) => {
@@ -53,12 +58,34 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return
 
   const url = new URL(request.url)
+  // Supabase vive en otro origen, así que esta condición ya deja fuera todos los
+  // datos y todas las fotos. No hay nada nuestro que convenga cachear aparte.
   if (url.origin !== self.location.origin) return
 
-  // Nada de datos en caché: si no hay red, que la pantalla lo diga.
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return
+  /*
+   * La configuración, de red primero y de caché si no hay.
+   *
+   * Sin esto, abrir la aplicación sin cobertura dentro de un box daría "falta
+   * configurar": el fichero no se descargaría y la app no sabría a dónde
+   * conectarse, justo en el momento en que más importa que arranque. De red
+   * primero para que un cambio de claves llegue en cuanto haya señal.
+   */
+  if (url.pathname === CONFIG) {
+    event.respondWith(
+      fetch(request)
+        .then((respuesta) => {
+          if (respuesta.ok) {
+            const copia = respuesta.clone()
+            caches.open(CACHE_SHELL).then((cache) => cache.put(CONFIG, copia))
+          }
+          return respuesta
+        })
+        .catch(() => caches.match(CONFIG).then((c) => c ?? Response.error())),
+    )
+    return
+  }
 
-  if (esEstaticoNext(url)) {
+  if (esEstatico(url)) {
     event.respondWith(
       caches.match(request).then(
         (cacheada) =>
@@ -75,33 +102,41 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  /*
+   * Navegación: red primero y el documento cacheado como red de seguridad.
+   *
+   * Red primero, y no caché primero, para que una versión nueva de la aplicación
+   * llegue en cuanto haya cobertura en vez de quedarse una semana servida desde
+   * el móvil.
+   */
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((respuesta) => {
           if (respuesta.ok) {
             const copia = respuesta.clone()
-            caches.open(CACHE_SHELL).then((cache) => cache.put(request, copia))
+            caches.open(CACHE_SHELL).then((cache) => cache.put(DOCUMENTO, copia))
           }
           return respuesta
         })
         .catch(async () => {
-          const cacheada = await caches.match(request)
-          if (cacheada) return cacheada
-          const offline = await caches.match('/offline')
+          const cacheada = await caches.match(DOCUMENTO)
           return (
-            offline ??
-            new Response('Sin conexión', {
-              status: 503,
-              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-            })
+            cacheada ??
+            new Response(
+              '<!doctype html><meta charset="utf-8"><title>Sin conexión</title>' +
+                '<p style="font:16px system-ui;padding:2rem">Sin conexión, y la aplicación ' +
+                'todavía no estaba guardada en este móvil. Vuelve a abrirla con cobertura ' +
+                'una vez y ya no hará falta.</p>',
+              { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+            )
           )
         }),
     )
   }
 })
 
-// ── Avisos de corte (MISE-004) ───────────────────────────────────────────────
+// ── Avisos de revisión (EBX-501) ─────────────────────────────────────────────
 
 self.addEventListener('push', (event) => {
   let datos = {}
@@ -111,17 +146,17 @@ self.addEventListener('push', (event) => {
     datos = { body: event.data ? event.data.text() : '' }
   }
 
-  const titulo = datos.title || 'Mise'
+  const titulo = datos.title || 'Ergobox'
   const opciones = {
     body: datos.body || '',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
     lang: 'es',
-    // El aviso lleva a la pantalla accionable, no al inicio (MISE-004).
-    data: { url: datos.url || '/pedidos' },
-    // Un tag por proveedor: si llegan dos avisos del mismo, se sustituyen en vez
-    // de apilarse.
-    tag: datos.tag || 'mise-corte',
+    // El aviso lleva a la pantalla accionable, no al inicio.
+    data: { url: datos.url || '/visitas' },
+    // Un tag por box: si llegan dos avisos del mismo, se sustituyen en vez de
+    // apilarse.
+    tag: datos.tag || 'ergobox-revision',
     renotify: false,
     requireInteraction: false,
   }
@@ -131,7 +166,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const destino = new URL(event.notification.data?.url || '/pedidos', self.location.origin).href
+  const destino = new URL(event.notification.data?.url || '/visitas', self.location.origin).href
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
@@ -146,7 +181,6 @@ self.addEventListener('notificationclick', (event) => {
   )
 })
 
-// El cliente avisa cuando recupera red para que la cola de `/pedir` se vacíe.
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })

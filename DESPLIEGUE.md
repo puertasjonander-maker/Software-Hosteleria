@@ -1,0 +1,477 @@
+# DESPLIEGUE.md — Ergobox en `app.ergobox.es`
+
+Cómo pasar de este repositorio a algo que Antonio pueda abrir desde el móvil, sin
+tocar la web de ergobox.es que ya está publicada.
+
+---
+
+## Estado a 12 de septiembre de 2026
+
+Lo que ya está hecho y no hay que volver a hacer:
+
+| | Qué | Dónde |
+|---|---|---|
+| ✅ | Proyecto de Supabase creado | ref `pbepyegrmajoozplpjxy`, región eu-west-1 |
+| ✅ | Las once migraciones aplicadas | §2.2 |
+| ✅ | Prueba de aislamiento pasada contra el Supabase real | §2.3 |
+| ✅ | Las tres funciones desplegadas | §2.4 |
+| ✅ | Primer administrador creado | §2.9 |
+| ✅ | `dist/` construido con su `config.json` | §2.5 |
+| ⬜ | Conectar Hostinger a la rama `publicar` (una vez) y desplegar | §3.2 |
+| ⬜ | Revocar la clave de Hostinger | §0 |
+| ⬜ | Correo de alta: cuenta de Resend y registros DNS | §2.6 |
+| ⬜ | Importar desde Notion **sin configurar nada**: exportar a CSV y soltarlo | §2.7 |
+| ⬜ | Avisos de revisión: secretos VAPID y cron | §2.8 |
+
+Las tres últimas dependen de dar de alta algo fuera, y la aplicación funciona
+entera sin ellas. Sin correo, el alta enseña la contraseña para que la pases tú.
+Sin la integración de Notion, se importa por fichero como siempre. Sin los
+secretos de los avisos, la pantalla de ajustes dice que no están disponibles en
+vez de romperse.
+
+---
+
+## 0. Antes que nada: la llave de Hostinger está publicada
+
+En el repositorio de la web (`ergo-box-website`, que es **público**) hay un fichero
+`DEPLOYMENT.md` con una clave de la API de Hostinger escrita en claro.
+
+Dicho sin tecnicismos: **eso es la llave de tu panel de Hostinger, y está colgada
+en internet donde cualquiera puede leerla.** Con ella se pueden tocar dominios,
+DNS y ficheros de tu hosting. Los robots que rastrean GitHub buscando claves
+tardan horas, no meses.
+
+Qué hacer, en este orden:
+
+1. **Entra hoy al hPanel de Hostinger y revoca esa clave.** Es lo único que la
+   desactiva de verdad.
+2. Crea una nueva si la necesitas, y guárdala en el gestor de contraseñas o en las
+   variables de entorno del despliegue. Nunca en un fichero del repositorio.
+3. Borra la línea del `DEPLOYMENT.md`.
+
+**Borrar la línea no es suficiente por sí solo.** Git guarda todas las versiones
+anteriores de cada fichero: la clave sigue estando en el historial y se puede leer
+igual. Por eso el paso 1 es el que importa; el 3 solo evita repetir el error.
+
+---
+
+## 1. Cómo queda montado
+
+| Dirección | Qué es | Dónde vive |
+|---|---|---|
+| `ergobox.es` | La web actual, la que capta clientes | Hostinger, sin tocar |
+| `app.ergobox.es` | Esta aplicación, un montón de ficheros estáticos | Donde quieras (§3) |
+| — | Base de datos, usuarios y fotos | Supabase |
+
+**La aplicación no necesita servidor.** `npm run build` deja en `dist/` un
+`index.html`, un CSS y un par de ficheros JavaScript. Eso es todo: se descarga
+entera en el móvil y desde ahí habla directamente con Supabase.
+
+Que hable directa con Supabase no la hace menos segura. Quien decide qué datos
+salen son las políticas de la base de datos, que resuelven quién eres a partir de
+tu token, y deciden lo mismo venga la consulta de donde venga. La prueba de eso
+está escrita y se pasa en un comando: §2.3.
+
+**Por qué un subdominio y no `ergobox.es/app`.** Con una carpeta habría que
+mezclar dos cosas que se despliegan por separado en el mismo sitio. Un subdominio
+es un registro de DNS y un enlace en el menú, y se deshace borrando el registro.
+
+---
+
+## 2. Supabase
+
+### 2.1 Crear el proyecto
+
+**Ya está creado**: referencia `pbepyegrmajoozplpjxy`, región eu-west-1. Lo que
+sigue es la receta, por si algún día hay que levantar otro.
+
+Región **eu-west** (Irlanda o Fráncfort): los datos son de clientes españoles y el
+servidor conviene tenerlo cerca, tanto por latencia como por el RGPD.
+
+### 2.2 Aplicar las migraciones
+
+```bash
+supabase link --project-ref <tu-project-ref>
+supabase db push
+```
+
+Sin la CLI, pega los ficheros de `supabase/migrations/` en el SQL Editor **en
+orden de nombre**. Ninguno es opcional:
+
+| Fichero | Qué deja |
+|---|---|
+| `..._esquema.sql` | Tablas, enums y el trigger de alta de perfil |
+| `..._logica.sql` | Próxima revisión, cierre de parte, cierre de servicio, vista del parque |
+| `..._rls.sql` | **Row Level Security.** Es lo único que separa un box de otro |
+| `..._almacenamiento.sql` | Bucket privado de fotos y sus políticas |
+| `..._vista_parque_completa.sql` | Tres columnas que faltaban en la vista |
+| `..._historico.sql` | Cambios de estado, bajas y validación de anotaciones |
+| `..._email_perfil.sql` | El correo copiado al perfil, para no leerlo con la clave de servicio |
+| `..._avisos.sql` | A quién avisar y de qué, con la regla que evita repetirse |
+| `..._permisos_funciones.sql` | Quita de la API pública las funciones que no pinta nadie ahí |
+| `..._cadencia_sugerida.sql` | La cadencia que decide el técnico al cerrar un parte |
+| `..._fotos_de_maquina.sql` | Fotos de inventario, que cuelgan de la máquina y no de un parte |
+
+### 2.3 Comprobar que el aislamiento funciona
+
+Dos maneras, la misma prueba:
+
+**Sin instalar nada.** Abre *SQL Editor* en el panel de Supabase, pega entero
+`scripts/probar-aislamiento-editor.sql` y pulsa *Run*.
+
+**Con `psql`**, usando la cadena de conexión de *Project Settings → Database*:
+
+```bash
+psql "<cadena-de-conexion>" -v ON_ERROR_STOP=1 -f scripts/probar-aislamiento.sql
+```
+
+Tiene que terminar en `TODO EN ORDEN`. **Si falla, no des acceso a ningún cliente
+hasta arreglarlo**: en esta arquitectura las políticas no son una capa más, son la
+única.
+
+Un detalle de la versión del editor que despista: **`TODO EN ORDEN` sale en rojo,
+como si fuera un error, y significa que ha ido bien.** Es a propósito. Reventar al
+final es lo que hace que se deshaga la siembra de prueba y no quede ni un box
+inventado en la base de datos. Lo que hay que mirar es el texto: si empieza por
+`FALLO ·`, ha ido mal.
+
+**Pasada el 12 de septiembre de 2026 contra `pbepyegrmajoozplpjxy`**: 57
+comprobaciones, incluidas las de las fotos de inventario, ninguna fila de un box
+asomando en las consultas del otro, ninguna escritura de cliente aceptada, y la
+base de datos igual que antes al terminar.
+
+Hay que repetirla cada vez que se toque una política, y otra vez antes de dar de
+alta al primer usuario de un box nuevo.
+
+### 2.4 Desplegar las funciones
+
+Son las únicas piezas del producto que corren fuera del navegador, y las tres
+existen por lo mismo: necesitan una llave que no puede bajar al móvil de nadie.
+La de servicio en dos de ellas, el token de Notion en la tercera.
+
+**Las tres están desplegadas** en `pbepyegrmajoozplpjxy`. Para volver a subirlas
+después de tocarlas:
+
+```bash
+supabase functions deploy alta-usuario
+supabase functions deploy avisar-revisiones
+supabase functions deploy importar-notion
+supabase secrets set ORIGEN_PERMITIDO=https://app.ergobox.es
+```
+
+La clave de servicio ya está disponible dentro de las funciones sin configurarla:
+Supabase la inyecta. `ORIGEN_PERMITIDO` no es imprescindible, pero sin él aceptan
+peticiones desde cualquier página, y ese sí conviene ponerlo en cuanto el
+subdominio esté en pie.
+
+Cada una se puede quedar sin configurar y lo único que pasa es que su botón dice
+que no está montado: sin `alta-usuario` no se da de alta a nadie, sin
+`avisar-revisiones` no hay avisos, y sin `importar-notion` se importa por fichero
+como siempre.
+
+### 2.5 La configuración de la aplicación publicada
+
+La aplicación busca su configuración en dos sitios, y en este orden: primero un
+fichero `config.json` junto a `index.html` en el servidor, y si no está o está
+roto, lo que se cocinó en el build con variables `VITE_`.
+
+Los dos caminos existen porque las dos formas de publicar son distintas. **En
+Hostinger manda `config.json`**, porque los ficheros se suben a mano y así
+cambiar de proyecto es editar tres líneas por FTP en vez de reconstruirlo todo.
+Si algún día se sirve desde un sitio que reconstruye en cada cambio, las
+variables `VITE_` son el sitio natural y no hace falta tocar nada más. Lo que
+sigue es el camino de Hostinger. Así cambiar de proyecto
+de Supabase es editar tres líneas por FTP, sin reinstalar Node ni reconstruir
+nada. La plantilla está en `public/config.example.json`.
+
+```json
+{
+  "supabaseUrl": "https://pbepyegrmajoozplpjxy.supabase.co",
+  "supabaseAnonKey": "<la clave anon, de Project Settings → API>",
+  "vapidPublicKey": ""
+}
+```
+
+Los tres valores viajan al navegador y se pueden leer. No pasa nada: la clave
+anónima es pública por diseño y no concede nada por sí sola —quien decide qué
+datos salen son las políticas de §2.3— y la VAPID pública es literalmente la mitad
+pública de un par de claves.
+
+`vapidPublicKey` se deja vacía hasta haber puesto los secretos de §2.8. Con la
+clave puesta y los secretos sin poner, el botón de aviso de prueba daría un error
+de servidor; vacía, la pantalla dice que los avisos no están disponibles, que es
+la verdad y se entiende.
+
+Si el fichero falta o está roto, la aplicación no se queda en blanco: enseña qué
+falta y con qué forma.
+
+**En desarrollo** sí valen las variables de entorno, con prefijo `VITE_` y en
+`.env.local`; el fichero `.env.example` las lista. **Si alguna vez ves una
+variable `VITE_` con la palabra `service` o `secret` en el nombre, es un incidente
+de seguridad y no una configuración.**
+
+### 2.6 El correo de alta
+
+Cuando das de alta a alguien desde `/admin`, la aplicación puede mandarle sus
+claves por correo desde `hola@ergobox.es` en vez de que las dictes tú.
+
+**Sin configurar esto no se rompe nada.** El alta sigue funcionando igual: crea el
+usuario, enseña la contraseña una sola vez y la pantalla dice que el envío no está
+montado. Puedes dejarlo para otro día.
+
+Hace falta un servicio que mande correo. Va con **Resend** porque es una clave y
+una llamada, sin servidor SMTP que mantener:
+
+1. Crea la cuenta en resend.com y añade el dominio `ergobox.es`.
+2. Resend te da tres o cuatro registros DNS. Se añaden en el hPanel de Hostinger,
+   en *Dominios → ergobox.es → DNS*. Son de tipo TXT y CNAME, y sirven para
+   demostrar que el dominio es tuyo y para firmar los envíos.
+3. Espera a que Resend marque el dominio como verificado. Suele tardar minutos,
+   a veces alguna hora.
+4. Crea una API key y guárdala como secreto de la función:
+
+```bash
+supabase secrets set RESEND_API_KEY=re_...
+supabase secrets set URL_APP=https://app.ergobox.es
+```
+
+También se pueden poner desde el panel, en *Edge Functions → alta-usuario →
+Secrets*.
+
+**Por qué los registros DNS no son opcional.** Sin ellos, un correo que dice venir
+de `hola@ergobox.es` no lo puede demostrar, y acaba en spam o directamente
+rechazado. Es lo que separa un correo de bienvenida de uno que nadie lee.
+
+Opcionalmente, `REMITENTE_CORREO` cambia el remitente; por defecto es
+`Ergobox <hola@ergobox.es>`.
+
+**Para comprobar que llega**, date de alta a ti mismo con otra dirección tuya. La
+pantalla te dirá si el correo salió, y si no salió, por qué.
+
+### 2.7 Importar el parque desde Notion
+
+Hay dos caminos y el corto no necesita dar de alta nada.
+
+**El corto, sin configurar nada.** En Notion, abre la base de máquinas del box,
+menú de los tres puntos, *Exportar*, formato CSV. Suelta ese fichero en la
+pantalla de importar de Ergobox. Sus columnas se entienden tal cual y no hay que
+renombrar nada.
+
+**El largo, con la integración.** Trae el parque sin exportar, pegando la
+dirección de la base. Ahorra dos clics por importación a cambio de montar una
+integración, así que solo compensa si vas a importar a menudo.
+
+Para el largo:
+
+1. Ve a notion.so/my-integrations y crea una **integración interna**. Dale acceso
+   de solo lectura al contenido: no necesita escribir nada.
+2. Copia su token, que empieza por `ntn_` o `secret_`, y guárdalo como secreto:
+
+```bash
+supabase secrets set NOTION_TOKEN=ntn_...
+```
+
+3. **Comparte cada base de máquinas con la integración.** Esto es lo que se
+   olvida siempre: crear el token no da acceso a nada. En Notion, abre la base,
+   menú de los tres puntos arriba a la derecha, *Conexiones*, y añade la
+   integración de Ergobox. Hay que hacerlo una vez por base, y hay una por box.
+
+Después, en la pantalla de importar de un box, pega la dirección de su base y
+pulsa *Traer de Notion*.
+
+**Qué columnas se leen**, en los dos caminos, y da igual cómo estén escritas
+mientras se parezcan:
+
+| En Notion | En Ergobox |
+|---|---|
+| La columna de título, se llame como se llame | `nombre` |
+| `Tipo` | `tipo` |
+| `Nº serie` | `num_serie` |
+| `Estado` | `estado` |
+| `Notas` | `notas` |
+| `Fecha de servicio` | `ultima_revision` |
+| `Marca`, `Modelo`, `Ubicación` | los suyos |
+
+`Servicio hecho` entra como verde y `Por revisar` como sin revisar, que es lo que
+significan. Damper, drag factor, importes y trabajo hecho **no** se importan: eso
+no es la ficha de una máquina, es lo que pasó en una visita, y va en un parte.
+
+Las fechas se entienden con el mes escrito, en español y en inglés: «8 de
+septiembre de 2026» y «September 8, 2026». Notion exporta en el idioma que tenga
+puesto el espacio de trabajo, y sin esto la columna de última revisión llegaría
+entera vacía y todas las máquinas parecerían no haberse revisado nunca.
+
+Si Notion responde que no encuentra la base, casi siempre es el paso 3.
+
+### 2.8 Los avisos de revisión
+
+Hacen falta un par de claves VAPID, que es lo que demuestra a los servicios de
+push (Google, Apple, Mozilla) que el aviso viene de nosotros:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+La pública va al `config.json` del servidor como `vapidPublicKey`. La privada, al
+entorno de la función, junto con un secreto inventado que es lo que distingue una
+llamada del cron de una llamada de cualquiera:
+
+```bash
+supabase secrets set VAPID_PRIVATE_KEY=...
+supabase secrets set VAPID_PUBLIC_KEY=...
+supabase secrets set VAPID_SUBJECT=mailto:hola@ergobox.es
+supabase secrets set CRON_SECRET=<una cadena larga inventada>
+```
+
+Después se programa el aviso diario. La vía cómoda es el panel de Supabase, en
+*Integrations → Cron*, creando un job que invoque `avisar-revisiones` una vez al
+día y añadiendo a mano la cabecera `x-cron-secret`. La vía en SQL, con sus
+comentarios, está en `supabase/cron/programar-avisos.sql`.
+
+**Para comprobar que llega**, no hace falta esperar a que a una máquina le toque:
+entra en `/ajustes` desde el móvil, activa los avisos y pulsa "enviarme una de
+prueba". Si llega, el camino entero funciona.
+
+### 2.9 El primer administrador
+
+**Ya está creado**, con el correo `puertas.jonander@gmail.com` y rol `admin`. La
+contraseña temporal se entregó aparte y **hay que cambiarla al entrar**: está
+escrita en una conversación, que es exactamente donde no debe vivir una
+contraseña para siempre.
+
+El resto de altas se hacen desde `/admin`, pero esa pantalla exige ser
+administrador, así que el primero se pone a mano una vez:
+
+1. *Authentication → Users → Add user*, con contraseña y confirmando el correo.
+2. *Table editor → perfiles*, en la fila recién creada: `rol = admin`.
+
+A partir de ahí, `/admin` da de alta a los dueños de box: crea el usuario, lo ata
+a su box y enseña una contraseña temporal una sola vez.
+
+---
+
+## 3. Dónde se publica: Hostinger, con el subdominio
+
+Ergobox vive en `app.ergobox.es`, en el Hostinger que ya pagas. No hay proveedor
+nuevo, no hay factura nueva y no hay servidor que mantener.
+
+Al ser ficheros estáticos, sirve cualquier hosting, con dos condiciones:
+
+1. **HTTPS.** Sin él la cámara del móvil no está disponible desde el navegador y
+   la aplicación no se puede instalar. La mitad del producto deja de funcionar.
+2. **Que cualquier dirección se sirva con `index.html`.** El repositorio trae los
+   ficheros que lo consiguen: `public/.htaccess` para Apache, que es lo que usa
+   Hostinger, y `public/_redirects` por si algún día se sirve desde otro sitio.
+   Sin eso, entrar directamente en `app.ergobox.es/boxes` daría un 404.
+
+### 3.1 La rama `publicar`, que es la clave de todo
+
+Hostinger sirve los ficheros que encuentra: no sabe construir nada, y su
+integración con Git tampoco ejecuta `npm run build`. Solo trae lo que hay en una
+rama.
+
+Por eso existe la rama **`publicar`**, que no lleva código fuente. Lleva
+exactamente lo que tiene que haber dentro de la carpeta del subdominio: el
+`index.html`, los `assets`, los iconos, el `sw.js`, el `.htaccess` y el
+`config.json` ya relleno. Dieciséis ficheros.
+
+La genera `scripts/publicar.sh` después de cada cambio:
+
+```bash
+bash scripts/publicar.sh
+```
+
+Construye, le pone la configuración de producción al lado, y reemplaza la rama
+`publicar` con el resultado. Con una sola entrega de historia: a nadie le
+interesa el histórico de una carpeta de ficheros construidos.
+
+**Eso lo lanzo yo.** Tú no necesitas ejecutarlo nunca.
+
+**Por qué el `config.json` sí viaja en esa rama.** La clave anónima es pública
+por diseño: baja a cada navegador que abre la aplicación, y no concede nada por
+sí sola. Quien decide qué datos salen son las políticas de §2.3. La clave de
+servicio, que sí lo concede todo, no está en ninguna rama de este repositorio.
+
+### 3.2 Montarlo una vez
+
+1. hPanel → *Dominios → Subdominios* → crea `app` si no existe. Apunta la carpeta
+   que te diga, del estilo `/domains/app.ergobox.es/public_html`.
+2. hPanel → busca **Git** (suele estar en *Avanzado → Git*). Crea un repositorio:
+   - Dirección: `https://github.com/puertasjonander-maker/Software-Hosteleria`
+   - Rama: **`publicar`**
+   - Directorio: la carpeta del subdominio del paso 1.
+3. Si el repositorio es privado, Hostinger te dará una clave pública SSH. Se añade
+   en GitHub, en *Settings → Deploy keys* del repositorio, con permiso de solo
+   lectura.
+4. hPanel → *SSL* → activa el certificado para el subdominio.
+
+### 3.3 Redesplegar, que es lo que harás de aquí en adelante
+
+En el hPanel, en esa misma pantalla de Git, hay un botón de **desplegar**.
+Púlsalo y Hostinger trae la última versión de la rama `publicar`. Eso es todo.
+
+Ni FTP, ni `.zip`, ni arrastrar carpetas. Cuando yo toque algo, actualizo la rama
+y te aviso; tú pulsas el botón.
+
+*(No puedo comprobar los nombres exactos de los menús del hPanel desde donde
+trabajo, así que si alguno no se llama igual, dímelo y lo ajusto. La idea es la
+misma: un repositorio, la rama `publicar`, la carpeta del subdominio.)*
+
+### 3.4 Si algún día quieres que se publique solo
+
+Se puede, con Netlify o Cloudflare Pages conectados al repositorio, y entonces no
+hace falta ni pulsar el botón. Cambia el sitio donde vive la aplicación y obliga a
+mover el DNS, así que no se hace mientras Hostinger funcione bien. Queda apuntado
+por si algún día molesta pulsar el botón.
+
+---
+
+## 4. El DNS
+
+hPanel → *Dominios → ergobox.es → DNS / Nameservers*.
+
+Con el subdominio de Hostinger no hay nada que hacer: se crea solo al crear el
+subdominio. Con Netlify o Cloudflare, un registro:
+
+| Tipo | Nombre | Apunta a |
+|---|---|---|
+| `CNAME` | `app` | El destino que te dé el proveedor |
+
+**Nada de esto toca `ergobox.es`.** El registro del dominio raíz se queda como
+está y la web sigue publicándose igual.
+
+---
+
+## 5. El enlace desde la web
+
+En el repositorio de la web, en el menú de `index.html`, junto a los enlaces
+actuales y antes del botón de reservar:
+
+```html
+<a href="https://app.ergobox.es" class="nav-link">Acceso clientes</a>
+```
+
+Un enlace normal, sin `target="_blank"`: quien entra a mirar su parque no quiere
+una pestaña más, quiere estar dentro.
+
+Ese cambio hay que hacerlo en el otro repositorio, no en este.
+
+---
+
+## 6. Antes de dar la dirección a un cliente
+
+- [ ] La clave de Hostinger, revocada (§0).
+- [x] `probar-aislamiento.sql` termina en `TODO EN ORDEN` contra el Supabase real.
+- [ ] `https://app.ergobox.es` carga con candado y sin avisos.
+- [ ] Has cambiado la contraseña temporal del administrador (§2.9).
+- [ ] Entrar directamente en `https://app.ergobox.es/boxes` funciona y no da 404.
+      Si lo da, falta el `.htaccess` o el `_redirects`.
+- [ ] Entras como administrador y ves los boxes.
+- [ ] Das de alta un usuario de prueba atado a un box, entras con él y **solo** ves
+      ese box.
+- [ ] Ese usuario ve las fotos de su historial.
+- [ ] Desde el móvil, "Añadir a pantalla de inicio" instala la aplicación, y una
+      vez instalada abre en modo avión.
+- [ ] En `/ajustes`, activar los avisos y pulsar "enviarme una de prueba" hace que
+      llegue una notificación al móvil. *(Solo después de §2.8; hasta entonces la
+      pantalla dirá que no están disponibles, y eso no impide lanzar.)*
